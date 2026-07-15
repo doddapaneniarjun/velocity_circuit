@@ -266,6 +266,17 @@ let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
 
 async function loadState(){
+  // If the player closed the tab mid-race last time, a rollback snapshot was
+  // written to localStorage. Apply it now (and clear it) before reading the
+  // main save, so the partial race is discarded.
+  try{
+    const rollback = localStorage.getItem('velocityCircuitRollback');
+    if(rollback){
+      localStorage.removeItem('velocityCircuitRollback');
+      await window.storage.set('velocityCircuitState', rollback, false);
+    }
+  }catch(e){}
+
   try{
     const r = await window.storage.get('velocityCircuitState', false);
     if(r && r.value){
@@ -291,6 +302,37 @@ async function loadState(){
 async function saveState(){
   try{ await window.storage.set('velocityCircuitState', JSON.stringify(gameState), false); }catch(e){ /* best effort */ }
 }
+
+// Snapshot taken just before each race starts. If the player closes the tab
+// mid-race, we restore this snapshot so the race never happened (no coins
+// earned mid-lap, no races-completed increment). Only a fully finished race
+// commits the new gameState permanently.
+let preRaceSnapshot = null;
+
+function takePreRaceSnapshot(){
+  preRaceSnapshot = JSON.stringify(gameState);
+}
+
+async function restorePreRaceSnapshot(){
+  if(!preRaceSnapshot) return;
+  try{
+    await window.storage.set('velocityCircuitState', preRaceSnapshot, false);
+  }catch(e){ /* best effort */ }
+}
+
+// On tab/window close: if a race is still in progress, roll back to the
+// pre-race snapshot so the partial run is discarded.
+window.addEventListener('beforeunload', ()=>{
+  const midRace = appState === 'racing' || appState === 'racing-countdown' || appState === 'paused';
+  if(midRace && preRaceSnapshot){
+    // Use synchronous localStorage as a best-effort fallback since async
+    // storage may not flush in time during unload. We write to a known key
+    // so loadState() can pick it up on next open.
+    try{ localStorage.setItem('velocityCircuitRollback', preRaceSnapshot); }catch(e){}
+  } else {
+    try{ localStorage.removeItem('velocityCircuitRollback'); }catch(e){}
+  }
+});
 
 /* ============================= CONSTANTS ============================= */
 const TOTAL_LAPS = 3;
@@ -1374,6 +1416,10 @@ window.addEventListener('keyup', e=>{ keys[e.code] = false; });
 
 /* ---------- Race setup ---------- */
 function startRace(stageIndex){
+  // Snapshot current state before the race modifies coins / racesCompleted.
+  // If the player closes the tab before finishing, this snapshot is restored.
+  takePreRaceSnapshot();
+
   if(trackGroup){ scene && disposeObject(trackGroup); }
   const stage = STAGES[stageIndex];
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
@@ -1589,47 +1635,69 @@ function updateCar(car, dt){
   }
 }
 
-/* ---------- Car-to-car collision ---------- */
-const COLLISION_DIST = CAR_HALF_WIDTH * 2.15;
+/* ---------- Car-to-car collision ----------
+   Strategy: position-based iterative solver.
+   1. Run COLLISION_ITERS sub-iterations per frame so fast cars cannot tunnel.
+      Each pass pushes every overlapping pair fully apart with a small margin.
+   2. Velocity correction (first iteration only): remove the approach component
+      along the contact normal using a perfectly-inelastic model (restitution=0).
+      This stops cars approaching without adding any "bounce" energy.
+   3. Tiny friction scrub only — no speed amplification, no flying.
+------------------------------------------------------------------------ */
+const COLLISION_DIST = CAR_HALF_WIDTH * 2.2;
+const COLLISION_ITERS = 4;
+
 function resolveCollisions(dt){
   if(collisionToastCooldown > 0) collisionToastCooldown -= dt;
   const n = cars.length;
-  for(let i=0;i<n;i++){
-    for(let j=i+1;j<n;j++){
-      const a = cars[i], b = cars[j];
-      if(a.finished && b.finished) continue;
-      const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
-      const distSq = dx*dx + dz*dz;
-      if(distSq >= COLLISION_DIST*COLLISION_DIST || distSq < 1e-6) continue;
-      const dist = Math.sqrt(distSq);
-      const nx = dx/dist, nz = dz/dist;
 
-      // Separate the two cars so they don't overlap.
-      const overlap = COLLISION_DIST - dist;
-      a.pos.x -= nx*overlap*0.5; a.pos.z -= nz*overlap*0.5;
-      b.pos.x += nx*overlap*0.5; b.pos.z += nz*overlap*0.5;
+  for(let iter = 0; iter < COLLISION_ITERS; iter++){
+    for(let i = 0; i < n; i++){
+      for(let j = i+1; j < n; j++){
+        const a = cars[i], b = cars[j];
+        if(a.finished && b.finished) continue;
 
-      // Simple elastic-ish impulse along the collision normal, using each
-      // car's forward velocity as its momentum.
-      const aFwd = forwardVec(a.heading), bFwd = forwardVec(b.heading);
-      const aVelX = aFwd.x*a.speed, aVelZ = aFwd.z*a.speed;
-      const bVelX = bFwd.x*b.speed, bVelZ = bFwd.z*b.speed;
-      const relSpeed = (bVelX-aVelX)*nx + (bVelZ-aVelZ)*nz;
-      if(relSpeed < 0){
-        const restitution = 0.5;
-        const impulse = -(1+restitution)*relSpeed*0.5;
-        a.speed -= impulse;
-        b.speed += impulse;
-      }
-      // A glancing hit always scrubs some speed off both cars.
-      a.speed *= 0.88;
-      b.speed *= 0.88;
+        const dx = b.pos.x - a.pos.x;
+        const dz = b.pos.z - a.pos.z;
+        const distSq = dx*dx + dz*dz;
+        if(distSq >= COLLISION_DIST*COLLISION_DIST || distSq < 1e-8) continue;
 
-      if(a.isPlayer || b.isPlayer){
-        playerCollisions++;
-        if(collisionToastCooldown <= 0){
-          showToast('Collision!');
-          collisionToastCooldown = 0.7;
+        const dist = Math.sqrt(distSq);
+        const nx = dx/dist, nz = dz/dist;
+
+        // 1. Positional correction — push both cars fully apart each iteration.
+        //    The small extra margin keeps them from oscillating at exact contact.
+        const overlap = COLLISION_DIST - dist + 0.02;
+        const half = overlap * 0.5;
+        a.pos.x -= nx*half;  a.pos.z -= nz*half;
+        b.pos.x += nx*half;  b.pos.z += nz*half;
+
+        // 2. Velocity correction — first iteration only to avoid double-applying.
+        if(iter === 0){
+          const aFwd = forwardVec(a.heading);
+          const bFwd = forwardVec(b.heading);
+          const aVn = aFwd.x*nx + aFwd.z*nz;
+          const bVn = bFwd.x*nx + bFwd.z*nz;
+          const relApproach = a.speed*aVn - b.speed*bVn;
+          if(relApproach > 0){
+            // Inelastic: remove exactly the approach component, split evenly.
+            const correction = relApproach * 0.5;
+            a.speed -= correction * aVn * 0.6;
+            b.speed += correction * bVn * 0.6;
+            a.speed = Math.max(-40, Math.min(40, a.speed));
+            b.speed = Math.max(-40, Math.min(40, b.speed));
+          }
+          // Tiny friction scrub.
+          a.speed *= 0.98;
+          b.speed *= 0.98;
+
+          if(a.isPlayer || b.isPlayer){
+            playerCollisions++;
+            if(collisionToastCooldown <= 0){
+              showToast('Collision!');
+              collisionToastCooldown = 0.7;
+            }
+          }
         }
       }
     }
@@ -2283,6 +2351,10 @@ function finishRace(){
 
   refreshCoinDisplays();
   saveState();
+  // Race fully completed — no rollback needed. Clear snapshot and any stale
+  // localStorage rollback so the result is kept if the tab closes now.
+  preRaceSnapshot = null;
+  try{ localStorage.removeItem('velocityCircuitRollback'); }catch(e){}
 
   $('resultTitle').textContent = pos===1 ? 'Victory!' : 'Race Complete!';
   $('resultBody').innerHTML = `
