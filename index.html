@@ -1499,21 +1499,28 @@ function startRace(stageIndex){
   // turnBonus scales with difficulty so CPUs corner better on tight tracks.
   // ±3 variance keeps the three rivals from feeling identical.
   const skillFrac = gameState.skillRating / 100;           // 0–1
+  // Each CPU gets a fixed lane offset (lateral distance from centreline).
+  // Spread them across the usable track width so no two share a lane.
+  // laneOffsets[0] is the player's slot — CPUs take the other three.
+  const cpuLaneOffsets = [-4.0, 1.35, 4.0]; // left edge, right-centre, right edge
   const cpuColorPool = CARS.map((c,i)=>i).filter(i=>i!==gameState.selectedCar);
   for(let n=0;n<3;n++){
     const ci = cpuColorPool[n % cpuColorPool.length];
     const variance = (Math.random() * 6) - 3;              // ±3
     const aiSkill = 0.80 + skillFrac * 0.28 + Math.random() * 0.08;  // 0.80–1.16
     const cpu = makeCar(false, CARS[ci].color, aiSkill);
-    cpu.diffBonus = skillFrac * 14 + stage.difficulty * 1.2 + variance; // speed bonus matches skill, tiny diff nudge
+    cpu.diffBonus = skillFrac * 14 + stage.difficulty * 1.2 + variance;
     cpu.turnBonus = stage.difficulty * 0.035;
+    cpu.laneOffset = cpuLaneOffsets[n];   // permanent lane assignment
     cars.push(cpu);
   }
   playerCollisions = 0;
   collisionToastCooldown = 0;
 
   cars.forEach((car, i)=>{
-    car.pos.copy(track.points[0]).add(startNormal.clone().multiplyScalar(laneOffsets[i]));
+    // Starting grid position: player gets slot index 1 (-1.35), CPUs use their assigned lane offsets
+    const gridOff = car.isPlayer ? -1.35 : (car.laneOffset || laneOffsets[i]);
+    car.pos.copy(track.points[0]).add(startNormal.clone().multiplyScalar(gridOff));
     car.pos.y = 0;
     car.heading = startHeading;
     car.trackIndex = 0; car.prevIndex = 0; car.aiTarget = 8;
@@ -1585,12 +1592,22 @@ function updateCar(car, dt){
     brake = (keys['ArrowDown']||keys['KeyS']) ? 1 : 0;
     steer = ((keys['ArrowLeft']||keys['KeyA'])?1:0) - ((keys['ArrowRight']||keys['KeyD'])?1:0);
   } else {
-    const target = track.points[car.aiTarget];
+    // Build a lane-offset waypoint: shift the centreline point laterally by
+    // this CPU's assigned lane so it steers toward its own lane, not the middle.
+    const rawTarget = track.points[car.aiTarget];
+    const tNormal   = track.normals[car.aiTarget];
+    const laneOff   = car.laneOffset || 0;
+    const target = new THREE.Vector3(
+      rawTarget.x + tNormal.x * laneOff,
+      rawTarget.y,
+      rawTarget.z + tNormal.z * laneOff
+    );
     const dx = target.x - car.pos.x, dz = target.z - car.pos.z;
     const desired = Math.atan2(dx, dz);
     const diff = normalizeAngle(desired - car.heading);
     steer = Math.max(-1, Math.min(1, diff*2.2));
     throttle = Math.max(0.35, car.aiSkill*0.95 - Math.min(Math.abs(diff)*0.5, 0.5));
+    // Arrival check against the offset target
     if(car.pos.distanceTo(target) < 7){
       car.aiTarget = (car.aiTarget + 7) % track.N;
     }
