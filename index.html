@@ -219,14 +219,35 @@
     </div>
 
     <div class="overlay" id="pauseOverlay" hidden>
-      <div class="overlayCard">
+      <!-- Pause menu -->
+      <div class="overlayCard" id="pauseCard">
         <h2>Paused</h2>
         <p>Take a breath.</p>
         <div class="btnRow" style="flex-direction:column;">
           <button class="btn" id="resumeBtn">Resume</button>
+          <button class="btn secondary" id="settingsBtn">⚙️ Settings</button>
           <button class="btn secondary" id="restartBtn">Restart Race</button>
           <button class="btn ghost" id="quitBtn">Quit to Home</button>
         </div>
+      </div>
+      <!-- Settings panel (hidden until Settings is clicked) -->
+      <div class="overlayCard" id="settingsCard" hidden>
+        <h2>Settings</h2>
+        <p style="color:var(--muted);margin:0 0 22px;">Adjust controls and preferences.</p>
+        <div style="margin-bottom:24px;text-align:left;">
+          <label style="display:block;font-weight:700;margin-bottom:8px;">
+            Steering Sensitivity
+            <span id="sensitivityVal" style="color:var(--accent);margin-left:8px;">50</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="color:var(--muted);font-size:13px;">Low</span>
+            <input type="range" id="sensitivitySlider" min="0" max="100" value="50"
+              style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
+            <span style="color:var(--muted);font-size:13px;">High</span>
+          </div>
+          <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">Controls how sharply your car responds to steering input.</p>
+        </div>
+        <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
       </div>
     </div>
 
@@ -260,77 +281,78 @@ const DEFAULT_STATE = {
   bestLaps: {},
   racesCompleted: 0,
   skillRating: 50,
-  soundOn: true
+  soundOn: true,
+  sensitivity: 50   // 0–100; maps to a turn-rate multiplier of 0.4–1.6
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
 
-async function loadState(){
-  // If the player closed the tab mid-race last time, a rollback snapshot was
-  // written to localStorage. Apply it now (and clear it) before reading the
-  // main save, so the partial race is discarded.
+/* ===== SAVE / LOAD — uses localStorage (works in any browser, any context) ===== */
+const SAVE_KEY     = 'velocityCircuit_save';
+const ROLLBACK_KEY = 'velocityCircuit_rollback';
+
+function loadState(){
+  // If the player closed mid-race last session a rollback snapshot was written.
+  // Restore it first so the partial run is discarded.
   try{
-    const rollback = localStorage.getItem('velocityCircuitRollback');
+    const rollback = localStorage.getItem(ROLLBACK_KEY);
     if(rollback){
-      localStorage.removeItem('velocityCircuitRollback');
-      await window.storage.set('velocityCircuitState', rollback, false);
+      localStorage.removeItem(ROLLBACK_KEY);
+      localStorage.setItem(SAVE_KEY, rollback);
     }
   }catch(e){}
 
   try{
-    const r = await window.storage.get('velocityCircuitState', false);
-    if(r && r.value){
-      const parsed = JSON.parse(r.value);
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
       gameState = Object.assign({}, DEFAULT_STATE, parsed);
-      gameState.upgrades = Object.assign({}, DEFAULT_STATE.upgrades, parsed.upgrades||{});
-      gameState.ownedCars = Array.isArray(parsed.ownedCars) && parsed.ownedCars.length ? parsed.ownedCars.slice() : DEFAULT_STATE.ownedCars.slice();
-      gameState.bestLaps = parsed.bestLaps && typeof parsed.bestLaps==='object' ? parsed.bestLaps : {};
+      gameState.upgrades  = Object.assign({}, DEFAULT_STATE.upgrades, parsed.upgrades||{});
+      gameState.ownedCars = Array.isArray(parsed.ownedCars) && parsed.ownedCars.length
+        ? parsed.ownedCars.slice() : DEFAULT_STATE.ownedCars.slice();
+      gameState.bestLaps       = parsed.bestLaps && typeof parsed.bestLaps==='object' ? parsed.bestLaps : {};
       gameState.racesCompleted = Number.isFinite(parsed.racesCompleted) ? parsed.racesCompleted : 0;
-      gameState.skillRating = Number.isFinite(parsed.skillRating) ? parsed.skillRating : 50;
-      gameState.soundOn = parsed.soundOn !== false;
+      gameState.skillRating    = Number.isFinite(parsed.skillRating)    ? parsed.skillRating    : 50;
+      gameState.soundOn        = parsed.soundOn !== false;
+      gameState.sensitivity    = Number.isFinite(parsed.sensitivity) ? parsed.sensitivity : 50;
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
     }
-  }catch(e){ /* first run, no save yet */ }
+  }catch(e){ /* first run or corrupted save — start fresh */ }
+
   stateLoaded = true;
   refreshSoundBtn();
   refreshCoinDisplays();
   renderGarage();
   renderStageGrid();
 }
-async function saveState(){
-  try{ await window.storage.set('velocityCircuitState', JSON.stringify(gameState), false); }catch(e){ /* best effort */ }
+
+function saveState(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(gameState)); }catch(e){}
 }
 
-// Snapshot taken just before each race starts. If the player closes the tab
-// mid-race, we restore this snapshot so the race never happened (no coins
-// earned mid-lap, no races-completed increment). Only a fully finished race
-// commits the new gameState permanently.
+// Snapshot of gameState taken just before each race. If the tab closes
+// mid-race the rollback key is written so the next load discards the partial run.
 let preRaceSnapshot = null;
 
 function takePreRaceSnapshot(){
   preRaceSnapshot = JSON.stringify(gameState);
 }
 
-async function restorePreRaceSnapshot(){
+function restorePreRaceSnapshot(){
   if(!preRaceSnapshot) return;
-  try{
-    await window.storage.set('velocityCircuitState', preRaceSnapshot, false);
-  }catch(e){ /* best effort */ }
+  try{ localStorage.setItem(SAVE_KEY, preRaceSnapshot); }catch(e){}
 }
 
-// On tab/window close: if a race is still in progress, roll back to the
-// pre-race snapshot so the partial run is discarded.
+// On close/reload: mid-race → write rollback so progress is discarded on next open.
+// Finished race / home → ensure no stale rollback key exists.
 window.addEventListener('beforeunload', ()=>{
   const midRace = appState === 'racing' || appState === 'racing-countdown' || appState === 'paused';
   if(midRace && preRaceSnapshot){
-    // Use synchronous localStorage as a best-effort fallback since async
-    // storage may not flush in time during unload. We write to a known key
-    // so loadState() can pick it up on next open.
-    try{ localStorage.setItem('velocityCircuitRollback', preRaceSnapshot); }catch(e){}
+    try{ localStorage.setItem(ROLLBACK_KEY, preRaceSnapshot); }catch(e){}
   } else {
-    try{ localStorage.removeItem('velocityCircuitRollback'); }catch(e){}
+    try{ localStorage.removeItem(ROLLBACK_KEY); }catch(e){}
   }
 });
 
@@ -1469,18 +1491,21 @@ function startRace(stageIndex){
   player = makeCar(true, playerCarDef.color, 1);
   cars.push(player);
 
-  // CPU cars are tuned to match the player's tracked skill rating (0-100, learned
-  // from past finishes), plus a per-track difficulty bump and a little variance
-  // per car so the pack doesn't feel robotic. They also rubber-band live during
-  // the race (see updateRubberBand) so a lucky or rough lap doesn't lock in.
-  const skillBonus = (gameState.skillRating / 100) * 26;
-  const diffBonus = stage.difficulty * 4;
+  // CPU speed is derived purely from the player's skill rating so the pack
+  // always feels matched to how well the player is actually driving.
+  // aiSkill (0.8–1.08) drives the max-speed multiplier in updateCar.
+  // diffBonus is a small flat add so higher-difficulty tracks feel faster
+  // overall, but it's kept tiny (max +8) so it never swamps the skill match.
+  // turnBonus scales with difficulty so CPUs corner better on tight tracks.
+  // ±3 variance keeps the three rivals from feeling identical.
+  const skillFrac = gameState.skillRating / 100;           // 0–1
   const cpuColorPool = CARS.map((c,i)=>i).filter(i=>i!==gameState.selectedCar);
   for(let n=0;n<3;n++){
     const ci = cpuColorPool[n % cpuColorPool.length];
-    const variance = (Math.random()*6) - 3;
-    const cpu = makeCar(false, CARS[ci].color, 0.8 + (gameState.skillRating/100)*0.28 + Math.random()*0.12);
-    cpu.diffBonus = skillBonus + diffBonus + variance;
+    const variance = (Math.random() * 6) - 3;              // ±3
+    const aiSkill = 0.80 + skillFrac * 0.28 + Math.random() * 0.08;  // 0.80–1.16
+    const cpu = makeCar(false, CARS[ci].color, aiSkill);
+    cpu.diffBonus = skillFrac * 14 + stage.difficulty * 1.2 + variance; // speed bonus matches skill, tiny diff nudge
     cpu.turnBonus = stage.difficulty * 0.035;
     cars.push(cpu);
   }
@@ -1548,8 +1573,9 @@ function updateCar(car, dt){
     + (car.isPlayer ? gameState.upgrades.speed*6 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
   const accel = (BASE_ACCEL
     + (car.isPlayer ? gameState.upgrades.accel*5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
-  const turnRate = BASE_TURN
-    + (car.isPlayer ? gameState.upgrades.handling*0.28 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus);
+  const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
+  const turnRate = (BASE_TURN
+    + (car.isPlayer ? gameState.upgrades.handling*0.28 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
   const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*7 : 0);
 
   let throttle=0, brake=0, steer=0;
@@ -2284,6 +2310,9 @@ const Sound = (function(){
 /* ---------- Race flow control ---------- */
 function pauseRace(){
   appState = 'paused';
+  // Always show the main pause card, not settings, when pausing.
+  $('pauseCard').hidden = false;
+  $('settingsCard').hidden = true;
   $('pauseOverlay').hidden = false;
   Sound.suspend();
   announce('Race paused');
@@ -2323,6 +2352,21 @@ $('soundBtn').addEventListener('click', ()=>{
 });
 
 $('resumeBtn').addEventListener('click', resumeRace);
+$('settingsBtn').addEventListener('click', ()=>{
+  $('pauseCard').hidden = true;
+  $('settingsCard').hidden = false;
+  $('sensitivitySlider').value = gameState.sensitivity;
+  $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
+});
+$('settingsBackBtn').addEventListener('click', ()=>{
+  $('settingsCard').hidden = true;
+  $('pauseCard').hidden = false;
+});
+$('sensitivitySlider').addEventListener('input', ()=>{
+  gameState.sensitivity = Number($('sensitivitySlider').value);
+  $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
+  saveState();
+});
 $('restartBtn').addEventListener('click', ()=>{ $('pauseOverlay').hidden = true; startRace(selectedStage); });
 $('quitBtn').addEventListener('click', ()=>{ $('pauseOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('home'); refreshCoinDisplays(); renderStageGrid(); });
 
@@ -2354,7 +2398,7 @@ function finishRace(){
   // Race fully completed — no rollback needed. Clear snapshot and any stale
   // localStorage rollback so the result is kept if the tab closes now.
   preRaceSnapshot = null;
-  try{ localStorage.removeItem('velocityCircuitRollback'); }catch(e){}
+  try{ localStorage.removeItem(ROLLBACK_KEY); }catch(e){}
 
   $('resultTitle').textContent = pos===1 ? 'Victory!' : 'Race Complete!';
   $('resultBody').innerHTML = `
@@ -2398,6 +2442,7 @@ function animate(now){
       lastAnnouncedCountdown = shown;
       announce(String(shown));
     }
+    updateHUD();
     Sound.update(dt);
     updateCamera(dt);
     renderer.render(scene, camera);
