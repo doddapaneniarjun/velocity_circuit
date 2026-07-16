@@ -829,76 +829,99 @@ function renderStageGrid(){
 
     grid.appendChild(wrap);
   });
-  drawStageThumbs();
+  blitStageThumbs();
+  ensureStagePhotos();
 }
 
-/* ---------- Track thumbnails ----------
-   Each home-screen card gets a top-down snapshot of the real circuit: the
-   centerline comes from the exact same generateCenterline() the race uses,
-   so the preview always matches the track you'll actually drive. The stage's
-   signature gradient stays on as the backdrop. Drawn once per grid render —
-   no animation loop needed. */
-function drawStageThumbs(){
+/* ---------- Stage scenery photos ----------
+   Each home-screen card shows an actual in-engine photo of the track's
+   surroundings: buildTrack() constructs the full themed environment (sky
+   dome, scenery, ground, road, barriers, crowd) and a camera standing just
+   off the road takes a trackside shot, lit by the same createStageScene()
+   the race uses. Photos are generated once per session — one stage per
+   animation frame to avoid a startup hitch — cached as small 2D canvases,
+   and the temporary WebGL renderer is torn down when the last one is done.
+   Until a stage's photo is ready, its card shows the signature gradient. */
+const PHOTO_W = 376, PHOTO_H = 180;
+const stagePhotos = [];      // stageIndex -> 2D canvas, cached for the session
+let stagePhotoJob = 0;       // rAF id while photos are being generated
+let stagePhotoRenderer = null;
+
+function blitStageThumbs(){
   document.querySelectorAll('#stageGrid .stageThumb').forEach(cv=>{
-    const s = STAGES[Number(cv.getAttribute('data-stage'))];
-    if(s) drawTrackThumb(cv, s);
+    const i = Number(cv.getAttribute('data-stage'));
+    const s = STAGES[i];
+    if(!s) return;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if(stagePhotos[i]){
+      ctx.drawImage(stagePhotos[i], 0, 0, cv.width, cv.height);
+    } else {
+      const g = ctx.createLinearGradient(0, 0, cv.width, cv.height);
+      g.addColorStop(0, s.grad[0]);
+      g.addColorStop(1, s.grad[1]);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+    }
   });
 }
 
-function drawTrackThumb(cv, stage){
-  const ctx = cv.getContext('2d');
-  const w = cv.width, h = cv.height;
-  ctx.clearRect(0, 0, w, h);
-
-  // Backdrop: the stage's signature gradient (same colors as the old solid thumbs).
-  const grad = ctx.createLinearGradient(0, 0, w, h);
-  grad.addColorStop(0, stage.grad[0]);
-  grad.addColorStop(1, stage.grad[1]);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, w, h);
-
-  // Fit the circuit into the canvas with even padding, preserving aspect.
-  const pts = generateCenterline(stage.type, 140);
-  let minX=Infinity, maxX=-Infinity, minZ=Infinity, maxZ=-Infinity;
-  pts.forEach(p=>{
-    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
-  });
-  const pad = 16;
-  const scale = Math.min((w - pad*2)/Math.max(maxX - minX, 1), (h - pad*2)/Math.max(maxZ - minZ, 1));
-  const ox = (w - (maxX - minX)*scale)/2 - minX*scale;
-  const oy = (h - (maxZ - minZ)*scale)/2 - minZ*scale;
-  const X = p => p.x*scale + ox;
-  const Y = p => p.z*scale + oy;
-
-  const roadW = Math.max(5, Math.min(13, stage.width*scale)); // wider tracks draw as wider ribbons
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  const trace = ()=>{
-    ctx.beginPath();
-    ctx.moveTo(X(pts[0]), Y(pts[0]));
-    for(let i=1; i<pts.length; i++) ctx.lineTo(X(pts[i]), Y(pts[i]));
-    ctx.closePath();
+function ensureStagePhotos(){
+  if(stagePhotoJob) return; // a generation pass is already running
+  if(STAGES.every((_, i)=>stagePhotos[i])) return; // all cached
+  const step = ()=>{
+    const i = STAGES.findIndex((_, idx)=>!stagePhotos[idx]);
+    if(i === -1){
+      // All photos done — free the temporary WebGL context.
+      if(stagePhotoRenderer){
+        stagePhotoRenderer.dispose();
+        if(stagePhotoRenderer.forceContextLoss) stagePhotoRenderer.forceContextLoss();
+        stagePhotoRenderer = null;
+      }
+      stagePhotoJob = 0;
+      return;
+    }
+    stagePhotos[i] = renderStagePhoto(i);
+    const cv = document.querySelector(`#stageGrid .stageThumb[data-stage="${i}"]`);
+    if(cv){
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(stagePhotos[i], 0, 0, cv.width, cv.height);
+    }
+    stagePhotoJob = requestAnimationFrame(step);
   };
+  stagePhotoJob = requestAnimationFrame(step);
+}
 
-  // Dark casing, asphalt ribbon, then a dashed center line for contrast on any backdrop.
-  trace(); ctx.strokeStyle = 'rgba(7,11,18,0.88)';    ctx.lineWidth = roadW + 4; ctx.stroke();
-  trace(); ctx.strokeStyle = '#3c495f';               ctx.lineWidth = roadW;     ctx.stroke();
-  trace(); ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.6;
-  ctx.setLineDash([7, 9]); ctx.stroke(); ctx.setLineDash([]);
+function renderStagePhoto(stageIndex){
+  if(!stagePhotoRenderer){
+    stagePhotoRenderer = new THREE.WebGLRenderer({ antialias:true });
+    stagePhotoRenderer.setPixelRatio(1);
+    stagePhotoRenderer.setSize(PHOTO_W, PHOTO_H, false);
+  }
+  const stage = STAGES[stageIndex];
+  const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
+  const snapScene = createStageScene(theme);
+  const built = buildTrack(stageIndex);
+  snapScene.add(built.group);
 
-  // Start/finish tick, perpendicular to the direction of travel at the first point.
-  const a = pts[0], b = pts[1];
-  const dx = X(b) - X(a), dy = Y(b) - Y(a), len = Math.hypot(dx, dy) || 1;
-  const nx = -dy/len, ny = dx/len, half = roadW/2 + 2;
-  const tick = (style, width)=>{
-    ctx.beginPath();
-    ctx.moveTo(X(a) - nx*half, Y(a) - ny*half);
-    ctx.lineTo(X(a) + nx*half, Y(a) + ny*half);
-    ctx.strokeStyle = style; ctx.lineWidth = width; ctx.stroke();
-  };
-  tick('rgba(7,11,18,0.9)', 5);
-  tick('#ffffff', 2.5);
+  // Trackside shot: stand just off the road, look down it at driver height,
+  // so the road, barriers, surrounding scenery and sky all land in frame.
+  const k = Math.floor(built.N * 0.12); // a little way past the start line
+  const ahead = built.points[(k + 14) % built.N];
+  const camera = new THREE.PerspectiveCamera(55, PHOTO_W/PHOTO_H, 0.1, 900);
+  camera.position.copy(built.points[k])
+    .addScaledVector(built.normals[k], built.width/2 + 7);
+  camera.position.y = 5;
+  camera.lookAt(ahead.x, 1.2, ahead.z);
+
+  stagePhotoRenderer.render(snapScene, camera);
+  const out = document.createElement('canvas');
+  out.width = PHOTO_W; out.height = PHOTO_H;
+  out.getContext('2d').drawImage(stagePhotoRenderer.domElement, 0, 0, PHOTO_W, PHOTO_H);
+
+  disposeObject(built.group); // free this stage's geometry, materials and textures
+  return out;
 }
 
 $('startRaceBtn').addEventListener('click', ()=>{
@@ -2114,22 +2137,16 @@ window.addEventListener('keydown', e=>{
 window.addEventListener('keyup', e=>{ keys[e.code] = false; });
 
 /* ---------- Race setup ---------- */
-function startRace(stageIndex){
-  // Snapshot current state before the race modifies coins / racesCompleted.
-  // If the player closes the tab before finishing, this snapshot is restored.
-  takePreRaceSnapshot();
-
-  if(trackGroup){ scene && disposeObject(trackGroup); }
-  const stage = STAGES[stageIndex];
-  const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
-
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(theme.sky[0]);
-  scene.fog = new THREE.Fog(new THREE.Color(theme.sky[1]).getHex(), 90, 340);
+/* Themed scene + lighting, shared by the race itself and the home-screen
+   stage photos so a snapshot is lit exactly like real gameplay. */
+function createStageScene(theme){
+  const s = new THREE.Scene();
+  s.background = new THREE.Color(theme.sky[0]);
+  s.fog = new THREE.Fog(new THREE.Color(theme.sky[1]).getHex(), 90, 340);
 
   const preset = SKY_PRESETS[theme.skyStyle] || SKY_PRESETS.clearDay;
   const hemi = new THREE.HemisphereLight(new THREE.Color(theme.sky[1]), new THREE.Color(theme.ground).multiplyScalar(0.45), preset.sun ? 0.75 : 0.5);
-  scene.add(hemi);
+  s.add(hemi);
 
   // Put the key light where the sky texture paints its sun, so the ground and
   // cars are lit from the direction the player can actually see the sun.
@@ -2146,12 +2163,25 @@ function startRace(stageIndex){
     dir.color = new THREE.Color(theme.sky[1]);
     dir.intensity = 0.5;
   }
-  scene.add(dir);
+  s.add(dir);
 
   // Warm/cool bounce from the opposite side keeps shadowed faces from going flat
   const fill = new THREE.DirectionalLight(new THREE.Color(theme.sky[0]).lerp(new THREE.Color('#ffffff'), 0.3), 0.35);
   fill.position.set(-dir.position.x, 60, -dir.position.z);
-  scene.add(fill);
+  s.add(fill);
+  return s;
+}
+
+function startRace(stageIndex){
+  // Snapshot current state before the race modifies coins / racesCompleted.
+  // If the player closes the tab before finishing, this snapshot is restored.
+  takePreRaceSnapshot();
+
+  if(trackGroup){ scene && disposeObject(trackGroup); }
+  const stage = STAGES[stageIndex];
+  const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
+
+  scene = createStageScene(theme);
 
   const built = buildTrack(stageIndex);
   trackGroup = built.group;
