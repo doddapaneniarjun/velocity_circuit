@@ -82,7 +82,7 @@
   .stageCard:hover{ transform:translateY(-2px); }
   .stageCard:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   .stageCard.selected{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
-  .stageThumb{ height:90px; border-radius:10px; margin-bottom:10px; }
+  .stageThumb{ width:100%; height:90px; border-radius:10px; margin-bottom:10px; display:block; }
   .stageName{ font-weight:700; font-size:16px; margin:0 0 4px; }
   .stageMeta{ color:var(--muted); font-size:13px; margin:0; }
   .stageStars{ color:var(--accent2); font-size:13px; letter-spacing:1px; margin:2px 0; }
@@ -792,15 +792,16 @@ function renderStageGrid(){
     card.disabled = !unlocked;
     const best = gameState.bestLaps[i];
     const stars = '★'.repeat(s.difficulty) + '☆'.repeat(6-s.difficulty);
+    const racesLeft = Math.max(1, s.unlockRaces - gameState.racesCompleted);
     card.innerHTML = `
-      <div class="stageThumb" style="background:linear-gradient(135deg, ${s.grad[0]}, ${s.grad[1]});"></div>
+      <canvas class="stageThumb" data-stage="${i}" width="376" height="180" aria-hidden="true"></canvas>
       <p class="stageName">${unlocked ? displayName : '🔒 ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
       <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
-        : `<p class="lockNote">Finish ${s.unlockRaces} race${s.unlockRaces===1?'':'s'} to unlock</p>`}
+        : `<p class="lockNote">Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
     `;
     if(unlocked){ card.addEventListener('click', ()=>{ selectedStage = i; startRace(i); }); }
     wrap.appendChild(card);
@@ -828,6 +829,76 @@ function renderStageGrid(){
 
     grid.appendChild(wrap);
   });
+  drawStageThumbs();
+}
+
+/* ---------- Track thumbnails ----------
+   Each home-screen card gets a top-down snapshot of the real circuit: the
+   centerline comes from the exact same generateCenterline() the race uses,
+   so the preview always matches the track you'll actually drive. The stage's
+   signature gradient stays on as the backdrop. Drawn once per grid render —
+   no animation loop needed. */
+function drawStageThumbs(){
+  document.querySelectorAll('#stageGrid .stageThumb').forEach(cv=>{
+    const s = STAGES[Number(cv.getAttribute('data-stage'))];
+    if(s) drawTrackThumb(cv, s);
+  });
+}
+
+function drawTrackThumb(cv, stage){
+  const ctx = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // Backdrop: the stage's signature gradient (same colors as the old solid thumbs).
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, stage.grad[0]);
+  grad.addColorStop(1, stage.grad[1]);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Fit the circuit into the canvas with even padding, preserving aspect.
+  const pts = generateCenterline(stage.type, 140);
+  let minX=Infinity, maxX=-Infinity, minZ=Infinity, maxZ=-Infinity;
+  pts.forEach(p=>{
+    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+  });
+  const pad = 16;
+  const scale = Math.min((w - pad*2)/Math.max(maxX - minX, 1), (h - pad*2)/Math.max(maxZ - minZ, 1));
+  const ox = (w - (maxX - minX)*scale)/2 - minX*scale;
+  const oy = (h - (maxZ - minZ)*scale)/2 - minZ*scale;
+  const X = p => p.x*scale + ox;
+  const Y = p => p.z*scale + oy;
+
+  const roadW = Math.max(5, Math.min(13, stage.width*scale)); // wider tracks draw as wider ribbons
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  const trace = ()=>{
+    ctx.beginPath();
+    ctx.moveTo(X(pts[0]), Y(pts[0]));
+    for(let i=1; i<pts.length; i++) ctx.lineTo(X(pts[i]), Y(pts[i]));
+    ctx.closePath();
+  };
+
+  // Dark casing, asphalt ribbon, then a dashed center line for contrast on any backdrop.
+  trace(); ctx.strokeStyle = 'rgba(7,11,18,0.88)';    ctx.lineWidth = roadW + 4; ctx.stroke();
+  trace(); ctx.strokeStyle = '#3c495f';               ctx.lineWidth = roadW;     ctx.stroke();
+  trace(); ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.6;
+  ctx.setLineDash([7, 9]); ctx.stroke(); ctx.setLineDash([]);
+
+  // Start/finish tick, perpendicular to the direction of travel at the first point.
+  const a = pts[0], b = pts[1];
+  const dx = X(b) - X(a), dy = Y(b) - Y(a), len = Math.hypot(dx, dy) || 1;
+  const nx = -dy/len, ny = dx/len, half = roadW/2 + 2;
+  const tick = (style, width)=>{
+    ctx.beginPath();
+    ctx.moveTo(X(a) - nx*half, Y(a) - ny*half);
+    ctx.lineTo(X(a) + nx*half, Y(a) + ny*half);
+    ctx.strokeStyle = style; ctx.lineWidth = width; ctx.stroke();
+  };
+  tick('rgba(7,11,18,0.9)', 5);
+  tick('#ffffff', 2.5);
 }
 
 $('startRaceBtn').addEventListener('click', ()=>{
