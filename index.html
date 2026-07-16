@@ -256,7 +256,6 @@
     <div class="stageGrid" id="stageGrid" role="group" aria-label="Select a track"></div>
 
     <div class="btnRow">
-      <button class="btn" id="startRaceBtn">Start Race</button>
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
     </div>
@@ -924,10 +923,6 @@ function renderStagePhoto(stageIndex){
   return out;
 }
 
-$('startRaceBtn').addEventListener('click', ()=>{
-  if(!isStageUnlocked(selectedStage)) return;
-  startRace(selectedStage);
-});
 $('openGarageBtn').addEventListener('click', ()=>{ showScreen('garage'); renderCarGrid(); });
 $('garageBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 $('openUpgradesBtn').addEventListener('click', ()=>{ showScreen('upgrades'); renderUpgrades(); });
@@ -1943,6 +1938,23 @@ function buildTrack(stageIndex){
   const barrierGeo = new THREE.BoxGeometry(1.1, 1.3, 2.6);
   const redMat = new THREE.MeshStandardMaterial({ color:0xd94452 });
   const whiteMat = new THREE.MeshStandardMaterial({ color:0xeef1f5 });
+  const barrierOffset = half+0.9;
+  // On tight, wiggly tracks (switchback/canyon/serpent) the centerline can
+  // loop back close to itself, so a barrier offset from point i can land
+  // right on top of the road surface near some other, far-away point j —
+  // not just near its own point. Rather than guessing from local curvature
+  // (which also strips barriers that never actually overlap anything), we
+  // directly test each candidate barrier position against the whole track
+  // and only drop the ones that truly collide with the road.
+  const NEIGHBOR_GAP = Math.max(4, Math.round(N*0.03));
+  function collidesWithTrack(pos, selfIndex){
+    for(let j=0;j<N;j++){
+      let d = Math.abs(j-selfIndex); d = Math.min(d, N-d);
+      if(d <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
+      if(pos.distanceTo(points[j]) < half) return true;
+    }
+    return false;
+  }
   function buildBarrierSide(sign){
     const redCount = Math.ceil(N/2), whiteCount = Math.floor(N/2);
     const redMesh = new THREE.InstancedMesh(barrierGeo, redMat, redCount);
@@ -1950,13 +1962,19 @@ function buildTrack(stageIndex){
     let ri=0, wi=0;
     const m = new THREE.Matrix4();
     for(let i=0;i<N;i++){
-      const pos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*(half+0.9)));
+      const pos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*barrierOffset));
       pos.y = 0.6;
+      // Skip only the specific barriers that actually collide with the road
+      // elsewhere on the track, instead of removing a whole stretch of the
+      // outer boundary near any tight bend.
+      if(collidesWithTrack(pos, i)) continue;
       const angle = Math.atan2(normals[i].x, normals[i].z);
       const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), angle);
       m.compose(pos, q, new THREE.Vector3(1,1,1));
       if(i%2===0) redMesh.setMatrixAt(ri++, m); else whiteMesh.setMatrixAt(wi++, m);
     }
+    redMesh.count = ri;
+    whiteMesh.count = wi;
     redMesh.instanceMatrix.needsUpdate = true;
     whiteMesh.instanceMatrix.needsUpdate = true;
     group.add(redMesh, whiteMesh);
