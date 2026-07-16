@@ -89,6 +89,13 @@
   .stageCard.locked{ opacity:.5; cursor:not-allowed; }
   .stageCard.locked:hover{ transform:none; }
   .lockNote{ color:var(--danger); font-size:12px; margin:2px 0 0; font-weight:700; }
+  .stageCardWrap{ position:relative; width:220px; }
+  .stageCardWrap .stageCard{ width:100%; }
+  .trackRenameBtn{ position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:50%;
+    border:1px solid #2a3549; background:rgba(10,14,20,.82); color:var(--text); font-size:13px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; padding:0; }
+  .trackRenameBtn:hover{ border-color:var(--accent); }
+  .trackRenameBtn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
   .carGrid{ display:flex; gap:14px; flex-wrap:wrap; }
   .carCard{ width:180px; background:var(--panel); border:2px solid #263349; border-radius:var(--radius);
@@ -674,6 +681,32 @@ const STAGES = [
 let selectedStage = 0;
 function isStageUnlocked(i){ return isAdmin || gameState.racesCompleted >= STAGES[i].unlockRaces; }
 
+// Admin-only track renaming. Names are stored separately from STAGES (which
+// stays the source of truth for everything else about a track) and shared
+// globally across all local profiles, since a rename is meant to relabel the
+// track for everyone, not just the admin who set it.
+const TRACK_NAMES_KEY = 'velocityCircuit_trackNames';
+let trackNameOverrides = {};
+function loadTrackNameOverrides(){
+  try{
+    const raw = localStorage.getItem(TRACK_NAMES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    trackNameOverrides = (parsed && typeof parsed === 'object') ? parsed : {};
+  }catch(e){ trackNameOverrides = {}; }
+}
+function saveTrackNameOverrides(){
+  try{ localStorage.setItem(TRACK_NAMES_KEY, JSON.stringify(trackNameOverrides)); }catch(e){}
+}
+function getStageName(i){
+  const override = trackNameOverrides[i];
+  return (typeof override === 'string' && override.trim()) ? override.trim() : STAGES[i].name;
+}
+function renameStage(i, newName){
+  trackNameOverrides[i] = newName;
+  saveTrackNameOverrides();
+}
+loadTrackNameOverrides();
+
 // Harder tracks pay out more: every point of difficulty above 1 adds 20% to
 // every coin source in that race (per-lap coins, finish bonus, position bonus).
 function stageCoinMult(stage){ return 1 + (stage.difficulty - 1) * 0.2; }
@@ -718,6 +751,9 @@ function renderStageGrid(){
   grid.innerHTML = '';
   STAGES.forEach((s,i)=>{
     const unlocked = isStageUnlocked(i);
+    const displayName = getStageName(i);
+    const wrap = document.createElement('div');
+    wrap.className = 'stageCardWrap';
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'stageCard' + (i===selectedStage ? ' selected' : '') + (unlocked ? '' : ' locked');
@@ -727,7 +763,7 @@ function renderStageGrid(){
     const stars = '★'.repeat(s.difficulty) + '☆'.repeat(6-s.difficulty);
     card.innerHTML = `
       <div class="stageThumb" style="background:linear-gradient(135deg, ${s.grad[0]}, ${s.grad[1]});"></div>
-      <p class="stageName">${unlocked ? s.name : '🔒 ' + s.name}</p>
+      <p class="stageName">${unlocked ? displayName : '🔒 ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
       <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap</p>
@@ -736,7 +772,30 @@ function renderStageGrid(){
         : `<p class="lockNote">Finish ${s.unlockRaces} race${s.unlockRaces===1?'':'s'} to unlock</p>`}
     `;
     if(unlocked){ card.addEventListener('click', ()=>{ selectedStage = i; startRace(i); }); }
-    grid.appendChild(card);
+    wrap.appendChild(card);
+
+    if(isAdmin){
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.className = 'trackRenameBtn';
+      renameBtn.setAttribute('aria-label', 'Rename ' + displayName);
+      renameBtn.title = 'Rename track';
+      renameBtn.textContent = '✏️';
+      renameBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const next = window.prompt('Rename track:', displayName);
+        if(next === null) return;
+        const trimmed = next.trim();
+        if(!trimmed || trimmed === displayName) return;
+        renameStage(i, trimmed);
+        renderStageGrid();
+        announce('Track renamed to ' + trimmed + '.');
+        showToast('Track renamed');
+      });
+      wrap.appendChild(renameBtn);
+    }
+
+    grid.appendChild(wrap);
   });
 }
 
