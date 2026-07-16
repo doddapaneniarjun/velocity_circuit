@@ -122,6 +122,7 @@
 
   /* ---------- Garage ---------- */
   #garageScreen{ background:var(--bg); padding:24px; overflow-y:auto; justify-content:flex-start; }
+  #upgradesScreen{ background:var(--bg); padding:24px; overflow-y:auto; justify-content:flex-start; }
   .garageWrap{ width:min(920px,94vw); }
   .garageHeader{ display:flex; align-items:center; justify-content:space-between; margin:-24px -24px 18px; padding:16px 24px; gap:10px; flex-wrap:wrap; position:sticky; top:-24px; background:var(--bg); z-index:5; border-bottom:1px solid #1a2233; }
   .sectionTitle{ font-size:20px; font-weight:800; margin:22px 0 12px; }
@@ -244,10 +245,11 @@
 
     <div class="btnRow">
       <button class="btn" id="startRaceBtn">Start Race</button>
-      <button class="btn secondary" id="openGarageBtn">Garage &amp; Upgrades</button>
+      <button class="btn secondary" id="openGarageBtn">Garage</button>
+      <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
     </div>
 
-    <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. Complete laps to earn coins — spend them in the Garage on upgrades and new cars, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
+    <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
   </section>
 
   <!-- GARAGE SCREEN -->
@@ -260,6 +262,16 @@
 
       <h2 class="sectionTitle">Cars</h2>
       <div class="carGrid" id="carGrid" role="group" aria-label="Choose or unlock a car"></div>
+    </div>
+  </section>
+
+  <!-- UPGRADES SCREEN -->
+  <section id="upgradesScreen" class="screen" hidden>
+    <div class="garageWrap">
+      <div class="garageHeader">
+        <button class="btn ghost" id="upgradesBackBtn">&larr; Back</button>
+        <div class="coinBar" style="position:static;"><span class="coinDot" aria-hidden="true"></span><span id="upgradesCoinText">0</span> coins</div>
+      </div>
 
       <h2 class="sectionTitle">Upgrades</h2>
       <div id="upgradeList"></div>
@@ -390,6 +402,7 @@
         <div class="btnRow" style="flex-direction:column; margin-top:14px;">
           <button class="btn" id="raceAgainBtn">Race Again</button>
           <button class="btn secondary" id="resultsGarageBtn">Garage</button>
+          <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
           <button class="btn ghost" id="resultsHomeBtn">Home</button>
         </div>
       </div>
@@ -407,7 +420,7 @@
 /* ============================= PERSISTENT STATE ============================= */
 const DEFAULT_STATE = {
   coins: 100,
-  upgrades: { speed:0, accel:0, handling:0, brake:0, grip:0 },
+  upgrades: { speed:0, accel:0, handling:0, brake:0, grip:0, nitro:0, boostPower:0, armor:0 },
   selectedCar: 0,
   ownedCars: [0],
   bestLaps: {},
@@ -662,7 +675,10 @@ const UPGRADE_DEFS = [
   { key:'accel', name:'Acceleration', desc:'Reach top speed faster.' },
   { key:'handling', name:'Handling', desc:'Sharper, more responsive turning.' },
   { key:'brake', name:'Braking', desc:'Stronger stopping power into corners.' },
-  { key:'grip', name:'Grip', desc:'Lose less speed when you clip a wall.' }
+  { key:'grip', name:'Grip', desc:'Lose less speed when you clip a wall.' },
+  { key:'nitro', name:'Nitro Charge', desc:'Boost meter fills up faster between uses.' },
+  { key:'boostPower', name:'Boost Power', desc:'Bigger speed and acceleration spike while boosting.' },
+  { key:'armor', name:'Collision Resistance', desc:'Lose less speed when you crash into rivals.' }
 ];
 const MAX_UPGRADE_LEVEL = 8;
 function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
@@ -714,7 +730,7 @@ function coinsPerLapForStage(stage){ return Math.round(COINS_PER_LAP * stageCoin
 
 /* ============================= DOM ============================= */
 const $ = id => document.getElementById(id);
-const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), gameScreen = $('gameScreen');
+const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), upgradesScreen = $('upgradesScreen'), gameScreen = $('gameScreen');
 const liveRegion = $('liveRegion');
 
 function announce(text){ liveRegion.textContent = ''; requestAnimationFrame(()=>{ liveRegion.textContent = text; }); }
@@ -723,6 +739,7 @@ function showScreen(name){
   loginScreen.hidden = name!=='login';
   homeScreen.hidden = name!=='home';
   garageScreen.hidden = name!=='garage';
+  upgradesScreen.hidden = name!=='upgrades';
   gameScreen.hidden = name!=='game';
 }
 
@@ -740,6 +757,7 @@ function ratingFrac(rating){
 function refreshCoinDisplays(){
   $('homeCoinText').textContent = gameState.coins;
   $('garageCoinText').textContent = gameState.coins;
+  $('upgradesCoinText').textContent = gameState.coins;
   $('hudCoins').textContent = gameState.coins;
   const rating = Math.round(gameState.skillRating);
   $('homeRatingText').textContent = rating;
@@ -803,11 +821,17 @@ $('startRaceBtn').addEventListener('click', ()=>{
   if(!isStageUnlocked(selectedStage)) return;
   startRace(selectedStage);
 });
-$('openGarageBtn').addEventListener('click', ()=>{ showScreen('garage'); renderGarage(); });
+$('openGarageBtn').addEventListener('click', ()=>{ showScreen('garage'); renderCarGrid(); });
 $('garageBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
+$('openUpgradesBtn').addEventListener('click', ()=>{ showScreen('upgrades'); renderUpgrades(); });
+$('upgradesBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 
 /* ---------- Garage ---------- */
 function renderGarage(){
+  renderCarGrid();
+  renderUpgrades();
+}
+function renderCarGrid(){
   const carGrid = $('carGrid');
   carGrid.innerHTML = '';
   CARS.forEach((c,i)=>{
@@ -843,7 +867,7 @@ function renderGarage(){
       gameState.selectedCar = i;
       saveState();
       refreshCoinDisplays();
-      renderGarage();
+      renderCarGrid();
       announce(car.name + ' purchased and equipped.');
     });
   });
@@ -852,11 +876,13 @@ function renderGarage(){
       const i = Number(btn.getAttribute('data-select'));
       gameState.selectedCar = i;
       saveState();
-      renderGarage();
+      renderCarGrid();
       announce(CARS[i].name + ' equipped.');
     });
   });
+}
 
+function renderUpgrades(){
   const list = $('upgradeList');
   list.innerHTML = '';
   UPGRADE_DEFS.forEach(def=>{
@@ -891,7 +917,7 @@ function renderGarage(){
       gameState.upgrades[key] = level+1;
       saveState();
       refreshCoinDisplays();
-      renderGarage();
+      renderUpgrades();
       announce(def_name_for(key) + ' upgraded to level ' + (level+1));
     });
   });
@@ -2084,7 +2110,10 @@ function updateCar(car, dt){
     + (car.isPlayer ? gameState.upgrades.speed*6 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
   let accel = (BASE_ACCEL
     + (car.isPlayer ? gameState.upgrades.accel*5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
-  if(car.isPlayer && boosting){ maxSpeed *= BOOST_SPEED_MULT; accel *= BOOST_ACCEL_MULT; }
+  if(car.isPlayer && boosting){
+    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.035;
+    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.09;
+  }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
   const turnRate = (BASE_TURN
     + (car.isPlayer ? gameState.upgrades.handling*0.28 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
@@ -2240,9 +2269,12 @@ function resolveCollisions(dt){
           const relApproach = a.speed*aVn - b.speed*bVn;
           if(relApproach > 0){
             // Inelastic: remove exactly the approach component, split evenly.
+            // Collision Resistance softens how much of that gets applied to the player.
             const correction = relApproach * 0.5;
-            a.speed -= correction * aVn * 0.6;
-            b.speed += correction * bVn * 0.6;
+            const aFactor = a.isPlayer ? Math.max(0.4, 1 - gameState.upgrades.armor*0.07) : 1;
+            const bFactor = b.isPlayer ? Math.max(0.4, 1 - gameState.upgrades.armor*0.07) : 1;
+            a.speed -= correction * aVn * 0.6 * aFactor;
+            b.speed += correction * bVn * 0.6 * bFactor;
             a.speed = Math.max(-40, Math.min(40, a.speed));
             b.speed = Math.max(-40, Math.min(40, b.speed));
           }
@@ -2341,7 +2373,7 @@ function updateBoost(dt){
     boostTimer -= dt;
     if(boostTimer <= 0){ boosting = false; boostTimer = 0; }
   } else {
-    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * dt);
+    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * (1 + gameState.upgrades.nitro*0.12) * dt);
   }
   const pct = boosting ? 100 : (boostCharge / BOOST_MAX * 100);
   $('boostBarFill').style.width = pct + '%';
@@ -3059,7 +3091,8 @@ function finishRace(){
   announce('Race complete. You finished in position ' + pos + ' of ' + cars.length + '. You earned ' + (bonus+finishBonus) + ' bonus coins.' + (newlyUnlocked ? ' A new track has been unlocked.' : ''));
 }
 $('raceAgainBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; startRace(selectedStage); });
-$('resultsGarageBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderGarage(); });
+$('resultsGarageBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
+$('resultsUpgradesBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
 $('resultsHomeBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('home'); renderStageGrid(); });
 
 /* ---------- Main loop ---------- */
