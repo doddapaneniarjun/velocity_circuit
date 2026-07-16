@@ -1934,73 +1934,87 @@ function buildTrack(stageIndex){
   const dashMat = new THREE.MeshBasicMaterial({ map:dashTex, transparent:true });
   group.add(new THREE.Mesh(dashGeo, dashMat));
 
-  // Barriers (instanced, alternating red/white)
-  const BARRIER_WIDTH = 1.1, BARRIER_HEIGHT = 1.3, BARRIER_DEPTH = 2.6;
-  const barrierGeo = new THREE.BoxGeometry(BARRIER_WIDTH, BARRIER_HEIGHT, BARRIER_DEPTH);
-  const redMat = new THREE.MeshStandardMaterial({ color:0xd94452 });
-  const whiteMat = new THREE.MeshStandardMaterial({ color:0xeef1f5 });
-  // Each barrier box is rotated to match the local track direction, which
-  // points its long (depth) axis straight along the normal — so its near
-  // face sits BARRIER_DEPTH/2 closer to the road than its own center point.
-  // Offsetting the center by only a small pad (as before) left that near
-  // face sitting *inside* the road's edge on every track. The offset has to
-  // clear the box's own half-depth first, then add a small visible gap.
-  const EDGE_CLEARANCE = 0.15;
-  const barrierOffset = half + BARRIER_DEPTH/2 + EDGE_CLEARANCE;
+  // Barriers — a single continuous wall mesh running around the track,
+  // instead of hundreds of individual barrier-block pieces. Each segment
+  // still gets the classic alternating red/white look, but now it comes from
+  // per-vertex color on one shared mesh rather than separate red/white boxes.
+  const WALL_THICKNESS = 1.1, WALL_HEIGHT = 1.3;
+  const barrierOffset = half+0.9;
+  const wallInnerOffset = barrierOffset - WALL_THICKNESS/2;
+  const wallOuterOffset = barrierOffset + WALL_THICKNESS/2;
   // On tight, wiggly tracks (switchback/canyon/serpent) the centerline can
   // loop back close to itself, so a barrier offset from point i can land
   // right on top of the road surface near some other, far-away point j —
-  // not just near its own point. We test each candidate barrier position
-  // against the true road curve (nearest point on each track segment, not
-  // just the nearest sampled point — samples can be far enough apart on a
-  // curve to hide a real overlap) padded by the barrier's own footprint,
-  // and drop only the ones that truly collide with the road.
+  // not just near its own point. Rather than guessing from local curvature
+  // (which also strips barriers that never actually overlap anything), we
+  // directly test each candidate barrier position against the whole track
+  // and only drop the ones that truly collide with the road.
   const NEIGHBOR_GAP = Math.max(4, Math.round(N*0.03));
-  const BARRIER_FOOTPRINT = Math.sqrt((BARRIER_DEPTH/2)**2 + (BARRIER_WIDTH/2)**2);
-  const DISTANT_LIMIT = half + BARRIER_FOOTPRINT + 0.05;
-  function pointSegDist(p, a, b){
-    const abx = b.x-a.x, abz = b.z-a.z;
-    const lenSq = abx*abx + abz*abz;
-    let t = lenSq > 1e-8 ? ((p.x-a.x)*abx + (p.z-a.z)*abz) / lenSq : 0;
-    t = Math.max(0, Math.min(1, t));
-    return Math.hypot(p.x-(a.x+abx*t), p.z-(a.z+abz*t));
-  }
   function collidesWithTrack(pos, selfIndex){
     for(let j=0;j<N;j++){
-      const k = (j+1)%N;
-      let dj = Math.abs(j-selfIndex); dj = Math.min(dj, N-dj);
-      let dk = Math.abs(k-selfIndex); dk = Math.min(dk, N-dk);
-      if(dj <= NEIGHBOR_GAP && dk <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
-      if(pointSegDist(pos, points[j], points[k]) < DISTANT_LIMIT) return true;
+      let d = Math.abs(j-selfIndex); d = Math.min(d, N-d);
+      if(d <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
+      if(pos.distanceTo(points[j]) < half) return true;
     }
     return false;
   }
-  function buildBarrierSide(sign){
-    const redCount = Math.ceil(N/2), whiteCount = Math.floor(N/2);
-    const redMesh = new THREE.InstancedMesh(barrierGeo, redMat, redCount);
-    const whiteMesh = new THREE.InstancedMesh(barrierGeo, whiteMat, whiteCount);
-    let ri=0, wi=0;
-    const m = new THREE.Matrix4();
+  const BARRIER_RED = new THREE.Color(0xd94452), BARRIER_WHITE = new THREE.Color(0xeef1f5);
+  const barrierPositions = [], barrierColors = [];
+  function addBarrierSide(sign){
+    // Skip only the specific stretches that actually collide with the road
+    // elsewhere on the track, instead of removing a whole side of the
+    // boundary near any tight bend.
+    const valid = new Array(N);
     for(let i=0;i<N;i++){
-      const pos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*barrierOffset));
+      const pos = points[i].clone().addScaledVector(normals[i], sign*barrierOffset);
       pos.y = 0.6;
-      // Skip only the specific barriers that actually collide with the road
-      // elsewhere on the track, instead of removing a whole stretch of the
-      // outer boundary near any tight bend.
-      if(collidesWithTrack(pos, i)) continue;
-      const angle = Math.atan2(normals[i].x, normals[i].z);
-      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), angle);
-      m.compose(pos, q, new THREE.Vector3(1,1,1));
-      if(i%2===0) redMesh.setMatrixAt(ri++, m); else whiteMesh.setMatrixAt(wi++, m);
+      valid[i] = !collidesWithTrack(pos, i);
     }
-    redMesh.count = ri;
-    whiteMesh.count = wi;
-    redMesh.instanceMatrix.needsUpdate = true;
-    whiteMesh.instanceMatrix.needsUpdate = true;
-    group.add(redMesh, whiteMesh);
+    let block = 0, wasValid = false; // block increments per contiguous run, driving the red/white alternation
+    for(let i=0;i<N;i++){
+      const j=(i+1)%N;
+      if(!valid[i] || !valid[j]){ wasValid = false; continue; }
+      if(!wasValid) block++;
+      wasValid = true;
+      const col = (block % 2 === 0) ? BARRIER_RED : BARRIER_WHITE;
+      const nA = normals[i], nB = normals[j];
+      const innerA = points[i].clone().addScaledVector(nA, sign*wallInnerOffset);
+      const outerA = points[i].clone().addScaledVector(nA, sign*wallOuterOffset);
+      const innerB = points[j].clone().addScaledVector(nB, sign*wallInnerOffset);
+      const outerB = points[j].clone().addScaledVector(nB, sign*wallOuterOffset);
+      const pushQuad = (p1,p2,p3,p4)=>{
+        [p1,p2,p3,p3,p2,p4].forEach(p=>{
+          barrierPositions.push(p.x, p.y, p.z);
+          barrierColors.push(col.r, col.g, col.b);
+        });
+      };
+      // Inner face (facing the track)
+      pushQuad(
+        new THREE.Vector3(innerA.x,0,innerA.z), new THREE.Vector3(innerA.x,WALL_HEIGHT,innerA.z),
+        new THREE.Vector3(innerB.x,0,innerB.z), new THREE.Vector3(innerB.x,WALL_HEIGHT,innerB.z)
+      );
+      // Outer face (facing away from the track)
+      pushQuad(
+        new THREE.Vector3(outerA.x,WALL_HEIGHT,outerA.z), new THREE.Vector3(outerA.x,0,outerA.z),
+        new THREE.Vector3(outerB.x,WALL_HEIGHT,outerB.z), new THREE.Vector3(outerB.x,0,outerB.z)
+      );
+      // Top cap
+      pushQuad(
+        new THREE.Vector3(innerA.x,WALL_HEIGHT,innerA.z), new THREE.Vector3(outerA.x,WALL_HEIGHT,outerA.z),
+        new THREE.Vector3(innerB.x,WALL_HEIGHT,innerB.z), new THREE.Vector3(outerB.x,WALL_HEIGHT,outerB.z)
+      );
+    }
   }
-  buildBarrierSide(1);
-  buildBarrierSide(-1);
+  addBarrierSide(1);
+  addBarrierSide(-1);
+  if(barrierPositions.length){
+    const barrierGeo = new THREE.BufferGeometry();
+    barrierGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(barrierPositions),3));
+    barrierGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(barrierColors),3));
+    barrierGeo.computeVertexNormals();
+    const barrierMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.85, side:THREE.DoubleSide });
+    group.add(new THREE.Mesh(barrierGeo, barrierMat));
+  }
 
   group.add(buildCrowd(theme, points, normals, half));
 
