@@ -665,7 +665,11 @@ const CARS = [
   { name:'Violet Phantom',  color:0x9b5cff, price:17000,  speed:6, accel:5, handling:5, weight:4, boostPower:6 },
   { name:'Titanium Apex',   color:0xb8c4d9, price:28000,  speed:7, accel:6, handling:6, weight:8, boostPower:5 },
   { name:'Obsidian Reaper', color:0x6a5acd, price:44000,  speed:8, accel:7, handling:7, weight:6, boostPower:7 },
-  { name:'Solar Vanguard',  color:0xffb347, price:68000,  speed:9, accel:9, handling:8, weight:5, boostPower:9 }
+  { name:'Solar Vanguard',  color:0xffb347, price:68000,  speed:9, accel:9, handling:8, weight:5, boostPower:9 },
+  { name:'Cobalt Nova',     color:0x2f6fed, price:95000,  speed:9, accel:8, handling:9, weight:5, boostPower:8 },
+  { name:'Rogue Wraith',    color:0x2f3542, price:130000, speed:9, accel:9, handling:7, weight:7, boostPower:9 },
+  { name:'Crimson Vortex',  color:0xff2e5b, price:175000, speed:9, accel:9, handling:9, weight:6, boostPower:9 },
+  { name:'Ghost Aurora',    color:0x6fe3d9, price:230000, speed:9, accel:9, handling:9, weight:4, boostPower:9 }
 ];
 const CAR_STAT_MAX = 9; // stat bars in the garage are drawn as val / CAR_STAT_MAX
 
@@ -1797,12 +1801,31 @@ function buildCrowd(theme, points, normals, half){
   const m = new THREE.Matrix4();
   const upAxis = new THREE.Vector3(0,1,0);
 
+  // On tight, wiggly tracks the centerline can loop back close to itself, so
+  // a stand of spectators offset from point i can land right on the road
+  // surface near some other, far-away point j — the same issue the barriers
+  // already guard against. Reuse that same check here so people never end up
+  // standing on the track itself.
+  const NEIGHBOR_GAP = Math.max(4, Math.round(N*0.03));
+  function collidesWithTrack(pos, selfIndex){
+    for(let j=0;j<N;j++){
+      let d = Math.abs(j-selfIndex); d = Math.min(d, N-d);
+      if(d <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
+      if(pos.distanceTo(points[j]) < half) return true;
+    }
+    return false;
+  }
+
   for(let i=0;i<N;i+=step){
     if(Math.random() > density + 0.3) continue; // irregular gaps in the crowd
     const n = normals[i];
     const tangent = new THREE.Vector3(-n.z, 0, n.x);
     const baseAngle = Math.atan2(tangent.x, tangent.z);
     [1,-1].forEach(sign=>{
+      // Skip this whole stand if its front row would land on the road
+      // surface somewhere else on the track.
+      const frontRowPos = points[i].clone().addScaledVector(n, sign*(half+2.6));
+      if(collidesWithTrack(frontRowPos, i)) return;
       for(let row=0; row<rowsPerCluster; row++){
         const dist = half + 2.6 + row*0.9;   // stepped-back rows, like simple stands
         const baseY = 0.5 + row*0.55;
@@ -1934,21 +1957,21 @@ function buildTrack(stageIndex){
   const dashMat = new THREE.MeshBasicMaterial({ map:dashTex, transparent:true });
   group.add(new THREE.Mesh(dashGeo, dashMat));
 
-  // Barriers — a single continuous wall mesh running around the track,
-  // instead of hundreds of individual barrier-block pieces. Each segment
-  // still gets the classic alternating red/white look, but now it comes from
-  // per-vertex color on one shared mesh rather than separate red/white boxes.
-  const WALL_THICKNESS = 1.1, WALL_HEIGHT = 1.3;
+  // Barriers — a single continuous solid wall per side (instead of hundreds
+  // of separate boxes), built as one extruded ribbon that follows the track.
+  const barrierMat = new THREE.MeshStandardMaterial({ color:0x9aa2b0, roughness:0.85, side: THREE.DoubleSide });
   const barrierOffset = half+0.9;
-  const wallInnerOffset = barrierOffset - WALL_THICKNESS/2;
-  const wallOuterOffset = barrierOffset + WALL_THICKNESS/2;
+  const barrierThickness = 1.1;
+  const barrierHeight = 1.2;
+  const innerOffset = barrierOffset - barrierThickness/2;
+  const outerOffset = barrierOffset + barrierThickness/2;
   // On tight, wiggly tracks (switchback/canyon/serpent) the centerline can
   // loop back close to itself, so a barrier offset from point i can land
   // right on top of the road surface near some other, far-away point j —
   // not just near its own point. Rather than guessing from local curvature
   // (which also strips barriers that never actually overlap anything), we
   // directly test each candidate barrier position against the whole track
-  // and only drop the ones that truly collide with the road.
+  // and only drop the segments that truly collide with the road.
   const NEIGHBOR_GAP = Math.max(4, Math.round(N*0.03));
   function collidesWithTrack(pos, selfIndex){
     for(let j=0;j<N;j++){
@@ -1958,63 +1981,50 @@ function buildTrack(stageIndex){
     }
     return false;
   }
-  const BARRIER_RED = new THREE.Color(0xd94452), BARRIER_WHITE = new THREE.Color(0xeef1f5);
-  const barrierPositions = [], barrierColors = [];
-  function addBarrierSide(sign){
-    // Skip only the specific stretches that actually collide with the road
-    // elsewhere on the track, instead of removing a whole side of the
-    // boundary near any tight bend.
+  function buildBarrierSide(sign){
     const valid = new Array(N);
     for(let i=0;i<N;i++){
-      const pos = points[i].clone().addScaledVector(normals[i], sign*barrierOffset);
-      pos.y = 0.6;
-      valid[i] = !collidesWithTrack(pos, i);
+      const checkPos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*barrierOffset));
+      checkPos.y = 0.6;
+      valid[i] = !collidesWithTrack(checkPos, i);
     }
-    let block = 0, wasValid = false; // block increments per contiguous run, driving the red/white alternation
+    const positions = [];
+    function addQuad(a,b,c,d){
+      // a,b,c,d in order around the quad; split into two triangles.
+      positions.push(a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z);
+      positions.push(a.x,a.y,a.z, c.x,c.y,c.z, d.x,d.y,d.z);
+    }
     for(let i=0;i<N;i++){
       const j=(i+1)%N;
-      if(!valid[i] || !valid[j]){ wasValid = false; continue; }
-      if(!wasValid) block++;
-      wasValid = true;
-      const col = (block % 2 === 0) ? BARRIER_RED : BARRIER_WHITE;
-      const nA = normals[i], nB = normals[j];
-      const innerA = points[i].clone().addScaledVector(nA, sign*wallInnerOffset);
-      const outerA = points[i].clone().addScaledVector(nA, sign*wallOuterOffset);
-      const innerB = points[j].clone().addScaledVector(nB, sign*wallInnerOffset);
-      const outerB = points[j].clone().addScaledVector(nB, sign*wallOuterOffset);
-      const pushQuad = (p1,p2,p3,p4)=>{
-        [p1,p2,p3,p3,p2,p4].forEach(p=>{
-          barrierPositions.push(p.x, p.y, p.z);
-          barrierColors.push(col.r, col.g, col.b);
-        });
-      };
+      if(!(valid[i] && valid[j])) continue;
+      const nI = normals[i], nJ = normals[j];
+      const inI = points[i].clone().addScaledVector(nI, sign*innerOffset);
+      const outI = points[i].clone().addScaledVector(nI, sign*outerOffset);
+      const inJ = points[j].clone().addScaledVector(nJ, sign*innerOffset);
+      const outJ = points[j].clone().addScaledVector(nJ, sign*outerOffset);
+      const inIt = inI.clone(); inIt.y = barrierHeight;
+      const outIt = outI.clone(); outIt.y = barrierHeight;
+      const inJt = inJ.clone(); inJt.y = barrierHeight;
+      const outJt = outJ.clone(); outJt.y = barrierHeight;
+      const inIb = inI.clone(); inIb.y = 0;
+      const outIb = outI.clone(); outIb.y = 0;
+      const inJb = inJ.clone(); inJb.y = 0;
+      const outJb = outJ.clone(); outJb.y = 0;
+      // Top face
+      addQuad(inIt, outIt, outJt, inJt);
+      // Outer face (away from track)
+      addQuad(outIt, outIb, outJb, outJt);
       // Inner face (facing the track)
-      pushQuad(
-        new THREE.Vector3(innerA.x,0,innerA.z), new THREE.Vector3(innerA.x,WALL_HEIGHT,innerA.z),
-        new THREE.Vector3(innerB.x,0,innerB.z), new THREE.Vector3(innerB.x,WALL_HEIGHT,innerB.z)
-      );
-      // Outer face (facing away from the track)
-      pushQuad(
-        new THREE.Vector3(outerA.x,WALL_HEIGHT,outerA.z), new THREE.Vector3(outerA.x,0,outerA.z),
-        new THREE.Vector3(outerB.x,WALL_HEIGHT,outerB.z), new THREE.Vector3(outerB.x,0,outerB.z)
-      );
-      // Top cap
-      pushQuad(
-        new THREE.Vector3(innerA.x,WALL_HEIGHT,innerA.z), new THREE.Vector3(outerA.x,WALL_HEIGHT,outerA.z),
-        new THREE.Vector3(innerB.x,WALL_HEIGHT,innerB.z), new THREE.Vector3(outerB.x,WALL_HEIGHT,outerB.z)
-      );
+      addQuad(inIb, inIt, inJt, inJb);
     }
+    if(positions.length === 0) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    geo.computeVertexNormals();
+    group.add(new THREE.Mesh(geo, barrierMat));
   }
-  addBarrierSide(1);
-  addBarrierSide(-1);
-  if(barrierPositions.length){
-    const barrierGeo = new THREE.BufferGeometry();
-    barrierGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(barrierPositions),3));
-    barrierGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(barrierColors),3));
-    barrierGeo.computeVertexNormals();
-    const barrierMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.85, side:THREE.DoubleSide });
-    group.add(new THREE.Mesh(barrierGeo, barrierMat));
-  }
+  buildBarrierSide(1);
+  buildBarrierSide(-1);
 
   group.add(buildCrowd(theme, points, normals, half));
 
@@ -2331,7 +2341,7 @@ function applyBoundary(car){
   const rel = new THREE.Vector3().subVectors(car.pos, center);
   const lateral = rel.dot(normal);
   const limit = track.width/2 - CAR_HALF_WIDTH;
-  const retain = car.isPlayer ? Math.min(0.9, 0.55 + gameState.upgrades.grip*0.045) : 0.55;
+  const retain = car.isPlayer ? Math.min(0.9, 0.55 + gameState.upgrades.grip*0.03) : 0.55;
   if(lateral > limit){
     car.pos.addScaledVector(normal, limit - lateral);
     car.speed *= retain;
@@ -2360,17 +2370,17 @@ function updateBoostFlames(car, dt){
 function updateCar(car, dt){
   const rb = car.isPlayer ? 1 : (car.rubberBand || 1);
   let maxSpeed = (BASE_MAX_SPEED
-    + (car.isPlayer ? gameState.upgrades.speed*6 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
+    + (car.isPlayer ? gameState.upgrades.speed*4 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
   let accel = (BASE_ACCEL
-    + (car.isPlayer ? gameState.upgrades.accel*5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
+    + (car.isPlayer ? gameState.upgrades.accel*3.5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
   if(car.isPlayer && boosting){
-    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.035 + playerCarDef.boostPower*0.02;
-    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.09 + playerCarDef.boostPower*0.05;
+    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.02 + playerCarDef.boostPower*0.02;
+    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.055 + playerCarDef.boostPower*0.05;
   }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
   const turnRate = (BASE_TURN
-    + (car.isPlayer ? gameState.upgrades.handling*0.28 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
-  const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*7 : 0);
+    + (car.isPlayer ? gameState.upgrades.handling*0.18 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
+  const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*4.5 : 0);
 
   let throttle=0, brake=0, steer=0;
 
@@ -2524,7 +2534,7 @@ function resolveCollisions(dt){
             // Inelastic: remove exactly the approach component, split evenly.
             // Collision Resistance and car weight soften how much of that gets applied to the player.
             const correction = relApproach * 0.5;
-            const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.07 - playerCarDef.weight*0.03);
+            const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.045 - playerCarDef.weight*0.03);
             const aFactor = a.isPlayer ? playerFactor : 1;
             const bFactor = b.isPlayer ? playerFactor : 1;
             a.speed -= correction * aVn * 0.6 * aFactor;
@@ -2625,11 +2635,13 @@ function updateHUD(){
 function updateBoost(dt){
   if(boosting){
     boostTimer -= dt;
-    if(boostTimer <= 0){ boosting = false; boostTimer = 0; }
+    if(boostTimer <= 0){ boosting = false; boostTimer = 0; boostCharge = 0; }
   } else {
-    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * (1 + gameState.upgrades.nitro*0.12) * dt);
+    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * (1 + gameState.upgrades.nitro*0.08) * dt);
   }
-  const pct = boosting ? 100 : (boostCharge / BOOST_MAX * 100);
+  // While boosting, drain the bar down over the boost's duration instead of
+  // holding it pegged at full, so the meter visibly empties as it's used.
+  const pct = boosting ? Math.max(0, (boostTimer / BOOST_DURATION) * 100) : (boostCharge / BOOST_MAX * 100);
   $('boostBarFill').style.width = pct + '%';
   const btn = $('boostBtn');
   const ready = !boosting && boostCharge >= BOOST_MAX;
