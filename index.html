@@ -53,6 +53,29 @@
   .ratingTrack{ width:70px; height:6px; border-radius:999px; background:#263349; overflow:hidden; }
   .ratingFill{ height:100%; background:var(--accent); border-radius:999px; }
 
+  .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid #2a3549;
+    padding:8px 14px; border-radius:999px; font-weight:600; font-size:13px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
+  .profileBar strong{ color:var(--text); }
+  .logoutLink{ background:none; border:none; color:var(--accent); font:inherit; font-weight:700; font-size:13px; cursor:pointer; padding:0; }
+  .logoutLink:hover{ text-decoration:underline; }
+  .logoutLink:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+
+  /* ---------- Login ---------- */
+  #loginScreen{ background:
+      radial-gradient(1200px 700px at 20% 15%, #16233a 0%, transparent 60%),
+      radial-gradient(1000px 700px at 85% 85%, #1c1330 0%, transparent 60%),
+      var(--bg);
+    padding:24px; }
+  .loginCard{ width:min(380px,92vw); text-align:center; }
+  .loginField{ text-align:left; margin-bottom:16px; }
+  .loginField label{ display:block; font-weight:700; font-size:14px; margin-bottom:6px; }
+  .loginInput{ width:100%; padding:12px 14px; border-radius:10px; border:1px solid #2e3a52;
+    background:var(--panel); color:var(--text); font:inherit; font-size:15px; }
+  .loginInput:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .loginError{ color:var(--danger); font-size:13px; margin:0 0 14px; min-height:16px; }
+  .rememberRow{ display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; justify-content:center; margin-top:14px; }
+  .loginNote{ color:var(--muted); font-size:12px; margin-top:22px; line-height:1.5; }
+
   .stageGrid{ display:flex; gap:18px; flex-wrap:wrap; justify-content:center; max-width:920px; margin-bottom:26px; }
   .stageCard{ width:220px; background:var(--panel); border:2px solid #263349; border-radius:var(--radius);
     padding:14px; cursor:pointer; text-align:left; color:var(--text); font:inherit; transition:border-color .15s, transform .15s; }
@@ -172,12 +195,40 @@
 <body>
 <div id="app">
 
+  <!-- LOGIN SCREEN -->
+  <section id="loginScreen" class="screen">
+    <div class="loginCard">
+      <h1 class="title" style="font-size:clamp(28px,5.5vw,44px);">VELOCITY <span>CIRCUIT</span></h1>
+      <p class="subtitle" style="margin-bottom:22px;">Log in to save your progress on this device.</p>
+      <form id="loginForm" autocomplete="on">
+        <div class="loginField">
+          <label for="loginUsername">Username</label>
+          <input class="loginInput" type="text" id="loginUsername" name="username" autocomplete="username" maxlength="20" placeholder="e.g. speedster99">
+        </div>
+        <div class="loginField">
+          <label for="loginPassword">Password</label>
+          <input class="loginInput" type="password" id="loginPassword" name="password" autocomplete="current-password" maxlength="40" placeholder="At least 4 characters">
+        </div>
+        <p class="loginError" id="loginError" role="alert"></p>
+        <button class="btn" id="loginSubmitBtn" type="submit" style="width:100%;">Log In / Create Profile</button>
+        <div class="rememberRow">
+          <input type="checkbox" id="rememberMeToggle" checked style="width:16px;height:16px;accent-color:var(--accent);">
+          <label for="rememberMeToggle">Stay logged in on this device</label>
+        </div>
+      </form>
+      <p class="loginNote">This is a local profile system — everything is stored only in this browser, not on a server. Use a username and password you don't rely on anywhere else.</p>
+    </div>
+  </section>
+
   <!-- HOME SCREEN -->
-  <section id="homeScreen" class="screen">
+  <section id="homeScreen" class="screen" hidden>
     <div class="coinBar" aria-label="Coin balance"><span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins</div>
     <div class="ratingBar" aria-label="Driver rating, determines CPU difficulty">
       Driver Rating <strong id="homeRatingText">50</strong>/100
       <span class="ratingTrack"><span class="ratingFill" id="homeRatingFill" style="width:50%"></span></span>
+    </div>
+    <div class="profileBar" aria-label="Logged in profile">
+      <span aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
     </div>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
@@ -337,11 +388,19 @@ const DEFAULT_STATE = {
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
 
-/* ===== SAVE / LOAD — uses localStorage (works in any browser, any context) ===== */
-const SAVE_KEY     = 'velocityCircuit_save';
-const ROLLBACK_KEY = 'velocityCircuit_rollback';
+/* ===== SAVE / LOAD — uses localStorage (works in any browser, any context) =====
+   SAVE_KEY / ROLLBACK_KEY are per-profile: they're repointed to the logged-in
+   user's own slot in beginSession(), so each local profile keeps separate
+   coins/upgrades/unlocks without touching anyone else's save. */
+let SAVE_KEY     = 'velocityCircuit_save_guest';
+let ROLLBACK_KEY = 'velocityCircuit_rollback_guest';
 
 function loadState(){
+  // Always start from a clean slate before loading — otherwise switching
+  // profiles mid-session (log out, log in as someone else) would leak the
+  // previous profile's in-memory state into the new one until something saves.
+  gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
   // If the player closed mid-race last session a rollback snapshot was written.
   // Restore it first so the partial run is discarded.
   try{
@@ -410,6 +469,99 @@ window.addEventListener('beforeunload', ()=>{
   }
 });
 
+/* ============================= LOGIN / LOCAL PROFILES =============================
+   There's no server here, so this can't be a real account system — it's a local
+   profile switcher so more than one person can play on the same browser without
+   sharing coins/upgrades/unlocks. Passwords are only run through a lightweight
+   hash before being stored in localStorage, which stops a save file from casually
+   showing a plaintext password but is NOT cryptographic security. Never reuse a
+   real password here. */
+const USERS_KEY   = 'velocityCircuit_users';    // { [lowercaseName]: { hash, display } }
+const SESSION_KEY = 'velocityCircuit_session';  // lowercaseName of the "stay logged in" profile
+let currentUser = null;
+
+function saveKeyFor(nameKey){ return 'velocityCircuit_save_' + nameKey; }
+function rollbackKeyFor(nameKey){ return 'velocityCircuit_rollback_' + nameKey; }
+
+function simpleHash(str){
+  let h = 5381;
+  for(let i=0;i<str.length;i++){ h = ((h*33) ^ str.charCodeAt(i)) >>> 0; }
+  return h.toString(36);
+}
+
+function readUsers(){
+  try{ return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }catch(e){ return {}; }
+}
+function writeUsers(db){
+  try{ localStorage.setItem(USERS_KEY, JSON.stringify(db)); }catch(e){}
+}
+
+function focusLoginUsername(){
+  setTimeout(()=>{ const f = $('loginUsername'); if(f) f.focus(); }, 0);
+}
+
+function showLoginScreen(){
+  appState = 'login';
+  showScreen('login');
+  focusLoginUsername();
+}
+
+// Enters a logged-in session for nameKey/display, points saves at that
+// profile's own slot, and loads whatever progress it already has (or starts
+// fresh if it's brand new).
+function beginSession(nameKey, display, remember){
+  currentUser = nameKey;
+  SAVE_KEY = saveKeyFor(nameKey);
+  ROLLBACK_KEY = rollbackKeyFor(nameKey);
+  if(remember){
+    try{ localStorage.setItem(SESSION_KEY, nameKey); }catch(e){}
+  } else {
+    try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+  }
+  $('profileNameText').textContent = display;
+  loadState();
+  appState = 'home';
+  showScreen('home');
+  announce('Logged in as ' + display + '.');
+}
+
+function attemptLogin(rawUsername, rawPassword){
+  const errEl = $('loginError');
+  errEl.textContent = '';
+  const username = (rawUsername||'').trim();
+  const password = rawPassword||'';
+
+  if(username.length < 2){ errEl.textContent = 'Username must be at least 2 characters.'; return; }
+  if(!/^[a-zA-Z0-9 _-]+$/.test(username)){ errEl.textContent = 'Use only letters, numbers, spaces, - and _.'; return; }
+  if(password.length < 4){ errEl.textContent = 'Password must be at least 4 characters.'; return; }
+
+  const users = readUsers();
+  const nameKey = username.toLowerCase();
+  const hash = simpleHash(password);
+
+  if(users[nameKey]){
+    if(users[nameKey].hash !== hash){
+      errEl.textContent = 'Incorrect password for that username.';
+      return;
+    }
+  } else {
+    users[nameKey] = { hash, display: username };
+    writeUsers(users);
+  }
+  const remember = $('rememberMeToggle').checked;
+  beginSession(nameKey, users[nameKey].display, remember);
+}
+
+function logout(){
+  saveState(); // persist anything pending under the current profile before leaving it
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+  currentUser = null;
+  Sound.stop();
+  $('loginPassword').value = '';
+  $('loginError').textContent = '';
+  showLoginScreen();
+}
+
 /* ============================= CONSTANTS ============================= */
 const TOTAL_LAPS = 3;
 const TRACK_WIDTH = 16;
@@ -438,7 +590,7 @@ const DRAG = 0.55;
 
 const BOOST_MAX = 100;
 const BOOST_CHARGE_TIME = 9;      // seconds to fill from empty
-const BOOST_DURATION = 1.7;       // seconds the boost lasts once triggered
+const BOOST_DURATION = 5;         // seconds the boost lasts once triggered
 const BOOST_SPEED_MULT = 1.35;
 const BOOST_ACCEL_MULT = 1.9;
 const BOOST_CHARGE_RATE = BOOST_MAX / BOOST_CHARGE_TIME;
@@ -474,12 +626,13 @@ function coinsPerLapForStage(stage){ return Math.round(COINS_PER_LAP * stageCoin
 
 /* ============================= DOM ============================= */
 const $ = id => document.getElementById(id);
-const homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), gameScreen = $('gameScreen');
+const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), gameScreen = $('gameScreen');
 const liveRegion = $('liveRegion');
 
 function announce(text){ liveRegion.textContent = ''; requestAnimationFrame(()=>{ liveRegion.textContent = text; }); }
 
 function showScreen(name){
+  loginScreen.hidden = name!=='login';
   homeScreen.hidden = name!=='home';
   garageScreen.hidden = name!=='garage';
   gameScreen.hidden = name!=='game';
@@ -628,7 +781,7 @@ let player = null;
 let track = null; // {points, normals, N, width}
 let raceClock = 0;
 let countdown = 0;
-let appState = 'home'; // home | garage | racing | paused | results
+let appState = 'login'; // login | home | garage | racing | paused | results
 let playerCarDef = CARS[0];
 
 function initThree(){
@@ -1625,6 +1778,8 @@ document.addEventListener('visibilitychange', ()=>{
   if(!document.hidden && (appState==='racing' || appState==='racing-countdown')) Sound.unlock();
 });
 window.addEventListener('keydown', e=>{
+  const typingInField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+  if(typingInField) return; // let normal typing/cursor movement happen in form fields (e.g. login)
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
   if(e.code === 'KeyM' && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
@@ -2785,13 +2940,29 @@ function animate(now){
 }
 let lastAnnouncedCountdown = 99;
 
+/* ---------- Login / profile wiring ---------- */
+$('loginForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  attemptLogin($('loginUsername').value, $('loginPassword').value);
+});
+$('logoutBtn').addEventListener('click', logout);
+
 /* ============================= INIT ============================= */
 function init(){
   initThree();
   renderStageGrid();
   refreshSoundBtn();
-  loadState();
-  showScreen('home');
+
+  // "Stay logged in" resumes the last profile automatically; otherwise land
+  // on the login screen so progress is saved to the right person's slot.
+  let remembered = null;
+  try{ remembered = localStorage.getItem(SESSION_KEY); }catch(e){}
+  if(remembered && readUsers()[remembered]){
+    beginSession(remembered, readUsers()[remembered].display, true);
+  } else {
+    showLoginScreen();
+  }
+
   requestAnimationFrame(animate);
 }
 init();
