@@ -256,7 +256,6 @@
     <div class="stageGrid" id="stageGrid" role="group" aria-label="Select a track"></div>
 
     <div class="btnRow">
-      <button class="btn" id="startRaceBtn">Start Race</button>
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
     </div>
@@ -924,10 +923,6 @@ function renderStagePhoto(stageIndex){
   return out;
 }
 
-$('startRaceBtn').addEventListener('click', ()=>{
-  if(!isStageUnlocked(selectedStage)) return;
-  startRace(selectedStage);
-});
 $('openGarageBtn').addEventListener('click', ()=>{ showScreen('garage'); renderCarGrid(); });
 $('garageBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 $('openUpgradesBtn').addEventListener('click', ()=>{ showScreen('upgrades'); renderUpgrades(); });
@@ -1259,6 +1254,23 @@ function computeTangentsNormals(points){
   const toPoint = new THREE.Vector3().subVectors(points[0], centroid);
   if(normals[0].dot(toPoint) < 0){ normals.forEach(n=>n.negate()); }
   return { tangents, normals };
+}
+
+// Estimates the local turn radius at each centerline point (circumradius of the
+// point and its neighbors). On tight, wiggly tracks (switchback/canyon/serpent)
+// the centerline can bend sharply enough that an object offset to the side of
+// the road folds back across the track itself. We use this to skip placing
+// side barriers at those tight spots instead of letting them poke into the road.
+function estimateCurveRadii(points){
+  const N = points.length;
+  const radii = [];
+  for(let i=0;i<N;i++){
+    const p0 = points[(i-1+N)%N], p1 = points[i], p2 = points[(i+1)%N];
+    const a = p1.distanceTo(p0), b = p2.distanceTo(p1), c = p2.distanceTo(p0);
+    const area2 = Math.abs((p1.x-p0.x)*(p2.z-p0.z) - (p2.x-p0.x)*(p1.z-p0.z));
+    radii.push(area2 < 1e-6 ? Infinity : (a*b*c) / (2*area2));
+  }
+  return radii;
 }
 
 function makeAsphaltTexture(){
@@ -1943,6 +1955,8 @@ function buildTrack(stageIndex){
   const barrierGeo = new THREE.BoxGeometry(1.1, 1.3, 2.6);
   const redMat = new THREE.MeshStandardMaterial({ color:0xd94452 });
   const whiteMat = new THREE.MeshStandardMaterial({ color:0xeef1f5 });
+  const barrierOffset = half+0.9;
+  const curveRadii = estimateCurveRadii(points);
   function buildBarrierSide(sign){
     const redCount = Math.ceil(N/2), whiteCount = Math.floor(N/2);
     const redMesh = new THREE.InstancedMesh(barrierGeo, redMat, redCount);
@@ -1950,13 +1964,19 @@ function buildTrack(stageIndex){
     let ri=0, wi=0;
     const m = new THREE.Matrix4();
     for(let i=0;i<N;i++){
-      const pos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*(half+0.9)));
+      // Skip barrier placement where the track bends tighter than the offset
+      // distance — otherwise the barrier folds across the road instead of
+      // sitting cleanly outside it, showing up as stray blocks mid-track.
+      if(curveRadii[i] < barrierOffset*1.6) continue;
+      const pos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*barrierOffset));
       pos.y = 0.6;
       const angle = Math.atan2(normals[i].x, normals[i].z);
       const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), angle);
       m.compose(pos, q, new THREE.Vector3(1,1,1));
       if(i%2===0) redMesh.setMatrixAt(ri++, m); else whiteMesh.setMatrixAt(wi++, m);
     }
+    redMesh.count = ri;
+    whiteMesh.count = wi;
     redMesh.instanceMatrix.needsUpdate = true;
     whiteMesh.instanceMatrix.needsUpdate = true;
     group.add(redMesh, whiteMesh);
