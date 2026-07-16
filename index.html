@@ -98,13 +98,25 @@
   .trackRenameBtn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
   .carGrid{ display:flex; gap:14px; flex-wrap:wrap; }
-  .carCard{ width:180px; background:var(--panel); border:2px solid #263349; border-radius:var(--radius);
+  .carCard{ width:206px; background:var(--panel); border:2px solid #263349; border-radius:var(--radius);
     padding:14px; text-align:left; }
   .carCard.equipped{ border-color:var(--good); box-shadow:0 0 0 1px var(--good) inset; }
   .carCard.locked{ opacity:.72; }
-  .carSwatch{ width:100%; height:54px; border-radius:10px; margin-bottom:10px; }
-  .carName{ font-weight:700; font-size:15px; margin:0 0 4px; }
-  .carStats{ color:var(--muted); font-size:12px; margin:0 0 10px; }
+  .carPreview{ width:100%; height:auto; display:block; border-radius:10px; margin-bottom:10px;
+    background:radial-gradient(120% 95% at 50% 20%, #1d2940 0%, #0c111d 75%); }
+  .carName{ font-weight:700; font-size:15px; margin:0 0 8px; }
+  .carStatsWrap{ margin:0 0 12px; }
+  .statRow{ display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+  .statRow:last-child{ margin-bottom:0; }
+  .statLabel{ width:30px; font-size:10px; font-weight:700; letter-spacing:.5px; color:var(--muted); }
+  .statTrack{ flex:1; height:6px; border-radius:999px; background:#232e44; overflow:hidden; }
+  .statFill{ display:block; height:100%; border-radius:999px; }
+  .statFill.spd{ background:linear-gradient(90deg,#37b6ff,#4fd8ff); }
+  .statFill.acc{ background:linear-gradient(90deg,#2fbf71,#3ddc84); }
+  .statFill.hnd{ background:linear-gradient(90deg,#7d4fff,#9b5cff); }
+  .statFill.wgt{ background:linear-gradient(90deg,#8fa0b8,#b8c4d9); }
+  .statFill.bst{ background:linear-gradient(90deg,#ff8a1e,#ffd23f); }
+  .statVal{ width:14px; font-size:10px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums; }
   .carCard .btn{ width:100%; padding:10px 12px; font-size:14px; min-height:38px; }
 
   .btn{ font:inherit; font-weight:700; font-size:16px; border:none; border-radius:12px; padding:14px 26px;
@@ -647,15 +659,16 @@ const POSITION_BONUS = [450, 220, 100, 30];
 const FINISH_BONUS = 60;
 
 const CARS = [
-  { name:'Runabout',        color:0x4fd8ff, price:0,      speed:0, accel:0, handling:0 },
-  { name:'Crimson GT',      color:0xff5f6d, price:1500,   speed:2, accel:1, handling:0 },
-  { name:'Emerald Racer',   color:0x3ddc84, price:4200,   speed:1, accel:3, handling:2 },
-  { name:'Amber Streak',    color:0xffc94f, price:8800,   speed:4, accel:2, handling:3 },
-  { name:'Violet Phantom',  color:0x9b5cff, price:17000,  speed:6, accel:5, handling:5 },
-  { name:'Titanium Apex',   color:0xb8c4d9, price:28000,  speed:7, accel:6, handling:6 },
-  { name:'Obsidian Reaper', color:0x6a5acd, price:44000,  speed:8, accel:7, handling:7 },
-  { name:'Solar Vanguard',  color:0xffb347, price:68000,  speed:9, accel:9, handling:8 }
+  { name:'Runabout',        color:0x4fd8ff, price:0,      speed:0, accel:0, handling:0, weight:3, boostPower:1 },
+  { name:'Crimson GT',      color:0xff5f6d, price:1500,   speed:2, accel:1, handling:0, weight:4, boostPower:2 },
+  { name:'Emerald Racer',   color:0x3ddc84, price:4200,   speed:1, accel:3, handling:2, weight:2, boostPower:3 },
+  { name:'Amber Streak',    color:0xffc94f, price:8800,   speed:4, accel:2, handling:3, weight:5, boostPower:4 },
+  { name:'Violet Phantom',  color:0x9b5cff, price:17000,  speed:6, accel:5, handling:5, weight:4, boostPower:6 },
+  { name:'Titanium Apex',   color:0xb8c4d9, price:28000,  speed:7, accel:6, handling:6, weight:8, boostPower:5 },
+  { name:'Obsidian Reaper', color:0x6a5acd, price:44000,  speed:8, accel:7, handling:7, weight:6, boostPower:7 },
+  { name:'Solar Vanguard',  color:0xffb347, price:68000,  speed:9, accel:9, handling:8, weight:5, boostPower:9 }
 ];
+const CAR_STAT_MAX = 9; // stat bars in the garage are drawn as val / CAR_STAT_MAX
 
 const BASE_MAX_SPEED = 42;
 const BASE_ACCEL = 30;
@@ -839,7 +852,20 @@ function renderCarGrid(){
     const equipped = gameState.selectedCar === i;
     const card = document.createElement('div');
     card.className = 'carCard' + (equipped ? ' equipped' : '') + (owned ? '' : ' locked');
-    const statLine = `SPD +${c.speed} · ACC +${c.accel} · HND +${c.handling}`;
+    const statDefs = [
+      ['SPD', 'Speed',        c.speed,      'spd'],
+      ['ACC', 'Acceleration', c.accel,      'acc'],
+      ['HND', 'Handling',     c.handling,   'hnd'],
+      ['WGT', 'Weight',       c.weight,     'wgt'],
+      ['BST', 'Boost Power',  c.boostPower, 'bst']
+    ];
+    const statBars = statDefs.map(([abbr, label, val, cls]) => `
+      <div class="statRow" title="${label}: ${val} / ${CAR_STAT_MAX}">
+        <span class="statLabel">${abbr}</span>
+        <span class="statTrack"><span class="statFill ${cls}" style="width:${Math.round(val / CAR_STAT_MAX * 100)}%"></span></span>
+        <span class="statVal">${val}</span>
+      </div>`).join('');
+    const statsAria = statDefs.map(([, label, val]) => `${label} ${val} of ${CAR_STAT_MAX}`).join(', ');
     let buttonHtml;
     if(equipped){
       buttonHtml = `<button class="btn secondary" disabled>Equipped</button>`;
@@ -849,13 +875,14 @@ function renderCarGrid(){
       buttonHtml = `<button class="btn" data-buy="${i}" ${(!isAdmin && gameState.coins < c.price) ? 'disabled' : ''}>Buy — ${isAdmin ? 'Free (Admin)' : c.price + ' coins'}</button>`;
     }
     card.innerHTML = `
-      <div class="carSwatch" style="background:#${c.color.toString(16).padStart(6,'0')};"></div>
+      <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
       <p class="carName">${owned ? c.name : '🔒 ' + c.name}</p>
-      <p class="carStats">${statLine}</p>
+      <div class="carStatsWrap" role="img" aria-label="${statsAria}">${statBars}</div>
       ${buttonHtml}
     `;
     carGrid.appendChild(card);
   });
+  startGaragePreviews();
   carGrid.querySelectorAll('button[data-buy]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const i = Number(btn.getAttribute('data-buy'));
@@ -879,6 +906,79 @@ function renderCarGrid(){
       renderCarGrid();
       announce(CARS[i].name + ' equipped.');
     });
+  });
+}
+
+/* ---------- Garage 3D previews ----------
+   One small shared WebGL renderer draws every car's real race mesh
+   (createCarMesh) onto its card's 2D canvas each frame, so we never get
+   anywhere near the browser's WebGL context limit no matter how many cars
+   are in the roster. The loop only runs while the garage is on screen and
+   restarts via renderCarGrid() every time the screen is opened. */
+const PREVIEW_W = 356, PREVIEW_H = 240;
+let garagePrev = null; // { renderer, scene, camera, mount, items, raf, t, last }
+
+function ensureGaragePreviewRig(){
+  if(garagePrev) return garagePrev;
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.setSize(PREVIEW_W, PREVIEW_H, false);
+  renderer.setClearColor(0x000000, 0); // transparent — the card CSS provides the backdrop
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, PREVIEW_W/PREVIEW_H, 0.1, 60);
+  camera.position.set(4.6, 2.7, 5.4);
+  camera.lookAt(0, 0.6, 0);
+  scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x141a26, 0.95));
+  const key = new THREE.DirectionalLight(0xffffff, 0.85);
+  key.position.set(4, 6, 3);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x4fd8ff, 0.4);
+  rim.position.set(-5, 3, -4);
+  scene.add(rim);
+  const platform = new THREE.Mesh(
+    new THREE.CylinderGeometry(3.1, 3.4, 0.18, 40),
+    new THREE.MeshStandardMaterial({ color:0x1a2333, roughness:0.85, metalness:0.1 })
+  );
+  platform.position.y = -0.09;
+  scene.add(platform);
+  const mount = new THREE.Group();
+  scene.add(mount);
+  garagePrev = { renderer, scene, camera, mount, items:[], raf:0, t:0, last:0 };
+  return garagePrev;
+}
+
+function startGaragePreviews(){
+  const rig = ensureGaragePreviewRig();
+  if(rig.raf){ cancelAnimationFrame(rig.raf); rig.raf = 0; }
+  rig.items.forEach(it=>disposeObject(it.mesh)); // free the previous grid's meshes
+  rig.items = [];
+  document.querySelectorAll('#carGrid .carPreview').forEach(cv=>{
+    const idx = Number(cv.getAttribute('data-car'));
+    const def = CARS[idx];
+    if(!def) return;
+    rig.items.push({ ctx: cv.getContext('2d'), canvas: cv, mesh: createCarMesh(def.color), idx });
+  });
+  drawGaragePreviews(rig); // always paint one frame so cards are never blank
+  rig.last = performance.now();
+  const frame = (now)=>{
+    if(garageScreen.hidden){ rig.raf = 0; return; } // pause off-screen; reopening the garage restarts us
+    const dt = Math.min((now - rig.last)/1000, 0.1);
+    rig.last = now;
+    rig.t += dt;
+    drawGaragePreviews(rig);
+    rig.raf = requestAnimationFrame(frame);
+  };
+  if(!garageScreen.hidden) rig.raf = requestAnimationFrame(frame);
+}
+
+function drawGaragePreviews(rig){
+  rig.items.forEach(it=>{
+    rig.mount.add(it.mesh);
+    it.mesh.rotation.y = rig.t*0.65 + it.idx*0.9; // phase offset so the row doesn't spin in lockstep
+    rig.renderer.render(rig.scene, rig.camera);
+    it.ctx.clearRect(0, 0, it.canvas.width, it.canvas.height);
+    it.ctx.drawImage(rig.renderer.domElement, 0, 0, it.canvas.width, it.canvas.height);
+    rig.mount.remove(it.mesh);
   });
 }
 
@@ -2111,8 +2211,8 @@ function updateCar(car, dt){
   let accel = (BASE_ACCEL
     + (car.isPlayer ? gameState.upgrades.accel*5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
   if(car.isPlayer && boosting){
-    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.035;
-    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.09;
+    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.035 + playerCarDef.boostPower*0.02;
+    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.09 + playerCarDef.boostPower*0.05;
   }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
   const turnRate = (BASE_TURN
@@ -2269,10 +2369,11 @@ function resolveCollisions(dt){
           const relApproach = a.speed*aVn - b.speed*bVn;
           if(relApproach > 0){
             // Inelastic: remove exactly the approach component, split evenly.
-            // Collision Resistance softens how much of that gets applied to the player.
+            // Collision Resistance and car weight soften how much of that gets applied to the player.
             const correction = relApproach * 0.5;
-            const aFactor = a.isPlayer ? Math.max(0.4, 1 - gameState.upgrades.armor*0.07) : 1;
-            const bFactor = b.isPlayer ? Math.max(0.4, 1 - gameState.upgrades.armor*0.07) : 1;
+            const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.07 - playerCarDef.weight*0.03);
+            const aFactor = a.isPlayer ? playerFactor : 1;
+            const bFactor = b.isPlayer ? playerFactor : 1;
             a.speed -= correction * aVn * 0.6 * aFactor;
             b.speed += correction * bVn * 0.6 * bFactor;
             a.speed = Math.max(-40, Math.min(40, a.speed));
