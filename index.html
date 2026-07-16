@@ -1935,23 +1935,43 @@ function buildTrack(stageIndex){
   group.add(new THREE.Mesh(dashGeo, dashMat));
 
   // Barriers (instanced, alternating red/white)
-  const barrierGeo = new THREE.BoxGeometry(1.1, 1.3, 2.6);
+  const BARRIER_WIDTH = 1.1, BARRIER_HEIGHT = 1.3, BARRIER_DEPTH = 2.6;
+  const barrierGeo = new THREE.BoxGeometry(BARRIER_WIDTH, BARRIER_HEIGHT, BARRIER_DEPTH);
   const redMat = new THREE.MeshStandardMaterial({ color:0xd94452 });
   const whiteMat = new THREE.MeshStandardMaterial({ color:0xeef1f5 });
-  const barrierOffset = half+0.9;
+  // Each barrier box is rotated to match the local track direction, which
+  // points its long (depth) axis straight along the normal — so its near
+  // face sits BARRIER_DEPTH/2 closer to the road than its own center point.
+  // Offsetting the center by only a small pad (as before) left that near
+  // face sitting *inside* the road's edge on every track. The offset has to
+  // clear the box's own half-depth first, then add a small visible gap.
+  const EDGE_CLEARANCE = 0.15;
+  const barrierOffset = half + BARRIER_DEPTH/2 + EDGE_CLEARANCE;
   // On tight, wiggly tracks (switchback/canyon/serpent) the centerline can
   // loop back close to itself, so a barrier offset from point i can land
   // right on top of the road surface near some other, far-away point j —
-  // not just near its own point. Rather than guessing from local curvature
-  // (which also strips barriers that never actually overlap anything), we
-  // directly test each candidate barrier position against the whole track
-  // and only drop the ones that truly collide with the road.
+  // not just near its own point. We test each candidate barrier position
+  // against the true road curve (nearest point on each track segment, not
+  // just the nearest sampled point — samples can be far enough apart on a
+  // curve to hide a real overlap) padded by the barrier's own footprint,
+  // and drop only the ones that truly collide with the road.
   const NEIGHBOR_GAP = Math.max(4, Math.round(N*0.03));
+  const BARRIER_FOOTPRINT = Math.sqrt((BARRIER_DEPTH/2)**2 + (BARRIER_WIDTH/2)**2);
+  const DISTANT_LIMIT = half + BARRIER_FOOTPRINT + 0.05;
+  function pointSegDist(p, a, b){
+    const abx = b.x-a.x, abz = b.z-a.z;
+    const lenSq = abx*abx + abz*abz;
+    let t = lenSq > 1e-8 ? ((p.x-a.x)*abx + (p.z-a.z)*abz) / lenSq : 0;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x-(a.x+abx*t), p.z-(a.z+abz*t));
+  }
   function collidesWithTrack(pos, selfIndex){
     for(let j=0;j<N;j++){
-      let d = Math.abs(j-selfIndex); d = Math.min(d, N-d);
-      if(d <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
-      if(pos.distanceTo(points[j]) < half) return true;
+      const k = (j+1)%N;
+      let dj = Math.abs(j-selfIndex); dj = Math.min(dj, N-dj);
+      let dk = Math.abs(k-selfIndex); dk = Math.min(dk, N-dk);
+      if(dj <= NEIGHBOR_GAP && dk <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
+      if(pointSegDist(pos, points[j], points[k]) < DISTANT_LIMIT) return true;
     }
     return false;
   }
