@@ -91,6 +91,8 @@
   .lockNote{ color:var(--danger); font-size:12px; margin:2px 0 0; font-weight:700; }
   .stageCardWrap{ position:relative; width:220px; }
   .stageCardWrap .stageCard{ width:100%; }
+  .carCardWrap{ position:relative; width:206px; }
+  .carCardWrap .carCard{ width:100%; }
   .trackRenameBtn{ position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:50%;
     border:1px solid #2a3549; background:rgba(10,14,20,.82); color:var(--text); font-size:13px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; padding:0; }
@@ -739,6 +741,31 @@ function renameStage(i, newName){
 }
 loadTrackNameOverrides();
 
+// Admin-only car renaming, same pattern as track renaming above: names are
+// stored separately from CARS (still the source of truth for stats/price)
+// and shared globally across all local profiles.
+const CAR_NAMES_KEY = 'velocityCircuit_carNames';
+let carNameOverrides = {};
+function loadCarNameOverrides(){
+  try{
+    const raw = localStorage.getItem(CAR_NAMES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    carNameOverrides = (parsed && typeof parsed === 'object') ? parsed : {};
+  }catch(e){ carNameOverrides = {}; }
+}
+function saveCarNameOverrides(){
+  try{ localStorage.setItem(CAR_NAMES_KEY, JSON.stringify(carNameOverrides)); }catch(e){}
+}
+function getCarName(i){
+  const override = carNameOverrides[i];
+  return (typeof override === 'string' && override.trim()) ? override.trim() : CARS[i].name;
+}
+function renameCar(i, newName){
+  carNameOverrides[i] = newName;
+  saveCarNameOverrides();
+}
+loadCarNameOverrides();
+
 // Harder tracks pay out more: every point of difficulty above 1 adds 20% to
 // every coin source in that race (per-lap coins, finish bonus, position bonus).
 function stageCoinMult(stage){ return 1 + (stage.difficulty - 1) * 0.2; }
@@ -943,6 +970,9 @@ function renderCarGrid(){
   CARS.forEach((c,i)=>{
     const owned = gameState.ownedCars.includes(i);
     const equipped = gameState.selectedCar === i;
+    const displayName = getCarName(i);
+    const wrap = document.createElement('div');
+    wrap.className = 'carCardWrap';
     const card = document.createElement('div');
     card.className = 'carCard' + (equipped ? ' equipped' : '') + (owned ? '' : ' locked');
     const statDefs = [
@@ -969,11 +999,34 @@ function renderCarGrid(){
     }
     card.innerHTML = `
       <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
-      <p class="carName">${owned ? c.name : '🔒 ' + c.name}</p>
+      <p class="carName">${owned ? displayName : '🔒 ' + displayName}</p>
       <div class="carStatsWrap" role="img" aria-label="${statsAria}">${statBars}</div>
       ${buttonHtml}
     `;
-    carGrid.appendChild(card);
+    wrap.appendChild(card);
+
+    if(isAdmin){
+      const renameBtn = document.createElement('button');
+      renameBtn.type = 'button';
+      renameBtn.className = 'trackRenameBtn';
+      renameBtn.setAttribute('aria-label', 'Rename ' + displayName);
+      renameBtn.title = 'Rename car';
+      renameBtn.textContent = '✏️';
+      renameBtn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const next = window.prompt('Rename car:', displayName);
+        if(next === null) return;
+        const trimmed = next.trim();
+        if(!trimmed || trimmed === displayName) return;
+        renameCar(i, trimmed);
+        renderCarGrid();
+        announce('Car renamed to ' + trimmed + '.');
+        showToast('Car renamed');
+      });
+      wrap.appendChild(renameBtn);
+    }
+
+    carGrid.appendChild(wrap);
   });
   startGaragePreviews();
   carGrid.querySelectorAll('button[data-buy]').forEach(btn=>{
@@ -988,7 +1041,7 @@ function renderCarGrid(){
       saveState();
       refreshCoinDisplays();
       renderCarGrid();
-      announce(car.name + ' purchased and equipped.');
+      announce(getCarName(i) + ' purchased and equipped.');
     });
   });
   carGrid.querySelectorAll('button[data-select]').forEach(btn=>{
@@ -997,7 +1050,7 @@ function renderCarGrid(){
       gameState.selectedCar = i;
       saveState();
       renderCarGrid();
-      announce(CARS[i].name + ' equipped.');
+      announce(getCarName(i) + ' equipped.');
     });
   });
 }
