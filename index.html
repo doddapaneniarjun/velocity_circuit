@@ -122,6 +122,20 @@
   .speedNum{ font-size:44px; font-weight:800; line-height:1; text-shadow:0 0 18px rgba(79,216,255,.6); }
   .minimapWrap{ position:absolute; bottom:18px; left:18px; }
   #minimap{ background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:12px; }
+  .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:all; }
+  .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:rgba(10,14,20,.72);
+    border:1px solid rgba(79,216,255,.25); overflow:hidden; }
+  .boostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #ff8a1e, #ffd23f); }
+  .boostBtn{ background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:999px;
+    color:var(--muted); font:inherit; font-size:14px; font-weight:800; padding:9px 22px; cursor:not-allowed;
+    display:flex; align-items:center; gap:8px; letter-spacing:.5px; transition:transform .15s, box-shadow .15s, color .15s, background .15s, border-color .15s; }
+  .boostBtn.ready{ color:#241a06; background:linear-gradient(135deg,#ffd23f,#ff8a1e); border-color:#ffd23f;
+    cursor:pointer; box-shadow:0 0 18px rgba(255,178,50,.7); animation:boostPulse 1s ease-in-out infinite; }
+  .boostBtn.active{ color:#241a06; background:linear-gradient(135deg,#fff2b0,#ff8a1e); border-color:#fff2b0;
+    cursor:default; animation:none; box-shadow:0 0 24px rgba(255,178,50,.85); }
+  .boostBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+  @keyframes boostPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
   .controlsHint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); background:rgba(10,14,20,.72);
     border:1px solid rgba(79,216,255,.25); border-radius:10px; padding:6px 14px; font-size:13px; color:var(--muted); }
   .soundBtn{ position:absolute; top:14px; right:14px; margin-top:64px; pointer-events:all;
@@ -208,14 +222,20 @@
           <div class="hudSmall"><span class="coinDot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> <span id="hudCoins">0</span> coins</div>
         </div>
       </div>
-      <div class="controlsHint">W/A/S/D or Arrows to drive &middot; Esc to pause &middot; M to mute</div>
+      <div class="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc to pause &middot; M to mute</div>
       <button class="soundBtn" id="soundBtn" type="button" aria-pressed="true">
         <span id="soundIcon" aria-hidden="true">🔊</span><span id="soundLabel">Sound on</span>
       </button>
       <div class="toast" id="toast"></div>
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall">mph</div></div>
-      <div class="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
+      <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
+      <div class="boostWrap">
+        <button class="boostBtn" id="boostBtn" type="button" aria-label="Activate boost (Space)" disabled>
+          <span id="boostIcon" aria-hidden="true">🔥</span><span id="boostLabel">BOOST</span>
+        </button>
+        <div class="boostBarTrack"><div class="boostBarFill" id="boostBarFill"></div></div>
+      </div>
     </div>
 
     <div class="overlay" id="pauseOverlay" hidden>
@@ -247,6 +267,33 @@
           </div>
           <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">Controls how sharply your car responds to steering input.</p>
         </div>
+        <div style="margin-bottom:24px;text-align:left;">
+          <label style="display:block;font-weight:700;margin-bottom:8px;">
+            Master Volume
+            <span id="volumeVal" style="color:var(--accent);margin-left:8px;">70</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="color:var(--muted);font-size:13px;">🔈</span>
+            <input type="range" id="volumeSlider" min="0" max="100" value="70"
+              style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
+            <span style="color:var(--muted);font-size:13px;">🔊</span>
+          </div>
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="invertSteeringToggle" style="display:block;font-weight:700;">Invert Steering</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Swap left/right controls.</p>
+          </div>
+          <input type="checkbox" id="invertSteeringToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="minimapToggle" style="display:block;font-weight:700;">Show Minimap</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Toggle the track overview in the corner.</p>
+          </div>
+          <input type="checkbox" id="minimapToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
         <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
       </div>
     </div>
@@ -282,7 +329,10 @@ const DEFAULT_STATE = {
   racesCompleted: 0,
   skillRating: 50,
   soundOn: true,
-  sensitivity: 50   // 0–100; maps to a turn-rate multiplier of 0.4–1.6
+  sensitivity: 50,  // 0–100; maps to a turn-rate multiplier of 0.4–1.6
+  volume: 70,       // 0–100 master volume
+  invertSteering: false,
+  showMinimap: true
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -315,6 +365,9 @@ function loadState(){
       gameState.skillRating    = Number.isFinite(parsed.skillRating)    ? parsed.skillRating    : 50;
       gameState.soundOn        = parsed.soundOn !== false;
       gameState.sensitivity    = Number.isFinite(parsed.sensitivity) ? parsed.sensitivity : 50;
+      gameState.volume         = Number.isFinite(parsed.volume) ? parsed.volume : 70;
+      gameState.invertSteering = parsed.invertSteering === true;
+      gameState.showMinimap    = parsed.showMinimap !== false;
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -326,6 +379,7 @@ function loadState(){
   refreshCoinDisplays();
   renderGarage();
   renderStageGrid();
+  applyMinimapVisibility();
 }
 
 function saveState(){
@@ -382,6 +436,13 @@ const BASE_TURN = 2.5;
 const BASE_BRAKE = 55;
 const DRAG = 0.55;
 
+const BOOST_MAX = 100;
+const BOOST_CHARGE_TIME = 9;      // seconds to fill from empty
+const BOOST_DURATION = 1.7;       // seconds the boost lasts once triggered
+const BOOST_SPEED_MULT = 1.35;
+const BOOST_ACCEL_MULT = 1.9;
+const BOOST_CHARGE_RATE = BOOST_MAX / BOOST_CHARGE_TIME;
+
 const UPGRADE_DEFS = [
   { key:'speed', name:'Top Speed', desc:'Increases maximum velocity.' },
   { key:'accel', name:'Acceleration', desc:'Reach top speed faster.' },
@@ -405,6 +466,11 @@ const STAGES = [
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return gameState.racesCompleted >= STAGES[i].unlockRaces; }
+
+// Harder tracks pay out more: every point of difficulty above 1 adds 20% to
+// every coin source in that race (per-lap coins, finish bonus, position bonus).
+function stageCoinMult(stage){ return 1 + (stage.difficulty - 1) * 0.2; }
+function coinsPerLapForStage(stage){ return Math.round(COINS_PER_LAP * stageCoinMult(stage)); }
 
 /* ============================= DOM ============================= */
 const $ = id => document.getElementById(id);
@@ -446,6 +512,7 @@ function renderStageGrid(){
       <p class="stageName">${unlocked ? s.name : '🔒 ' + s.name}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
+      <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
         : `<p class="lockNote">Finish ${s.unlockRaces} race${s.unlockRaces===1?'':'s'} to unlock</p>`}
@@ -1194,6 +1261,107 @@ function buildScenery(theme){
   return group;
 }
 
+/* ---------- Trackside crowd (spectators) -----------------------------------
+   Generic across every track type — reads only points/normals/width, so it
+   never touches the sky dome or theme scenery (the "background"). Density
+   reuses each theme's existing crowd value (already tuned for the crowd
+   sound bed), with a floor so even remote tracks get a few onlookers. */
+const CROWD_SHIRT_COLORS = [0xd94452, 0x4fd8ff, 0xffc94f, 0x6fe38f, 0xffffff, 0x8a6fe3, 0x2f3542, 0xff8c42];
+const CROWD_SKIN_TONES   = [0xe8b892, 0xc98a5e, 0x8d5a3c, 0x4a2f22, 0xf2d3ae];
+function buildCrowd(theme, points, normals, half){
+  const group = new THREE.Group();
+  const density = Math.max(0.18, (theme && theme.crowd) || 0);
+  const N = points.length;
+
+  // Tapered torso (wider shoulders, narrower base) reads as a person from a
+  // distance far better than a plain box, at the same triangle cost.
+  const bodyGeo = new THREE.CylinderGeometry(0.23, 0.15, 0.85, 8);
+  const headGeo = new THREE.SphereGeometry(0.2, 8, 7);
+  const armGeo  = new THREE.CylinderGeometry(0.055, 0.07, 0.5, 6);
+
+  const step = Math.max(4, Math.round(10 - density*6));
+  const rowsPerCluster = 1 + Math.round(density*3);
+  const peoplePerRow = 2 + Math.round(density*4);
+  const clusterCount = Math.ceil(N/step);
+  const totalPeople = clusterCount*2*rowsPerCluster*peoplePerRow + 16;
+  const maxPerBodyColor = Math.ceil(totalPeople / CROWD_SHIRT_COLORS.length) + 8;
+  const maxPerSkinTone  = Math.ceil(totalPeople / CROWD_SKIN_TONES.length) + 8;
+
+  const bodyBatches = CROWD_SHIRT_COLORS.map(c=>({
+    mesh: new THREE.InstancedMesh(bodyGeo, new THREE.MeshStandardMaterial({ color:c, roughness:0.85 }), maxPerBodyColor),
+    i: 0
+  }));
+  const headBatches = CROWD_SKIN_TONES.map(c=>({
+    mesh: new THREE.InstancedMesh(headGeo, new THREE.MeshStandardMaterial({ color:c, roughness:0.9 }), maxPerSkinTone),
+    i: 0
+  }));
+  // A raised, cheering arm on roughly a quarter of the crowd — small detail
+  // that reads as "alive" rather than a static block of mannequins.
+  const armMat = new THREE.MeshStandardMaterial({ color:CROWD_SKIN_TONES[0], roughness:0.9 });
+  const armMesh = new THREE.InstancedMesh(armGeo, armMat, Math.ceil(totalPeople*0.3) + 8);
+  let armI = 0;
+
+  const m = new THREE.Matrix4();
+  const upAxis = new THREE.Vector3(0,1,0);
+
+  for(let i=0;i<N;i+=step){
+    if(Math.random() > density + 0.3) continue; // irregular gaps in the crowd
+    const n = normals[i];
+    const tangent = new THREE.Vector3(-n.z, 0, n.x);
+    const baseAngle = Math.atan2(tangent.x, tangent.z);
+    [1,-1].forEach(sign=>{
+      for(let row=0; row<rowsPerCluster; row++){
+        const dist = half + 2.6 + row*0.9;   // stepped-back rows, like simple stands
+        const baseY = 0.5 + row*0.55;
+        for(let p=0;p<peoplePerRow;p++){
+          const along = (p - (peoplePerRow-1)/2) * 0.6 + (Math.random()-0.5)*0.25;
+          const pos = points[i].clone().addScaledVector(n, sign*dist).addScaledVector(tangent, along);
+          // Height/build variation so the crowd isn't a rank of identical clones.
+          const build = 0.82 + Math.random()*0.4;
+          const heightJ = 0.85 + Math.random()*0.32;
+          pos.y = baseY + (heightJ-1)*0.35;
+          // Each person faces roughly toward the track but with natural scatter.
+          const q = new THREE.Quaternion().setFromAxisAngle(upAxis, baseAngle + (Math.random()-0.5)*1.1);
+          const bodyScale = new THREE.Vector3(build, heightJ, build);
+
+          const bb = bodyBatches[Math.floor(Math.random()*bodyBatches.length)];
+          if(bb.i < bb.mesh.count){
+            m.compose(pos, q, bodyScale);
+            bb.mesh.setMatrixAt(bb.i++, m);
+          }
+          const hb = headBatches[Math.floor(Math.random()*headBatches.length)];
+          if(hb.i < hb.mesh.count){
+            const hp = pos.clone(); hp.y += 0.44*heightJ + 0.2;
+            m.compose(hp, q, new THREE.Vector3(build*0.95, build*0.95, build*0.95));
+            hb.mesh.setMatrixAt(hb.i++, m);
+          }
+          if(Math.random() < 0.28 && armI < armMesh.count){
+            const side = Math.random() < 0.5 ? 1 : -1;
+            const armPos = pos.clone()
+              .addScaledVector(tangent, side*0.22*build)
+              .add(new THREE.Vector3(0, 0.55*heightJ, 0));
+            const localTilt = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.95, 0, side*0.55));
+            const armQ = q.clone().multiply(localTilt);
+            m.compose(armPos, armQ, new THREE.Vector3(build, build, build));
+            armMesh.setMatrixAt(armI++, m);
+          }
+        }
+      }
+    });
+  }
+  bodyBatches.forEach(bb=>{
+    bb.mesh.count = bb.i; bb.mesh.instanceMatrix.needsUpdate = true;
+    if(bb.i > 0) group.add(bb.mesh);
+  });
+  headBatches.forEach(hb=>{
+    hb.mesh.count = hb.i; hb.mesh.instanceMatrix.needsUpdate = true;
+    if(hb.i > 0) group.add(hb.mesh);
+  });
+  armMesh.count = armI; armMesh.instanceMatrix.needsUpdate = true;
+  if(armI > 0) group.add(armMesh);
+  return group;
+}
+
 function buildTrack(stageIndex){
   const stage = STAGES[stageIndex];
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
@@ -1298,6 +1466,8 @@ function buildTrack(stageIndex){
   buildBarrierSide(1);
   buildBarrierSide(-1);
 
+  group.add(buildCrowd(theme, points, normals, half));
+
   group.add(buildFinishLine(points, normals, trackWidth));
 
   return { group, points, normals, width: trackWidth, N };
@@ -1372,6 +1542,28 @@ function buildFinishLine(points, normals, width){
 }
 
 /* ---------- Car mesh ---------- */
+function createFlameGroup(){
+  const group = new THREE.Group();
+  const coneGeo = new THREE.ConeGeometry(0.34, 1.0, 8);
+  const tiers = [
+    { color:0xff6a1e, opacity:0.85, scale:1.00 },
+    { color:0xffb43f, opacity:0.9,  scale:0.72 },
+    { color:0xfff2b0, opacity:0.95, scale:0.42 }
+  ];
+  const flames = tiers.map((t,i)=>{
+    const mat = new THREE.MeshBasicMaterial({ color:t.color, transparent:true, opacity:t.opacity, depthWrite:false, fog:false });
+    const cone = new THREE.Mesh(coneGeo, mat);
+    cone.rotation.x = -Math.PI/2;              // apex trails backward (-Z, away from the car)
+    cone.scale.set(t.scale, t.scale*1.15, t.scale);
+    cone.position.z = -0.10 - i*0.16;
+    group.add(cone);
+    return cone;
+  });
+  group.position.set(0, 0.55, -2.05);
+  group.visible = false;
+  group.userData.flames = flames;
+  return group;
+}
 function createCarMesh(colorHex){
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(2,0.6,4), new THREE.MeshStandardMaterial({ color: colorHex, roughness:0.5 }));
@@ -1389,6 +1581,9 @@ function createCarMesh(colorHex){
     g.add(w); wheels.push(w);
   });
   g.userData.wheels = wheels;
+  const flameGroup = createFlameGroup();
+  g.add(flameGroup);
+  g.userData.flameGroup = flameGroup;
   return g;
 }
 
@@ -1401,13 +1596,17 @@ function makeCar(isPlayer, colorHex, aiSkill){
     finished: false, finishTime: null,
     lapStartClock: 0, bestLap: Infinity,
     aiSkill: aiSkill || 1, diffBonus: 0, turnBonus: 0,
-    rubberBand: 1, topSpeed: 0
+    rubberBand: 1, topSpeed: 0, lapArmed: false
   };
 }
 
 /* Runtime race stats used for the end-of-race summary */
 let playerCollisions = 0;
+let lapCoinsEarned = 0;
 let collisionToastCooldown = 0;
+let boostCharge = 0;
+let boosting = false;
+let boostTimer = 0;
 
 function forwardVec(heading){ return new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)); }
 function normalizeAngle(a){ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; }
@@ -1426,11 +1625,12 @@ document.addEventListener('visibilitychange', ()=>{
   if(!document.hidden && (appState==='racing' || appState==='racing-countdown')) Sound.unlock();
 });
 window.addEventListener('keydown', e=>{
-  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
   if(e.code === 'KeyM' && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
     Sound.toggle(); refreshSoundBtn();
   }
+  if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
   if(e.code === 'Escape' && appState==='racing'){ pauseRace(); }
   else if(e.code === 'Escape' && appState==='paused'){ resumeRace(); }
 });
@@ -1515,7 +1715,15 @@ function startRace(stageIndex){
     cars.push(cpu);
   }
   playerCollisions = 0;
+  lapCoinsEarned = 0;
   collisionToastCooldown = 0;
+  boostCharge = 0;
+  boosting = false;
+  boostTimer = 0;
+  $('boostBarFill').style.width = '0%';
+  $('boostBtn').classList.remove('ready','active');
+  $('boostBtn').disabled = true;
+  $('boostLabel').textContent = 'BOOST';
 
   cars.forEach((car, i)=>{
     // Starting grid position: player gets slot index 1 (-1.35), CPUs use their assigned lane offsets
@@ -1574,12 +1782,29 @@ function applyBoundary(car){
   }
 }
 
+function updateBoostFlames(car, dt){
+  const group = car.mesh.userData.flameGroup;
+  if(!group) return;
+  if(boosting){
+    group.visible = true;
+    group.userData.flames.forEach((cone, i)=>{
+      // Flicker: jitter each tier's length/width independently every frame
+      const base = 1 - i*0.28;
+      const j = 0.82 + Math.random()*0.36;
+      cone.scale.set(base*j, base*(1.1+Math.random()*0.35), base*j);
+    });
+  } else if(group.visible){
+    group.visible = false;
+  }
+}
+
 function updateCar(car, dt){
   const rb = car.isPlayer ? 1 : (car.rubberBand || 1);
-  const maxSpeed = (BASE_MAX_SPEED
+  let maxSpeed = (BASE_MAX_SPEED
     + (car.isPlayer ? gameState.upgrades.speed*6 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
-  const accel = (BASE_ACCEL
+  let accel = (BASE_ACCEL
     + (car.isPlayer ? gameState.upgrades.accel*5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
+  if(car.isPlayer && boosting){ maxSpeed *= BOOST_SPEED_MULT; accel *= BOOST_ACCEL_MULT; }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
   const turnRate = (BASE_TURN
     + (car.isPlayer ? gameState.upgrades.handling*0.28 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
@@ -1591,6 +1816,7 @@ function updateCar(car, dt){
     throttle = (keys['ArrowUp']||keys['KeyW']) ? 1 : 0;
     brake = (keys['ArrowDown']||keys['KeyS']) ? 1 : 0;
     steer = ((keys['ArrowLeft']||keys['KeyA'])?1:0) - ((keys['ArrowRight']||keys['KeyD'])?1:0);
+    if(gameState.invertSteering) steer = -steer;
   } else {
     // Build a lane-offset waypoint: shift the centreline point laterally by
     // this CPU's assigned lane so it steers toward its own lane, not the middle.
@@ -1631,20 +1857,29 @@ function updateCar(car, dt){
   car.trackIndex = findNearestIndex(car);
   applyBoundary(car);
 
-  // Lap detection
+  // Lap detection. A crossing only counts once the car has genuinely been
+  // out around the track (past the midpoint) since the last time it counted —
+  // otherwise reversing back over the line and rolling forward again would
+  // re-trigger the same lap.
   const N = track.N;
-  if(car.prevIndex > N*0.82 && car.trackIndex < N*0.18){
+  if(car.trackIndex > N*0.35 && car.trackIndex < N*0.65){
+    car.lapArmed = true;
+  }
+  if(car.lapArmed && car.prevIndex > N*0.82 && car.trackIndex < N*0.18){
+    car.lapArmed = false;
     car.lap += 1;
     const lapTime = raceClock - car.lapStartClock;
     car.lapStartClock = raceClock;
     if(lapTime < car.bestLap) car.bestLap = lapTime;
     if(car.isPlayer){
-      gameState.coins += COINS_PER_LAP;
+      const lapCoins = coinsPerLapForStage(STAGES[selectedStage]);
+      gameState.coins += lapCoins;
+      lapCoinsEarned += lapCoins;
       refreshCoinDisplays();
       saveState();
       Sound.lap(car.lap >= TOTAL_LAPS);
-      showToast('+' + COINS_PER_LAP + ' coins — Lap ' + car.lap + ' complete!');
-      announce('Lap ' + car.lap + ' complete. Plus ' + COINS_PER_LAP + ' coins.');
+      showToast('+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!');
+      announce('Lap ' + car.lap + ' complete. Plus ' + lapCoins + ' coins.');
       if(!gameState.bestLaps[selectedStage] || lapTime < gameState.bestLaps[selectedStage]){
         gameState.bestLaps[selectedStage] = lapTime;
         saveState();
@@ -1675,6 +1910,7 @@ function updateCar(car, dt){
   if(car.isPlayer){
     const mph = Math.max(0, Math.abs(car.speed)*2.6);
     if(mph > car.topSpeed) car.topSpeed = mph;
+    updateBoostFlames(car, dt);
   }
 }
 
@@ -1808,6 +2044,34 @@ function updateHUD(){
   $('speedNum').textContent = Math.max(0, Math.round(Math.abs(player.speed)*2.6));
   drawMinimap(standings);
 }
+
+/* ---------- Boost ---------- */
+function updateBoost(dt){
+  if(boosting){
+    boostTimer -= dt;
+    if(boostTimer <= 0){ boosting = false; boostTimer = 0; }
+  } else {
+    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * dt);
+  }
+  const pct = boosting ? 100 : (boostCharge / BOOST_MAX * 100);
+  $('boostBarFill').style.width = pct + '%';
+  const btn = $('boostBtn');
+  const ready = !boosting && boostCharge >= BOOST_MAX;
+  btn.classList.toggle('ready', ready);
+  btn.classList.toggle('active', boosting);
+  btn.disabled = !ready;
+  $('boostLabel').textContent = boosting ? 'BOOSTING' : (ready ? 'BOOST!' : 'BOOST');
+}
+function triggerBoost(){
+  if(appState !== 'racing' || boosting || boostCharge < BOOST_MAX) return;
+  boosting = true;
+  boostTimer = BOOST_DURATION;
+  boostCharge = 0;
+  Sound.unlock();
+  announce('Boost activated!');
+}
+$('boostBtn').addEventListener('click', triggerBoost);
+
 function formatTime(t){
   if(!isFinite(t)) return '--:--';
   const m = Math.floor(t/60), s = t-m*60;
@@ -2157,7 +2421,8 @@ const Sound = (function(){
     isOn(){ return gameState.soundOn !== false; },
     applyVolume(){
       if(!ctx) return;
-      const target = (running && this.isOn()) ? 0.5 : 0;
+      const vol = Number.isFinite(gameState.volume) ? gameState.volume : 70;
+      const target = (running && this.isOn()) ? 0.5 * (vol/100) : 0;
       master.gain.setTargetAtTime(target, ctx.currentTime, 0.08);
     },
     toggle(){
@@ -2369,11 +2634,18 @@ $('soundBtn').addEventListener('click', ()=>{
 });
 
 $('resumeBtn').addEventListener('click', resumeRace);
+function applyMinimapVisibility(){
+  $('minimapWrap').style.display = gameState.showMinimap === false ? 'none' : '';
+}
 $('settingsBtn').addEventListener('click', ()=>{
   $('pauseCard').hidden = true;
   $('settingsCard').hidden = false;
   $('sensitivitySlider').value = gameState.sensitivity;
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
+  $('volumeSlider').value = gameState.volume;
+  $('volumeVal').textContent = Math.round(gameState.volume);
+  $('invertSteeringToggle').checked = !!gameState.invertSteering;
+  $('minimapToggle').checked = gameState.showMinimap !== false;
 });
 $('settingsBackBtn').addEventListener('click', ()=>{
   $('settingsCard').hidden = true;
@@ -2383,6 +2655,39 @@ $('sensitivitySlider').addEventListener('input', ()=>{
   gameState.sensitivity = Number($('sensitivitySlider').value);
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
   saveState();
+});
+$('volumeSlider').addEventListener('input', ()=>{
+  gameState.volume = Number($('volumeSlider').value);
+  $('volumeVal').textContent = Math.round(gameState.volume);
+  Sound.applyVolume();
+  saveState();
+});
+$('invertSteeringToggle').addEventListener('change', ()=>{
+  gameState.invertSteering = $('invertSteeringToggle').checked;
+  saveState();
+});
+$('minimapToggle').addEventListener('change', ()=>{
+  gameState.showMinimap = $('minimapToggle').checked;
+  applyMinimapVisibility();
+  saveState();
+});
+$('resetProgressBtn').addEventListener('click', ()=>{
+  if(!confirm('Reset all progress? This clears your coins, upgrades, unlocked tracks, and records. This cannot be undone.')) return;
+  const keepSoundOn = gameState.soundOn, keepSensitivity = gameState.sensitivity,
+        keepVolume = gameState.volume, keepInvert = gameState.invertSteering,
+        keepMinimap = gameState.showMinimap;
+  gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  // Preserve control/audio preferences through a progress reset — those
+  // aren't "progress", they're how the player likes to play.
+  gameState.soundOn = keepSoundOn; gameState.sensitivity = keepSensitivity;
+  gameState.volume = keepVolume; gameState.invertSteering = keepInvert;
+  gameState.showMinimap = keepMinimap;
+  saveState();
+  refreshCoinDisplays();
+  renderStageGrid();
+  renderGarage();
+  announce('Progress reset.');
+  showToast('Progress reset');
 });
 $('restartBtn').addEventListener('click', ()=>{ $('pauseOverlay').hidden = true; startRace(selectedStage); });
 $('quitBtn').addEventListener('click', ()=>{ $('pauseOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('home'); refreshCoinDisplays(); renderStageGrid(); });
@@ -2394,7 +2699,7 @@ function finishRace(){
   const standings = currentStandings();
   const pos = standings.indexOf(player) + 1;
   const stage = STAGES[selectedStage];
-  const diffMult = 1 + (stage.difficulty - 1) * 0.2;
+  const diffMult = stageCoinMult(stage);
   const bonus = Math.round((POSITION_BONUS[pos-1] || 0) * diffMult);
   const finishBonus = Math.round(FINISH_BONUS * diffMult);
   gameState.coins += bonus + finishBonus;
@@ -2425,7 +2730,8 @@ function finishRace(){
     <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/TOTAL_LAPS)}</strong></div>
     <div class="resultRow"><span>Top speed</span><strong>${Math.round(player.topSpeed)} mph</strong></div>
     <div class="resultRow"><span>Collisions</span><strong>${playerCollisions}</strong></div>
-    <div class="resultRow"><span>Laps coins</span><strong>${TOTAL_LAPS*COINS_PER_LAP}</strong></div>
+    <div class="resultRow"><span>Difficulty payout</span><strong>×${diffMult.toFixed(1)}</strong></div>
+    <div class="resultRow"><span>Laps coins</span><strong>${lapCoinsEarned}</strong></div>
     <div class="resultRow"><span>Finish bonus</span><strong>+${finishBonus}</strong></div>
     <div class="resultRow"><span>Position bonus</span><strong>+${bonus}</strong></div>
     <div class="resultRow"><span>Total coins</span><strong>${gameState.coins}</strong></div>
@@ -2468,6 +2774,7 @@ function animate(now){
     cars.forEach(c=>{ if(!c.finished || c.isPlayer) updateCar(c, dt); });
     resolveCollisions(dt);
     updateRubberBand(dt);
+    updateBoost(dt);
     updateHUD();
     Sound.update(dt);
     updateCamera(dt);
