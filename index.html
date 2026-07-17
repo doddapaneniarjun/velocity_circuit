@@ -1333,6 +1333,60 @@ function generateCenterline(type, N){
   return genWavy(N);
 }
 
+/* ---------- Boundary self-intersection fix ----------
+   Several of the polar (r = R + sum of sines) centerline generators —
+   canyon, switchback, serpent, neonSerpent, volcano, cavern, lunar — can
+   produce local turns whose radius of curvature is tighter than the
+   track's own half-width. When that happens, offsetting the centerline
+   out to the left/right edge produces a boundary edge that folds back
+   and crosses itself: a visible "pierce" through the track surface,
+   most noticeable on Neon Serpent's tight high-frequency turns.
+
+   This pass only nudges the handful of points where that would happen —
+   pulling them toward a local average of nearby points until every
+   point's local turning radius is comfortably larger than half the
+   track width — so track shape is preserved everywhere except the
+   too-tight pinch points. */
+function circumradius2D(p0, p1, p2){
+  const a = Math.hypot(p1.x-p2.x, p1.z-p2.z);
+  const b = Math.hypot(p0.x-p2.x, p0.z-p2.z);
+  const c = Math.hypot(p0.x-p1.x, p0.z-p1.z);
+  const s = (a+b+c)/2;
+  const areaSq = Math.max(s*(s-a)*(s-b)*(s-c), 0);
+  const area = Math.sqrt(areaSq);
+  if(area < 1e-9) return 1e9;
+  return (a*b*c) / (4*area);
+}
+function relaxCenterlineForWidth(points, width){
+  const N = points.length;
+  const half = width/2;
+  const minRadius = half*1.1 + 0.4; // small safety margin beyond the raw half-width
+  const window = 3, strength = 0.6;
+  const maxIterations = 500;
+  let pts = points.map(p=>p.clone());
+  for(let iter=0; iter<maxIterations; iter++){
+    let worst = 0;
+    const next = pts.map(p=>p.clone());
+    for(let i=0;i<N;i++){
+      const p0 = pts[(i-1+N)%N], p1 = pts[i], p2 = pts[(i+1)%N];
+      const R = circumradius2D(p0,p1,p2);
+      if(R < minRadius){
+        const avg = new THREE.Vector3();
+        for(let d=-window; d<=window; d++){
+          if(d===0) continue;
+          avg.add(pts[(i+d+N)%N]);
+        }
+        avg.multiplyScalar(1/(window*2));
+        const t = Math.min(strength * (1 - R/minRadius) + 0.03, 0.8);
+        next[i] = p1.clone().lerp(avg, t);
+        worst = Math.max(worst, minRadius / Math.max(R, 1e-6));
+      }
+    }
+    pts = next;
+    if(worst <= 1.02) break;
+  }
+  return pts;
+}
 
 function computeTangentsNormals(points){
   const N = points.length;
@@ -2139,7 +2193,8 @@ function buildTrack(stageIndex){
   const stage = STAGES[stageIndex];
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
   const trackWidth = stage.width || TRACK_WIDTH;
-  const points = generateCenterline(stage.type, N_POINTS);
+  const rawPoints = generateCenterline(stage.type, N_POINTS);
+  const points = relaxCenterlineForWidth(rawPoints, trackWidth);
   const { normals } = computeTangentsNormals(points);
   const half = trackWidth/2;
   const left = points.map((p,i)=> new THREE.Vector3().addVectors(p, normals[i].clone().multiplyScalar(half)));
