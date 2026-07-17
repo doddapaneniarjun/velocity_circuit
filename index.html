@@ -132,6 +132,40 @@
   .btn:disabled{ opacity:.45; cursor:not-allowed; filter:none; transform:none; }
   .btnRow{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
 
+  /* ---------- Mode select (new home) ---------- */
+  #modeScreen{ background:
+      radial-gradient(1200px 700px at 20% 15%, #16233a 0%, transparent 60%),
+      radial-gradient(1000px 700px at 85% 85%, #1c1330 0%, transparent 60%),
+      var(--bg);
+    text-align:center; padding:24px;
+  }
+  .megaTitle{ font-size:clamp(44px,10vw,110px); font-weight:900; letter-spacing:4px; margin:0 0 42px;
+    color:var(--text); text-shadow:0 0 34px rgba(79,216,255,.55); line-height:1.05; }
+  .megaTitle span{ color:var(--accent); }
+  .modeBtn{ font:inherit; font-weight:800; font-size:clamp(20px,3.4vw,28px); letter-spacing:2px;
+    border:2px solid #2a3549; border-radius:18px; padding:22px 0; width:min(340px,84vw);
+    background:var(--panel); color:var(--text); cursor:pointer; display:block; margin:0 auto 18px;
+    transition:transform .12s, border-color .12s, box-shadow .12s; }
+  .modeBtn:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 0 22px rgba(79,216,255,.25); }
+  .modeBtn.online{ border-color:var(--accent); color:var(--accent); }
+  .modeBtn small{ display:block; font-weight:600; font-size:13px; letter-spacing:.5px; color:var(--muted); margin-top:6px; }
+  .modeFootnote{ color:var(--muted); font-size:12px; margin-top:26px; }
+
+  /* ---------- Online lobby ---------- */
+  #onlineScreen{ background:var(--bg); padding:24px; }
+  .lobbyCard{ background:var(--panel); border:1px solid #2a3549; border-radius:var(--radius);
+    padding:28px 26px; width:min(460px,94vw); text-align:center; }
+  .lobbyStatus{ font-size:18px; font-weight:700; margin:14px 0 6px; }
+  .lobbySub{ color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.5; }
+  .lobbyPlayers{ list-style:none; margin:0 0 18px; padding:0; }
+  .lobbyPlayers li{ background:var(--panel2); border:1px solid #2a3549; border-radius:10px;
+    padding:10px 14px; margin-bottom:8px; font-weight:700; display:flex; justify-content:space-between; }
+  .lobbyPlayers li .you{ color:var(--accent); font-weight:600; }
+  .spinner{ width:34px; height:34px; border-radius:50%; margin:6px auto 0;
+    border:3px solid #2a3549; border-top-color:var(--accent); animation:spin 0.9s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+
   .homeControls{ margin-top:20px; color:var(--muted); font-size:13px; max-width:480px; }
 
   /* ---------- Garage ---------- */
@@ -242,6 +276,32 @@
     </div>
   </section>
 
+  <!-- MODE SELECT (new home) -->
+  <section id="modeScreen" class="screen" hidden>
+    <div class="profileBar" aria-label="Logged in profile">
+      <span aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
+    </div>
+    <h1 class="megaTitle">VELOCITY<br><span>CIRCUIT</span></h1>
+    <button class="modeBtn online" id="chooseOnlineBtn" type="button">ONLINE<small>Race other people playing right now</small></button>
+    <button class="modeBtn" id="choosePrivateBtn" type="button">PRIVATE<small>Race CPU rivals · tracks · garage · upgrades</small></button>
+    <p class="modeFootnote" id="modeFootnote"></p>
+  </section>
+
+  <!-- ONLINE LOBBY -->
+  <section id="onlineScreen" class="screen" hidden>
+    <div class="lobbyCard">
+      <h2 class="sectionTitle" style="margin-top:0;">Online Race</h2>
+      <div class="lobbyStatus" id="lobbyStatus">Ready to race?</div>
+      <p class="lobbySub" id="lobbySub">You'll be matched with other players who choose Online. Your racer name and position are visible to them.</p>
+      <div class="spinner" id="lobbySpinner" hidden></div>
+      <ul class="lobbyPlayers" id="lobbyPlayers"></ul>
+      <div class="btnRow">
+        <button class="btn" id="findMatchBtn">Find Match</button>
+        <button class="btn ghost" id="lobbyBackBtn">&larr; Back</button>
+      </div>
+    </div>
+  </section>
+
   <!-- HOME SCREEN -->
   <section id="homeScreen" class="screen" hidden>
     <div class="coinBar" aria-label="Coin balance"><span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins</div>
@@ -258,6 +318,7 @@
     <div class="stageGrid" id="stageGrid" role="group" aria-label="Select a track"></div>
 
     <div class="btnRow">
+      <button class="btn ghost" id="homeMenuBtn">&larr; Menu</button>
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
     </div>
@@ -602,10 +663,11 @@ function beginSession(nameKey, display, remember, admin){
     try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
   }
   $('profileNameText').textContent = display;
+  $('modeProfileName').textContent = display;
   updateAdminBadge();
   loadState();
   appState = 'home';
-  showScreen('home');
+  showScreen('mode');
   announce('Logged in as ' + display + (isAdmin ? ', admin mode on.' : '.'));
 }
 
@@ -698,7 +760,7 @@ const UPGRADE_DEFS = [
   { key:'boostPower', name:'Boost Power', desc:'Bigger speed and acceleration spike while boosting.' },
   { key:'armor', name:'Collision Resistance', desc:'Lose less speed when you crash into rivals.' }
 ];
-const MAX_UPGRADE_LEVEL = 8;
+const MAX_UPGRADE_LEVEL = 12;
 function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
 
 const STAGES = [
@@ -777,12 +839,15 @@ function coinsPerLapForStage(stage){ return Math.round(COINS_PER_LAP * stageCoin
 /* ============================= DOM ============================= */
 const $ = id => document.getElementById(id);
 const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), upgradesScreen = $('upgradesScreen'), gameScreen = $('gameScreen');
+const modeScreen = $('modeScreen'), onlineScreen = $('onlineScreen');
 const liveRegion = $('liveRegion');
 
 function announce(text){ liveRegion.textContent = ''; requestAnimationFrame(()=>{ liveRegion.textContent = text; }); }
 
 function showScreen(name){
   loginScreen.hidden = name!=='login';
+  modeScreen.hidden = name!=='mode';
+  onlineScreen.hidden = name!=='online';
   homeScreen.hidden = name!=='home';
   garageScreen.hidden = name!=='garage';
   upgradesScreen.hidden = name!=='upgrades';
@@ -2625,7 +2690,220 @@ function createStageScene(theme){
   return s;
 }
 
-function startRace(stageIndex){
+/* ============================================================
+   ONLINE MULTIPLAYER
+   Uses the shared key-value storage available when this game runs
+   as a Claude artifact (window.storage with shared:true). Everyone
+   who opens this artifact shares that storage, which is what makes
+   cross-player matchmaking and position sync possible.
+   - Matchmaking: each searcher heartbeats vcmm:{id}; the lowest id
+     acts as host and publishes vcrace:open with a start time.
+   - In-race: each racer writes vcp:{roomId}:{id} ~once per second;
+     opponents render as network-driven cars (no local physics).
+   ============================================================ */
+const Online = {
+  available: !!(window.storage && typeof window.storage.set === 'function'),
+  myId: Math.random().toString(36).slice(2,10),
+  searching: false,
+  room: null,            // {roomId, stageIndex, startAt, players:[{id,name,car}]}
+  netCars: {},           // id -> remote car object
+  lastSend: 0, inFlight: false,
+  mmTimer: null,
+  seenRooms: {},
+
+  displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
+
+  async startSearch(){
+    if(!this.available || this.searching) return;
+    this.searching = true;
+    $('findMatchBtn').hidden = true;
+    $('lobbySpinner').hidden = false;
+    $('lobbyStatus').textContent = 'Looking for racers…';
+    this.mmTick();
+    this.mmTimer = setInterval(()=>this.mmTick(), 2000);
+  },
+
+  async stopSearch(){
+    this.searching = false;
+    if(this.mmTimer){ clearInterval(this.mmTimer); this.mmTimer = null; }
+    $('findMatchBtn').hidden = false;
+    $('lobbySpinner').hidden = true;
+    $('lobbyStatus').textContent = 'Ready to race?';
+    $('lobbyPlayers').innerHTML = '';
+    try{ await window.storage.delete('vcmm:'+this.myId, true); }catch(e){}
+  },
+
+  async mmTick(){
+    if(!this.searching) return;
+    const now = Date.now();
+    try{
+      // Heartbeat my matchmaking entry
+      await window.storage.set('vcmm:'+this.myId,
+        JSON.stringify({ id:this.myId, name:this.displayName(), car:gameState.selectedCar, ts:now }), true);
+
+      // Has a race already been opened that includes me?
+      let open = null;
+      try{
+        const r = await window.storage.get('vcrace:open', true);
+        if(r && r.value) open = JSON.parse(r.value);
+      }catch(e){}
+      if(open && !this.seenRooms[open.roomId] && open.startAt > now - 5000
+         && open.players.some(p=>p.id===this.myId)){
+        this.seenRooms[open.roomId] = true;
+        this.joinRoom(open);
+        return;
+      }
+
+      // Gather everyone currently searching
+      const listing = await window.storage.list('vcmm:', true);
+      const keys = (listing && listing.keys) || [];
+      const players = [];
+      for(const k of keys.slice(0, 12)){
+        try{
+          const r = await window.storage.get(k, true);
+          if(r && r.value){
+            const p = JSON.parse(r.value);
+            if(now - p.ts < 8000) players.push(p);
+          }
+        }catch(e){}
+      }
+      players.sort((a,b)=> a.id < b.id ? -1 : 1);
+      this.renderLobby(players);
+
+      // Lowest id hosts: once 2+ players are fresh, open a race for up to 4
+      if(players.length >= 2 && players[0].id === this.myId){
+        const roomPlayers = players.slice(0,4).map(p=>({id:p.id, name:p.name, car:p.car}));
+        const roomId = this.myId + '-' + now;
+        let h = 0; for(const ch of roomId) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+        const room = { roomId, stageIndex: h % 3, startAt: now + 7000, players: roomPlayers };
+        await window.storage.set('vcrace:open', JSON.stringify(room), true);
+        this.seenRooms[roomId] = true;
+        this.joinRoom(room);
+      }
+    }catch(e){ console.error('matchmaking error', e); }
+  },
+
+  renderLobby(players){
+    const ul = $('lobbyPlayers');
+    ul.innerHTML = '';
+    players.forEach(p=>{
+      const li = document.createElement('li');
+      li.textContent = p.name;
+      if(p.id === this.myId){
+        const you = document.createElement('span'); you.className='you'; you.textContent='you';
+        li.appendChild(you);
+      }
+      ul.appendChild(li);
+    });
+    $('lobbyStatus').textContent = players.length >= 2
+      ? 'Racers found — starting…' : 'Looking for racers… (' + players.length + ' in lobby)';
+  },
+
+  joinRoom(room){
+    if(this.mmTimer){ clearInterval(this.mmTimer); this.mmTimer = null; }
+    this.searching = false;
+    this.room = room;
+    try{ window.storage.delete('vcmm:'+this.myId, true); }catch(e){}
+    $('lobbySpinner').hidden = true;
+    $('findMatchBtn').hidden = false;
+    selectedStage = room.stageIndex;
+    startRace(room.stageIndex, room);
+    announce('Online race found with ' + room.players.length + ' racers.');
+  },
+
+  posKey(id){ return 'vcp:' + this.room.roomId + ':' + id; },
+
+  /* Called every frame while an online race is live; throttles its own IO. */
+  tick(){
+    if(!this.room || this.inFlight) return;
+    const now = Date.now();
+    if(now - this.lastSend < 900) return;
+    this.lastSend = now;
+    this.inFlight = true;
+    (async ()=>{
+      try{
+        // Publish my state
+        await window.storage.set(this.posKey(this.myId), JSON.stringify({
+          x:+player.pos.x.toFixed(2), z:+player.pos.z.toFixed(2),
+          h:+player.heading.toFixed(3), s:+player.speed.toFixed(1),
+          l:player.lap, ti:player.trackIndex,
+          f:player.finished, ft:player.finishTime, ts:now
+        }), true);
+        // Pull everyone else's
+        for(const p of this.room.players){
+          if(p.id === this.myId) continue;
+          try{
+            const r = await window.storage.get(this.posKey(p.id), true);
+            if(r && r.value){
+              const snap = JSON.parse(r.value);
+              const car = this.netCars[p.id];
+              if(car && snap.ts !== car.netTs){
+                car.netTs = snap.ts;
+                car.netAt = performance.now();
+                car.netTo = snap;
+                car.speed = snap.s;
+                car.lap = snap.l; car.trackIndex = snap.ti;
+                if(snap.f && !car.finished){ car.finished = true; car.finishTime = snap.ft; }
+              }
+            }
+          }catch(e){ /* opponent hasn't written yet */ }
+        }
+      }catch(e){ console.error('online sync error', e); }
+      finally{ this.inFlight = false; }
+    })();
+  },
+
+  /* Smoothly move network cars toward their latest snapshot, with light
+     dead-reckoning so they keep rolling between (~1s apart) updates. */
+  updateRemoteCars(dt){
+    const nowP = performance.now();
+    for(const id in this.netCars){
+      const car = this.netCars[id];
+      if(!car.netTo) continue;
+      const age = (nowP - car.netAt) / 1000;
+      const stale = age > 6;
+      const t = car.netTo;
+      // Predict forward from the snapshot along its heading, capped so a
+      // dropped opponent doesn't sail off into the scenery.
+      const lead = stale ? 0 : Math.min(age, 1.1);
+      const tx = t.x + Math.sin(t.h) * t.s * lead;
+      const tz = t.z + Math.cos(t.h) * t.s * lead;
+      const k = Math.min(1, dt * 5);
+      car.pos.x += (tx - car.pos.x) * k;
+      car.pos.z += (tz - car.pos.z) * k;
+      car.heading += normalizeAngle(t.h - car.heading) * k;
+      if(stale) car.speed = 0;
+      car.throttle = stale ? 0 : 0.6;
+      car.mesh.position.copy(car.pos);
+      car.mesh.rotation.y = car.heading;
+    }
+  },
+
+  leaveRace(){
+    if(this.room){
+      try{ window.storage.delete(this.posKey(this.myId), true); }catch(e){}
+    }
+    this.room = null;
+    this.netCars = {};
+  }
+};
+
+/* Mode select + lobby wiring */
+$('choosePrivateBtn').addEventListener('click', ()=>{ showScreen('home'); renderStageGrid(); refreshCoinDisplays(); });
+$('chooseOnlineBtn').addEventListener('click', ()=>{
+  if(!Online.available){
+    $('modeFootnote').textContent = 'Online play needs the shared storage this game gets when it runs inside Claude — it isn\'t available here, so Online is disabled. Private mode works everywhere.';
+    return;
+  }
+  showScreen('online');
+});
+$('modeLogoutBtn').addEventListener('click', logout);
+$('homeMenuBtn').addEventListener('click', ()=>{ showScreen('mode'); });
+$('findMatchBtn').addEventListener('click', ()=>{ Online.startSearch(); });
+$('lobbyBackBtn').addEventListener('click', ()=>{ Online.stopSearch(); showScreen('mode'); });
+
+function startRace(stageIndex, onlineRoom){
+  if(!onlineRoom) Online.leaveRace();
   // Snapshot current state before the race modifies coins / racesCompleted.
   // If the player closes the tab before finishing, this snapshot is restored.
   takePreRaceSnapshot();
@@ -2665,6 +2943,23 @@ function startRace(stageIndex){
   // laneOffsets[0] is the player's slot — CPUs take the other three.
   const cpuLaneOffsets = [-4.0, 1.35, 4.0]; // left edge, right-centre, right edge
   const cpuColorPool = CARS.map((c,i)=>i).filter(i=>i!==gameState.selectedCar);
+  if(onlineRoom){
+    // Online: opponents are real people, driven by network snapshots.
+    Online.netCars = {};
+    let slot = 0;
+    for(const p of onlineRoom.players){
+      if(p.id === Online.myId) continue;
+      const carDef = CARS[p.car] || CARS[0];
+      const rc = makeCar(false, carDef.color, 1);
+      rc.remote = true;
+      rc.netName = p.name;
+      rc.maxSpeed = 130;
+      rc.laneOffset = cpuLaneOffsets[slot % cpuLaneOffsets.length];
+      slot++;
+      Online.netCars[p.id] = rc;
+      cars.push(rc);
+    }
+  } else
   for(let n=0;n<3;n++){
     const ci = cpuColorPool[n % cpuColorPool.length];
     const variance = (Math.random() * 6) - 3;              // ±3
@@ -2703,7 +2998,7 @@ function startRace(stageIndex){
   raceClock = 0;
   Sound.start(SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval);
 
-  countdown = 3.0;
+  countdown = onlineRoom ? Math.min(8, Math.max(2, (onlineRoom.startAt - Date.now())/1000)) : 3.0;
   appState = 'racing-countdown';
   $('countdownWrap').hidden = false;
   $('countdownNum').textContent = '3';
@@ -2733,13 +3028,24 @@ function applyBoundary(car){
   const rel = new THREE.Vector3().subVectors(car.pos, center);
   const lateral = rel.dot(normal);
   const limit = track.width/2 - CAR_HALF_WIDTH;
-  const retain = car.isPlayer ? Math.min(0.9, 0.55 + gameState.upgrades.grip*0.03) : 0.55;
-  if(lateral > limit){
-    car.pos.addScaledVector(normal, limit - lateral);
-    car.speed *= retain;
-  } else if(lateral < -limit){
-    car.pos.addScaledVector(normal, -limit - lateral);
-    car.speed *= retain;
+  if(lateral <= limit && lateral >= -limit) return;
+
+  const side = lateral > 0 ? 1 : -1;
+  // Shove the car OFF the wall (a little further than just touching it),
+  // so it never sits there scraping along the barrier.
+  const KNOCKBACK_GAP = 0.8;
+  car.pos.addScaledVector(normal, side*(limit - KNOCKBACK_GAP) - lateral);
+
+  // Only apply the crash recoil when the car is actually driving into the
+  // wall — once it's recoiling (speed reversed) this won't re-trigger.
+  const fwd = forwardVec(car.heading);
+  const movingIn = car.speed * fwd.dot(normal) * side > 0;
+  if(movingIn){
+    // Crash: kill forward momentum and roll slightly BACKWARDS.
+    // Grip upgrade softens how hard you get thrown back.
+    const recoil = car.isPlayer ? Math.max(0.10, 0.28 - gameState.upgrades.grip*0.012) : 0.22;
+    const kick = Math.min(Math.abs(car.speed) * recoil, 14);
+    car.speed = car.speed >= 0 ? -kick : kick;
   }
 }
 
@@ -2779,17 +3085,17 @@ function updateBoostFlames(car, dt){
 function updateCar(car, dt){
   const rb = car.isPlayer ? 1 : (car.rubberBand || 1);
   let maxSpeed = (BASE_MAX_SPEED
-    + (car.isPlayer ? gameState.upgrades.speed*4 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
+    + (car.isPlayer ? gameState.upgrades.speed*2.7 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
   let accel = (BASE_ACCEL
-    + (car.isPlayer ? gameState.upgrades.accel*3.5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
+    + (car.isPlayer ? gameState.upgrades.accel*2.3 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
   if(car.isPlayer && boosting){
-    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.02 + playerCarDef.boostPower*0.02;
-    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.055 + playerCarDef.boostPower*0.05;
+    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.013 + playerCarDef.boostPower*0.02;
+    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.037 + playerCarDef.boostPower*0.05;
   }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
   const turnRate = (BASE_TURN
-    + (car.isPlayer ? gameState.upgrades.handling*0.18 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
-  const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*4.5 : 0);
+    + (car.isPlayer ? gameState.upgrades.handling*0.12 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
+  const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*3.0 : 0);
 
   let throttle=0, brake=0, steer=0;
 
@@ -2915,6 +3221,7 @@ function resolveCollisions(dt){
     for(let i = 0; i < n; i++){
       for(let j = i+1; j < n; j++){
         const a = cars[i], b = cars[j];
+        if(a.remote || b.remote) continue; // network cars are ghosts — their real position lives on the other player's screen
         if(a.finished && b.finished) continue;
 
         const dx = b.pos.x - a.pos.x;
@@ -2943,7 +3250,7 @@ function resolveCollisions(dt){
             // Inelastic: remove exactly the approach component, split evenly.
             // Collision Resistance and car weight soften how much of that gets applied to the player.
             const correction = relApproach * 0.5;
-            const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.045 - playerCarDef.weight*0.03);
+            const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.03 - playerCarDef.weight*0.03);
             const aFactor = a.isPlayer ? playerFactor : 1;
             const bFactor = b.isPlayer ? playerFactor : 1;
             a.speed -= correction * aVn * 0.6 * aFactor;
@@ -2975,7 +3282,7 @@ function updateRubberBand(dt){
   const N = track.N;
   const playerProgress = progressMetric(player);
   cars.forEach(car=>{
-    if(car.isPlayer) return;
+    if(car.isPlayer || car.remote) return;
     const gap = (playerProgress - progressMetric(car)) / N; // >0: player ahead
     const target = 1 + Math.max(-0.3, Math.min(0.3, gap*0.4));
     car.rubberBand += (target - car.rubberBand) * Math.min(1, dt*0.8);
@@ -3046,7 +3353,7 @@ function updateBoost(dt){
     boostTimer -= dt;
     if(boostTimer <= 0){ boosting = false; boostTimer = 0; boostCharge = 0; }
   } else {
-    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * (1 + gameState.upgrades.nitro*0.08) * dt);
+    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * (1 + gameState.upgrades.nitro*0.05) * dt);
   }
   // While boosting, drain the bar down over the boost's duration instead of
   // holding it pegged at full, so the meter visibly empties as it's used.
@@ -3721,7 +4028,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   showToast('Progress reset');
 });
 $('restartBtn').addEventListener('click', ()=>{ $('pauseOverlay').hidden = true; startRace(selectedStage); });
-$('quitBtn').addEventListener('click', ()=>{ $('pauseOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('home'); refreshCoinDisplays(); renderStageGrid(); });
+$('quitBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; endOnlineIfNeeded(); $('pauseOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); refreshCoinDisplays(); renderStageGrid(); } });
 
 function finishRace(){
   appState = 'results';
@@ -3754,7 +4061,42 @@ function finishRace(){
   try{ localStorage.removeItem(ROLLBACK_KEY); }catch(e){}
 
   $('resultTitle').textContent = pos===1 ? 'Victory!' : 'Race Complete!';
-  $('resultBody').innerHTML = `
+  let onlineRows = '';
+  function buildOnlineRows(){
+    const st = currentStandings();
+    return `<div class="resultRow" style="border-bottom:1px solid #2a3549;"><span><strong>Online standings</strong></span><span></span></div>` +
+      st.map((c,i)=>{
+        const nm = c.isPlayer ? 'You' : (c.netName || 'Racer');
+        const status = c.finished ? formatTime(c.finishTime) : 'still racing (lap ' + Math.min(TOTAL_LAPS, c.lap+1) + ')';
+        return `<div class="resultRow"><span>${i+1}. ${nm}</span><strong>${status}</strong></div>`;
+      }).join('');
+  }
+  if(Online.room){
+    // Publish my finish right away so opponents see it without waiting for the next tick
+    try{
+      window.storage.set(Online.posKey(Online.myId), JSON.stringify({
+        x:+player.pos.x.toFixed(2), z:+player.pos.z.toFixed(2),
+        h:+player.heading.toFixed(3), s:0,
+        l:player.lap, ti:player.trackIndex,
+        f:true, ft:player.finishTime, ts:Date.now()
+      }), true);
+    }catch(e){}
+    onlineRows = `<div id="onlineStandings">${buildOnlineRows()}</div>`;
+    // Keep refreshing while slower racers finish (up to 90s)
+    if(onlineResultsTimer) clearInterval(onlineResultsTimer);
+    let polls = 0;
+    onlineResultsTimer = setInterval(()=>{
+      polls++;
+      if(!Online.room || appState !== 'results' || polls > 45){
+        clearInterval(onlineResultsTimer); onlineResultsTimer = null; return;
+      }
+      Online.lastSend = 0;      // let tick fire immediately
+      Online.tick();
+      const el = document.getElementById('onlineStandings');
+      if(el) el.innerHTML = buildOnlineRows();
+    }, 2000);
+  }
+  $('resultBody').innerHTML = onlineRows + `
     <div class="resultRow"><span>Finish position</span><strong>${pos} of ${cars.length}</strong></div>
     <div class="resultRow"><span>Total time</span><strong>${formatTime(player.finishTime)}</strong></div>
     <div class="resultRow"><span>Best lap</span><strong>${formatTime(player.bestLap)}</strong></div>
@@ -3772,10 +4114,23 @@ function finishRace(){
   $('resultsOverlay').hidden = false;
   announce('Race complete. You finished in position ' + pos + ' of ' + cars.length + '. You earned ' + (bonus+finishBonus) + ' bonus coins.' + (newlyUnlocked ? ' A new track has been unlocked.' : ''));
 }
-$('raceAgainBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; startRace(selectedStage); });
-$('resultsGarageBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
-$('resultsUpgradesBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
-$('resultsHomeBtn').addEventListener('click', ()=>{ $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('home'); renderStageGrid(); });
+let onlineResultsTimer = null;
+function endOnlineIfNeeded(){
+  if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
+  if(Online.room) Online.leaveRace();
+}
+$('raceAgainBtn').addEventListener('click', ()=>{
+  $('resultsOverlay').hidden = true;
+  if(Online.room){
+    // Can't replay the same online room — head back to the lobby to find a new match
+    endOnlineIfNeeded(); appState='home'; Sound.stop(); showScreen('online');
+    return;
+  }
+  startRace(selectedStage);
+});
+$('resultsGarageBtn').addEventListener('click', ()=>{ endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
+$('resultsUpgradesBtn').addEventListener('click', ()=>{ endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
+$('resultsHomeBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
 
 /* ---------- Main loop ---------- */
 let lastTime = performance.now();
@@ -3815,7 +4170,11 @@ function animate(now){
     renderer.render(scene, camera);
   } else if(appState === 'racing'){
     raceClock += dt;
-    cars.forEach(c=>{ if(!c.finished || c.isPlayer) updateCar(c, dt); });
+    cars.forEach(c=>{ if(c.remote) return; if(!c.finished || c.isPlayer) updateCar(c, dt); });
+    if(Online.room){
+      Online.tick();
+      Online.updateRemoteCars(dt);
+    }
     resolveCollisions(dt);
     updateRubberBand(dt);
     updateBoost(dt);
