@@ -652,7 +652,7 @@ function logout(){
 
 /* ============================= CONSTANTS ============================= */
 const TOTAL_LAPS = 3;
-const TRACK_WIDTH = 16;
+const TRACK_WIDTH = 20;
 const CAR_HALF_WIDTH = 1.05;
 const N_POINTS = 200;
 const COINS_PER_LAP = 40;
@@ -702,18 +702,18 @@ const MAX_UPGRADE_LEVEL = 8;
 function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
 
 const STAGES = [
-  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:18, unlockRaces:0 },
-  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:2, width:16, unlockRaces:0 },
-  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:15, unlockRaces:1 },
-  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:3, width:15, unlockRaces:2 },
-  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:4, width:13, unlockRaces:4 },
-  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:4, width:13, unlockRaces:6 },
-  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:5, width:12, unlockRaces:9 },
-  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:6, width:11, unlockRaces:12 },
-  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:6, width:11, unlockRaces:16 },
-  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:13, unlockRaces:20 },
-  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:5, width:12, unlockRaces:24 },
-  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:14, unlockRaces:28 }
+  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0 },
+  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:2, width:20, unlockRaces:0 },
+  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:1 },
+  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:3, width:19, unlockRaces:2 },
+  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:4, width:17, unlockRaces:4 },
+  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:4, width:17, unlockRaces:6 },
+  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:5, width:16, unlockRaces:9 },
+  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:6, width:15, unlockRaces:12 },
+  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:6, width:15, unlockRaces:16 },
+  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:17, unlockRaces:20 },
+  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:5, width:16, unlockRaces:24 },
+  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:18, unlockRaces:28 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isAdmin || gameState.racesCompleted >= STAGES[i].unlockRaces; }
@@ -1448,6 +1448,11 @@ const SCENERY_THEMES = {
 /* Painted sky recipes. Stops run zenith (0) -> horizon (1). `sun` is placed in
    normalized dome coords: u wraps around the horizon, v is 0 at the horizon and
    1 at the zenith. Clouds/stars are optional layers. */
+// Tracks using these sky styles (Neon Serpent, Crystal Hollow, Lunar Basin)
+// are dark enough that the boost light needs to be brighter and reach
+// further to actually illuminate the surroundings, not just glow faintly.
+const DIM_SKY_STYLES = new Set(['night','cave','space']);
+
 const SKY_PRESETS = {
   sunset: {
     stops:[[0,'#0d1330'],[0.30,'#27285c'],[0.55,'#6b3a6e'],[0.74,'#c9553f'],[0.88,'#ff9a5c'],[1,'#ffd6a0']],
@@ -2505,6 +2510,12 @@ function createCarMesh(colorHex){
   const flameGroup = createFlameGroup();
   g.add(flameGroup);
   g.userData.flameGroup = flameGroup;
+  // Off by default; lit up while boosting (see updateBoostFlames) so the
+  // car throws light on the road and scenery around it as it surges ahead.
+  const boostLight = new THREE.PointLight(0xbfe6ff, 0, 36, 2);
+  boostLight.position.set(0, 2.4, 1.5);
+  g.add(boostLight);
+  g.userData.boostLight = boostLight;
   return g;
 }
 
@@ -2528,6 +2539,7 @@ let collisionToastCooldown = 0;
 let boostCharge = 0;
 let boosting = false;
 let boostTimer = 0;
+let currentTrackDim = false;
 
 function forwardVec(heading){ return new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)); }
 function normalizeAngle(a){ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; }
@@ -2603,6 +2615,7 @@ function startRace(stageIndex){
   if(trackGroup){ scene && disposeObject(trackGroup); }
   const stage = STAGES[stageIndex];
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
+  currentTrackDim = DIM_SKY_STYLES.has(theme.skyStyle);
 
   scene = createStageScene(theme);
 
@@ -2712,6 +2725,11 @@ function applyBoundary(car){
   }
 }
 
+const BOOST_LIGHT_INTENSITY = 2.6;
+const BOOST_LIGHT_INTENSITY_DIM = 6.5;
+const BOOST_LIGHT_DISTANCE = 36;
+const BOOST_LIGHT_DISTANCE_DIM = 60;
+
 function updateBoostFlames(car, dt){
   const group = car.mesh.userData.flameGroup;
   if(!group) return;
@@ -2725,6 +2743,18 @@ function updateBoostFlames(car, dt){
     });
   } else if(group.visible){
     group.visible = false;
+  }
+  // Fade the car's boost light in while boosting and back out once it ends.
+  // On dim tracks (night/cave/space skies) it's pushed much brighter and
+  // further-reaching so it actually lights up the road and scenery, not
+  // just a faint glow that's lost against the dark background.
+  const boostLight = car.mesh.userData.boostLight;
+  if(boostLight){
+    const peakIntensity = currentTrackDim ? BOOST_LIGHT_INTENSITY_DIM : BOOST_LIGHT_INTENSITY;
+    boostLight.distance = currentTrackDim ? BOOST_LIGHT_DISTANCE_DIM : BOOST_LIGHT_DISTANCE;
+    const targetIntensity = boosting ? peakIntensity : 0;
+    boostLight.intensity += (targetIntensity - boostLight.intensity) * Math.min(1, dt*8);
+    if(Math.abs(boostLight.intensity - targetIntensity) < 0.02) boostLight.intensity = targetIntensity;
   }
 }
 
