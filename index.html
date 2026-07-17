@@ -706,14 +706,14 @@ const STAGES = [
   { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:2, width:20, unlockRaces:0 },
   { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:1 },
   { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:3, width:19, unlockRaces:2 },
-  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:4, width:17, unlockRaces:4 },
-  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:4, width:17, unlockRaces:6 },
-  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:5, width:16, unlockRaces:9 },
-  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:6, width:15, unlockRaces:12 },
-  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:6, width:15, unlockRaces:16 },
-  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:17, unlockRaces:20 },
-  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:5, width:16, unlockRaces:24 },
-  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:18, unlockRaces:28 }
+  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:4, width:21, unlockRaces:4 },
+  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:4, width:21, unlockRaces:6 },
+  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:5, width:20, unlockRaces:9 },
+  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:6, width:19, unlockRaces:12 },
+  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:6, width:19, unlockRaces:16 },
+  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:20 },
+  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:5, width:20, unlockRaces:24 },
+  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:28 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isAdmin || gameState.racesCompleted >= STAGES[i].unlockRaces; }
