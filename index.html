@@ -3118,16 +3118,16 @@ function applyBoundary(car){
   const KNOCKBACK_GAP = 0.8;
   car.pos.addScaledVector(normal, side*(limit - KNOCKBACK_GAP) - lateral);
 
-  // Only apply the crash recoil when the car is actually driving into the
-  // wall — once it's recoiling (speed reversed) this won't re-trigger.
+  // Only apply the crash stop when the car is actually driving into the
+  // wall — once it's stopped/rolling back this won't re-trigger.
   const fwd = forwardVec(car.heading);
   const movingIn = car.speed * fwd.dot(normal) * side > 0;
   if(movingIn){
-    // Crash: kill forward momentum and roll slightly BACKWARDS.
-    // Grip upgrade softens how hard you get thrown back.
-    const recoil = car.isPlayer ? Math.max(0.10, 0.28 - gameState.upgrades.grip*0.012) : 0.22;
-    const kick = Math.min(Math.abs(car.speed) * recoil, 14);
-    car.speed = car.speed >= 0 ? -kick : kick;
+    // Crash: dead stop with a small FIXED backward roll. No elastic
+    // rebound — the roll-back is the same size no matter how fast you
+    // hit, so there's no rubber-band spring off the wall.
+    const roll = car.isPlayer ? Math.max(1.5, 4 - gameState.upgrades.grip*0.25) : 3;
+    car.speed = car.speed >= 0 ? -roll : roll;
   }
 }
 
@@ -3303,7 +3303,7 @@ function resolveCollisions(dt){
     for(let i = 0; i < n; i++){
       for(let j = i+1; j < n; j++){
         const a = cars[i], b = cars[j];
-        if(a.remote || b.remote) continue; // network cars are ghosts — their real position lives on the other player's screen
+        if(a.remote && b.remote) continue; // two network cars resolve on their own screens
         if(a.finished && b.finished) continue;
 
         const dx = b.pos.x - a.pos.x;
@@ -3313,10 +3313,47 @@ function resolveCollisions(dt){
 
         const dist = Math.sqrt(distSq);
         const nx = dx/dist, nz = dz/dist;
+        const overlap = COLLISION_DIST - dist + 0.02;
+
+        if(a.remote || b.remote){
+          // Online opponent: their position is authoritative from their
+          // screen, so treat them as an immovable obstacle — the local car
+          // takes the full pushback and speed correction. (The same thing
+          // happens mirrored on their screen, so both sides feel the hit.)
+          const loc = a.remote ? b : a;
+          const rem = a.remote ? a : b;
+          const dir = a.remote ? 1 : -1;      // push loc along +n if it's b, else -n
+          loc.pos.x += nx * overlap * dir;
+          loc.pos.z += nz * overlap * dir;
+          if(iter === 0){
+            const lFwd = forwardVec(loc.heading);
+            const rFwd = forwardVec(rem.heading);
+            const lVn = lFwd.x*nx + lFwd.z*nz;
+            const rVn = rFwd.x*nx + rFwd.z*nz;
+            // Closing speed along the contact normal (n points a->b)
+            const relApproach = a.speed*(a===loc ? lVn : rVn) - b.speed*(b===loc ? lVn : rVn);
+            if(relApproach > 0){
+              const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.03 - playerCarDef.weight*0.03);
+              const impulse = relApproach * lVn * 0.6 * playerFactor;
+              // Local car absorbs the whole hit: a-side loses along +n, b-side gains
+              if(loc === a) loc.speed -= impulse; else loc.speed += impulse;
+              loc.speed = Math.max(-40, Math.min(40, loc.speed));
+            }
+            loc.speed *= 0.98;
+            if(loc.isPlayer){
+              playerCollisions++;
+              if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
+              if(collisionToastCooldown <= 0){
+                showToast('Collision!');
+                collisionToastCooldown = 0.7;
+              }
+            }
+          }
+          continue;
+        }
 
         // 1. Positional correction — push both cars fully apart each iteration.
         //    The small extra margin keeps them from oscillating at exact contact.
-        const overlap = COLLISION_DIST - dist + 0.02;
         const half = overlap * 0.5;
         a.pos.x -= nx*half;  a.pos.z -= nz*half;
         b.pos.x += nx*half;  b.pos.z += nz*half;
