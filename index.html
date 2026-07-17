@@ -487,6 +487,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -2691,102 +2692,174 @@ function createStageScene(theme){
 }
 
 /* ============================================================
-   ONLINE MULTIPLAYER
-   Uses the shared key-value storage available when this game runs
-   as a Claude artifact (window.storage with shared:true). Everyone
-   who opens this artifact shares that storage, which is what makes
-   cross-player matchmaking and position sync possible.
-   - Matchmaking: each searcher heartbeats vcmm:{id}; the lowest id
-     acts as host and publishes vcrace:open with a start time.
-   - In-race: each racer writes vcp:{roomId}:{id} ~once per second;
-     opponents render as network-driven cars (no local physics).
+   ONLINE MULTIPLAYER  (WebRTC peer-to-peer via PeerJS)
+   Works from this file opened in any normal browser with internet.
+   Discovery: everyone who hits "Find Match" tries to claim one
+   well-known PeerJS id. Whoever gets it becomes the lobby HOST;
+   everyone else connects to that id as a CLIENT. The host collects
+   joiners, starts the race, and relays position packets between
+   all players (star topology) at ~12 updates/sec.
    ============================================================ */
 const Online = {
-  available: !!(window.storage && typeof window.storage.set === 'function'),
+  LOBBY_ID: 'velocity-circuit-mm-lobby-v1',
+  available: typeof Peer !== 'undefined',
   myId: Math.random().toString(36).slice(2,10),
-  searching: false,
-  room: null,            // {roomId, stageIndex, startAt, players:[{id,name,car}]}
-  netCars: {},           // id -> remote car object
-  lastSend: 0, inFlight: false,
-  mmTimer: null,
-  seenRooms: {},
+  peer: null, hostConn: null,      // client -> host connection
+  conns: {},                       // host: logicalId -> conn
+  roster: [],                      // lobby players [{id,name,car}]
+  isHost: false, searching: false, startScheduled: false,
+  room: null, netCars: {},
+  lastSend: 0, retryTimer: null,
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
+  status(msg){ $('lobbyStatus').textContent = msg; },
 
-  async startSearch(){
-    if(!this.available || this.searching) return;
+  startSearch(){
+    if(!this.available){ this.status('Online needs the PeerJS library — check your internet connection and reload.'); return; }
+    if(this.searching) return;
     this.searching = true;
     $('findMatchBtn').hidden = true;
     $('lobbySpinner').hidden = false;
-    $('lobbyStatus').textContent = 'Looking for racers…';
-    this.mmTick();
-    this.mmTimer = setInterval(()=>this.mmTick(), 2000);
+    this.status('Connecting…');
+    this.tryBecomeHost();
   },
 
-  async stopSearch(){
-    this.searching = false;
-    if(this.mmTimer){ clearInterval(this.mmTimer); this.mmTimer = null; }
-    $('findMatchBtn').hidden = false;
-    $('lobbySpinner').hidden = true;
-    $('lobbyStatus').textContent = 'Ready to race?';
-    $('lobbyPlayers').innerHTML = '';
-    try{ await window.storage.delete('vcmm:'+this.myId, true); }catch(e){}
+  tryBecomeHost(){
+    this.cleanupPeer();
+    let decided = false;
+    const p = new Peer(this.LOBBY_ID);
+    this.peer = p;
+    p.on('open', ()=>{
+      if(decided || !this.searching) return; decided = true;
+      this.isHost = true;
+      this.roster = [{ id:this.myId, name:this.displayName(), car:gameState.selectedCar }];
+      this.renderLobby();
+      this.status('Looking for racers… (1 in lobby)');
+      p.on('connection', conn => this.hostAccept(conn));
+    });
+    p.on('error', err => {
+      if(err && err.type === 'unavailable-id'){
+        if(decided) return; decided = true;
+        this.joinAsClient();                 // someone else is already hosting
+      } else if(err && (err.type === 'network' || err.type === 'server-error')){
+        this.status('Can\u2019t reach the matchmaking network. Check your internet and try again.');
+        this.stopSearch(true);
+      }
+    });
   },
 
-  async mmTick(){
-    if(!this.searching) return;
-    const now = Date.now();
-    try{
-      // Heartbeat my matchmaking entry
-      await window.storage.set('vcmm:'+this.myId,
-        JSON.stringify({ id:this.myId, name:this.displayName(), car:gameState.selectedCar, ts:now }), true);
-
-      // Has a race already been opened that includes me?
-      let open = null;
-      try{
-        const r = await window.storage.get('vcrace:open', true);
-        if(r && r.value) open = JSON.parse(r.value);
-      }catch(e){}
-      if(open && !this.seenRooms[open.roomId] && open.startAt > now - 5000
-         && open.players.some(p=>p.id===this.myId)){
-        this.seenRooms[open.roomId] = true;
-        this.joinRoom(open);
-        return;
+  /* ---------- HOST side ---------- */
+  hostAccept(conn){
+    conn.on('data', m => this.hostOnMsg(conn, m));
+    conn.on('close', ()=> this.hostDrop(conn));
+    conn.on('error', ()=> this.hostDrop(conn));
+  },
+  hostOnMsg(conn, m){
+    if(!m || typeof m !== 'object') return;
+    if(m.type === 'join'){
+      if(this.room || this.roster.length >= 4){ try{ conn.send({type:'busy'}); }catch(e){} return; }
+      conn.logicalId = m.id;
+      this.conns[m.id] = conn;
+      this.roster = this.roster.filter(p=>p.id !== m.id);
+      this.roster.push({ id:m.id, name:String(m.name||'Racer').slice(0,16), car:m.car|0 });
+      this.broadcast({ type:'lobby', players:this.roster });
+      this.renderLobby();
+      this.status('Looking for racers… (' + this.roster.length + ' in lobby)');
+      if(this.roster.length >= 2 && !this.startScheduled){
+        this.startScheduled = true;
+        this.status('Racer found — starting soon…');
+        setTimeout(()=> this.hostStartRace(), 3500);   // brief window for more joiners
       }
-
-      // Gather everyone currently searching
-      const listing = await window.storage.list('vcmm:', true);
-      const keys = (listing && listing.keys) || [];
-      const players = [];
-      for(const k of keys.slice(0, 12)){
-        try{
-          const r = await window.storage.get(k, true);
-          if(r && r.value){
-            const p = JSON.parse(r.value);
-            if(now - p.ts < 8000) players.push(p);
-          }
-        }catch(e){}
+    } else if(m.type === 'pos'){
+      this.applySnapshot(m);
+      this.relay(m, conn);                             // pass it on to the other racers
+    }
+  },
+  hostDrop(conn){
+    if(conn.logicalId){
+      delete this.conns[conn.logicalId];
+      if(!this.room){
+        this.roster = this.roster.filter(p=>p.id !== conn.logicalId);
+        this.broadcast({ type:'lobby', players:this.roster });
+        this.renderLobby();
+      } else {
+        showToast('A racer disconnected');
       }
-      players.sort((a,b)=> a.id < b.id ? -1 : 1);
-      this.renderLobby(players);
+    }
+  },
+  hostStartRace(){
+    if(this.room || !this.searching) return;
+    const room = {
+      roomId: this.myId + '-' + Date.now(),
+      stageIndex: Math.floor(Math.random()*3),
+      startInMs: 5000,
+      players: this.roster.slice(0,4)
+    };
+    this.broadcast({ type:'start', room });
+    this.enterRoom(room);
+  },
+  broadcast(msg, exceptConn){
+    for(const id in this.conns){
+      const c = this.conns[id];
+      if(c === exceptConn) continue;
+      try{ if(c.open) c.send(msg); }catch(e){}
+    }
+  },
+  relay(msg, fromConn){ this.broadcast(msg, fromConn); },
 
-      // Lowest id hosts: once 2+ players are fresh, open a race for up to 4
-      if(players.length >= 2 && players[0].id === this.myId){
-        const roomPlayers = players.slice(0,4).map(p=>({id:p.id, name:p.name, car:p.car}));
-        const roomId = this.myId + '-' + now;
-        let h = 0; for(const ch of roomId) h = (h*31 + ch.charCodeAt(0)) >>> 0;
-        const room = { roomId, stageIndex: h % 3, startAt: now + 7000, players: roomPlayers };
-        await window.storage.set('vcrace:open', JSON.stringify(room), true);
-        this.seenRooms[roomId] = true;
-        this.joinRoom(room);
+  /* ---------- CLIENT side ---------- */
+  joinAsClient(){
+    this.cleanupPeer();
+    const p = new Peer();                              // random id from broker
+    this.peer = p;
+    this.status('Joining lobby…');
+    p.on('open', ()=>{
+      if(!this.searching) return;
+      const conn = p.connect(this.LOBBY_ID);
+      this.hostConn = conn;
+      conn.on('open', ()=>{
+        conn.send({ type:'join', id:this.myId, name:this.displayName(), car:gameState.selectedCar });
+        this.status('In lobby — waiting for the race to start…');
+      });
+      conn.on('data', m => this.clientOnMsg(m));
+      const lost = ()=>{
+        if(this.room){ showToast('Lost connection to the race host'); return; }
+        if(!this.searching) return;
+        // Host left — try to take over hosting, otherwise keep searching
+        this.status('Host left — reconnecting…');
+        this.retryTimer = setTimeout(()=> this.tryBecomeHost(), 1200);
+      };
+      conn.on('close', lost);
+      conn.on('error', lost);
+    });
+    p.on('error', err => {
+      if(err && err.type === 'peer-unavailable'){
+        // Lobby id freed between our check and connect — claim it ourselves
+        this.retryTimer = setTimeout(()=> this.tryBecomeHost(), 800);
       }
-    }catch(e){ console.error('matchmaking error', e); }
+    });
+  },
+  clientOnMsg(m){
+    if(!m || typeof m !== 'object') return;
+    if(m.type === 'lobby'){
+      this.roster = m.players || [];
+      this.renderLobby();
+      this.status('In lobby — ' + this.roster.length + ' racer' + (this.roster.length===1?'':'s') + ' ready…');
+    } else if(m.type === 'busy'){
+      this.status('A race is already in progress — retrying shortly…');
+      this.retryTimer = setTimeout(()=>{ if(this.searching && !this.room) this.joinAsClient(); }, 5000);
+    } else if(m.type === 'start'){
+      this.enterRoom(m.room);
+    } else if(m.type === 'pos'){
+      this.applySnapshot(m);
+    }
   },
 
-  renderLobby(players){
+  /* ---------- shared ---------- */
+  renderLobby(){
     const ul = $('lobbyPlayers');
     ul.innerHTML = '';
-    players.forEach(p=>{
+    this.roster.forEach(p=>{
       const li = document.createElement('li');
       li.textContent = p.name;
       if(p.id === this.myId){
@@ -2795,15 +2868,14 @@ const Online = {
       }
       ul.appendChild(li);
     });
-    $('lobbyStatus').textContent = players.length >= 2
-      ? 'Racers found — starting…' : 'Looking for racers… (' + players.length + ' in lobby)';
   },
 
-  joinRoom(room){
-    if(this.mmTimer){ clearInterval(this.mmTimer); this.mmTimer = null; }
+  enterRoom(room){
+    if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
     this.searching = false;
+    this.startScheduled = false;
+    room.startAt = Date.now() + (room.startInMs || 5000);
     this.room = room;
-    try{ window.storage.delete('vcmm:'+this.myId, true); }catch(e){}
     $('lobbySpinner').hidden = true;
     $('findMatchBtn').hidden = false;
     selectedStage = room.stageIndex;
@@ -2811,64 +2883,59 @@ const Online = {
     announce('Online race found with ' + room.players.length + ' racers.');
   },
 
-  posKey(id){ return 'vcp:' + this.room.roomId + ':' + id; },
+  applySnapshot(m){
+    const car = this.netCars[m.id];
+    if(!car) return;
+    car.netTs = m.ts;
+    car.netAt = performance.now();
+    car.netTo = m;
+    car.speed = m.s;
+    car.lap = m.l; car.trackIndex = m.ti;
+    if(m.f && !car.finished){ car.finished = true; car.finishTime = m.ft; }
+  },
 
-  /* Called every frame while an online race is live; throttles its own IO. */
+  mySnapshot(extra){
+    return Object.assign({
+      type:'pos', id:this.myId,
+      x:+player.pos.x.toFixed(2), z:+player.pos.z.toFixed(2),
+      h:+player.heading.toFixed(3), s:+player.speed.toFixed(1),
+      l:player.lap, ti:player.trackIndex,
+      f:player.finished, ft:player.finishTime, ts:Date.now()
+    }, extra || {});
+  },
+
+  send(msg){
+    if(this.isHost){ this.broadcast(msg); }
+    else if(this.hostConn && this.hostConn.open){ try{ this.hostConn.send(msg); }catch(e){} }
+  },
+
+  /* Called every frame while an online race is live; ~12 packets/sec. */
   tick(){
-    if(!this.room || this.inFlight) return;
+    if(!this.room) return;
     const now = Date.now();
-    if(now - this.lastSend < 900) return;
+    if(now - this.lastSend < 80) return;
     this.lastSend = now;
-    this.inFlight = true;
-    (async ()=>{
-      try{
-        // Publish my state
-        await window.storage.set(this.posKey(this.myId), JSON.stringify({
-          x:+player.pos.x.toFixed(2), z:+player.pos.z.toFixed(2),
-          h:+player.heading.toFixed(3), s:+player.speed.toFixed(1),
-          l:player.lap, ti:player.trackIndex,
-          f:player.finished, ft:player.finishTime, ts:now
-        }), true);
-        // Pull everyone else's
-        for(const p of this.room.players){
-          if(p.id === this.myId) continue;
-          try{
-            const r = await window.storage.get(this.posKey(p.id), true);
-            if(r && r.value){
-              const snap = JSON.parse(r.value);
-              const car = this.netCars[p.id];
-              if(car && snap.ts !== car.netTs){
-                car.netTs = snap.ts;
-                car.netAt = performance.now();
-                car.netTo = snap;
-                car.speed = snap.s;
-                car.lap = snap.l; car.trackIndex = snap.ti;
-                if(snap.f && !car.finished){ car.finished = true; car.finishTime = snap.ft; }
-              }
-            }
-          }catch(e){ /* opponent hasn't written yet */ }
-        }
-      }catch(e){ console.error('online sync error', e); }
-      finally{ this.inFlight = false; }
-    })();
+    this.send(this.mySnapshot());
+  },
+
+  sendFinish(){
+    this.send(this.mySnapshot({ s:0, f:true, ft:player.finishTime }));
   },
 
   /* Smoothly move network cars toward their latest snapshot, with light
-     dead-reckoning so they keep rolling between (~1s apart) updates. */
+     dead-reckoning so they keep rolling between updates. */
   updateRemoteCars(dt){
     const nowP = performance.now();
     for(const id in this.netCars){
       const car = this.netCars[id];
       if(!car.netTo) continue;
       const age = (nowP - car.netAt) / 1000;
-      const stale = age > 6;
+      const stale = age > 4;
       const t = car.netTo;
-      // Predict forward from the snapshot along its heading, capped so a
-      // dropped opponent doesn't sail off into the scenery.
-      const lead = stale ? 0 : Math.min(age, 1.1);
+      const lead = stale ? 0 : Math.min(age, 0.3);
       const tx = t.x + Math.sin(t.h) * t.s * lead;
       const tz = t.z + Math.cos(t.h) * t.s * lead;
-      const k = Math.min(1, dt * 5);
+      const k = Math.min(1, dt * 10);
       car.pos.x += (tx - car.pos.x) * k;
       car.pos.z += (tz - car.pos.z) * k;
       car.heading += normalizeAngle(t.h - car.heading) * k;
@@ -2879,12 +2946,27 @@ const Online = {
     }
   },
 
+  cleanupPeer(){
+    if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
+    if(this.peer){ try{ this.peer.destroy(); }catch(e){} }
+    this.peer = null; this.hostConn = null; this.conns = {};
+    this.isHost = false; this.startScheduled = false;
+  },
+
+  stopSearch(keepStatus){
+    this.searching = false;
+    this.cleanupPeer();
+    this.roster = [];
+    $('findMatchBtn').hidden = false;
+    $('lobbySpinner').hidden = true;
+    if(!keepStatus) this.status('Ready to race?');
+    $('lobbyPlayers').innerHTML = '';
+  },
+
   leaveRace(){
-    if(this.room){
-      try{ window.storage.delete(this.posKey(this.myId), true); }catch(e){}
-    }
     this.room = null;
     this.netCars = {};
+    this.cleanupPeer();
   }
 };
 
@@ -2892,7 +2974,7 @@ const Online = {
 $('choosePrivateBtn').addEventListener('click', ()=>{ showScreen('home'); renderStageGrid(); refreshCoinDisplays(); });
 $('chooseOnlineBtn').addEventListener('click', ()=>{
   if(!Online.available){
-    $('modeFootnote').textContent = 'Online play needs the shared storage this game gets when it runs inside Claude — it isn\'t available here, so Online is disabled. Private mode works everywhere.';
+    $('modeFootnote').textContent = 'Online play couldn\u2019t load its networking library — make sure you\u2019re connected to the internet, then reload the page.';
     return;
   }
   showScreen('online');
@@ -4072,26 +4154,18 @@ function finishRace(){
       }).join('');
   }
   if(Online.room){
-    // Publish my finish right away so opponents see it without waiting for the next tick
-    try{
-      window.storage.set(Online.posKey(Online.myId), JSON.stringify({
-        x:+player.pos.x.toFixed(2), z:+player.pos.z.toFixed(2),
-        h:+player.heading.toFixed(3), s:0,
-        l:player.lap, ti:player.trackIndex,
-        f:true, ft:player.finishTime, ts:Date.now()
-      }), true);
-    }catch(e){}
+    // Tell opponents I finished, right away
+    Online.sendFinish();
     onlineRows = `<div id="onlineStandings">${buildOnlineRows()}</div>`;
-    // Keep refreshing while slower racers finish (up to 90s)
+    // Opponent finishes arrive over the peer connection — just re-render for a while
     if(onlineResultsTimer) clearInterval(onlineResultsTimer);
     let polls = 0;
     onlineResultsTimer = setInterval(()=>{
       polls++;
-      if(!Online.room || appState !== 'results' || polls > 45){
+      if(!Online.room || appState !== 'results' || polls > 60){
         clearInterval(onlineResultsTimer); onlineResultsTimer = null; return;
       }
-      Online.lastSend = 0;      // let tick fire immediately
-      Online.tick();
+      Online.sendFinish();      // keep my result flowing in case a packet dropped
       const el = document.getElementById('onlineStandings');
       if(el) el.innerHTML = buildOnlineRows();
     }, 2000);
@@ -4153,6 +4227,7 @@ function animate(now){
 
   if(appState === 'racing-countdown'){
     countdown -= dt;
+    if(Online.room){ Online.tick(); Online.updateRemoteCars(dt); }
     const shown = Math.max(0, Math.ceil(countdown));
     $('countdownNum').textContent = shown>0 ? String(shown) : 'GO!';
     if(countdown <= 0){
