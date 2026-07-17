@@ -91,8 +91,6 @@
   .lockNote{ color:var(--danger); font-size:12px; margin:2px 0 0; font-weight:700; }
   .stageCardWrap{ position:relative; width:220px; }
   .stageCardWrap .stageCard{ width:100%; }
-  .carCardWrap{ position:relative; width:206px; }
-  .carCardWrap .carCard{ width:100%; }
   .trackRenameBtn{ position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:50%;
     border:1px solid #2a3549; background:rgba(10,14,20,.82); color:var(--text); font-size:13px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; padding:0; }
@@ -172,6 +170,30 @@
   .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:rgba(10,14,20,.72);
     border:1px solid rgba(79,216,255,.25); overflow:hidden; }
   .boostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #ff8a1e, #ffd23f); }
+  .driftBarTrack{ width:150px; height:7px; border-radius:999px; background:rgba(10,14,20,.72);
+    border:1px solid rgba(79,216,255,.25); overflow:hidden; margin-bottom:2px; }
+  .driftBarFill{ height:100%; width:0%; background:#4fd8ff; transition:background .12s; }
+  .driftBarFill.tier2{ background:linear-gradient(90deg,#ff8a1e,#ffd23f); }
+  .driftBarFill.tier3{ background:linear-gradient(90deg,#9b5cff,#e04fff); }
+  .slipChip{ margin-top:4px; font-size:10px; font-weight:800; letter-spacing:1.5px; color:#3ddc84;
+    text-shadow:0 0 8px rgba(61,220,132,.8); animation:slipPulse 0.9s ease-in-out infinite; }
+  @keyframes slipPulse{ 0%,100%{ opacity:.65; } 50%{ opacity:1; } }
+  #popupLayer{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .popup{ position:absolute; left:50%; top:44%; transform:translate(-50%,0);
+    font-weight:800; font-size:20px; letter-spacing:.5px; white-space:nowrap;
+    text-shadow:0 2px 10px rgba(0,0,0,.55); animation:popupFloat 1.15s ease-out forwards; }
+  .popup.coin{ color:#ffd23f; }
+  .popup.drift1{ color:#4fd8ff; }
+  .popup.drift2{ color:#ffc94f; }
+  .popup.drift3{ color:#e04fff; font-size:24px; }
+  .popup.combo{ color:#ff8a1e; font-size:26px; }
+  .popup.nearmiss{ color:#3ddc84; }
+  @keyframes popupFloat{
+    0%{ opacity:0; transform:translate(-50%, 14px) scale(.7); }
+    12%{ opacity:1; transform:translate(-50%, 0) scale(1.12); }
+    24%{ transform:translate(-50%, -6px) scale(1); }
+    100%{ opacity:0; transform:translate(-50%, -74px) scale(.96); }
+  }
   .boostBtn{ background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:999px;
     color:var(--muted); font:inherit; font-size:14px; font-weight:800; padding:9px 22px; cursor:not-allowed;
     display:flex; align-items:center; gap:8px; letter-spacing:.5px; transition:transform .15s, box-shadow .15s, color .15s, background .15s, border-color .15s; }
@@ -258,6 +280,7 @@
     <div class="stageGrid" id="stageGrid" role="group" aria-label="Select a track"></div>
 
     <div class="btnRow">
+      <button class="btn" id="startRaceBtn">Start Race</button>
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
     </div>
@@ -305,18 +328,20 @@
           <div class="hudSmall"><span class="coinDot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> <span id="hudCoins">0</span> coins</div>
         </div>
       </div>
-      <div class="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc to pause &middot; M to mute</div>
+      <div class="controlsHint">W/A/S/D or Arrows to drive &middot; Shift to drift &middot; Space to boost &middot; Esc to pause &middot; M to mute</div>
       <button class="soundBtn" id="soundBtn" type="button" aria-pressed="true">
         <span id="soundIcon" aria-hidden="true">🔊</span><span id="soundLabel">Sound on</span>
       </button>
       <div class="toast" id="toast"></div>
+      <div id="popupLayer" aria-hidden="true"></div>
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
-      <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
+      <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div><div class="slipChip" id="slipChip" hidden>SLIPSTREAM</div></div>
       <div class="hudPanel" id="fpsCounter" hidden style="position:absolute;top:78px;left:14px;padding:4px 10px;">
         <span class="hudSmall" id="fpsText">60 fps</span>
       </div>
       <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
       <div class="boostWrap">
+        <div class="driftBarTrack" id="driftBarTrack" hidden><div class="driftBarFill" id="driftBarFill"></div></div>
         <button class="boostBtn" id="boostBtn" type="button" aria-label="Activate boost (Space)" disabled>
           <span id="boostIcon" aria-hidden="true">🔥</span><span id="boostLabel">BOOST</span>
         </button>
@@ -433,7 +458,7 @@
 /* ============================= PERSISTENT STATE ============================= */
 const DEFAULT_STATE = {
   coins: 100,
-  upgrades: { speed:0, accel:0, handling:0, brake:0, grip:0, nitro:0, boostPower:0, armor:0 },
+  upgrades: { speed:0, accel:0, handling:0, brake:0, grip:0, nitro:0, boostPower:0, armor:0, drift:0, slipstream:0, luck:0 },
   selectedCar: 0,
   ownedCars: [0],
   bestLaps: {},
@@ -667,11 +692,7 @@ const CARS = [
   { name:'Violet Phantom',  color:0x9b5cff, price:17000,  speed:6, accel:5, handling:5, weight:4, boostPower:6 },
   { name:'Titanium Apex',   color:0xb8c4d9, price:28000,  speed:7, accel:6, handling:6, weight:8, boostPower:5 },
   { name:'Obsidian Reaper', color:0x6a5acd, price:44000,  speed:8, accel:7, handling:7, weight:6, boostPower:7 },
-  { name:'Solar Vanguard',  color:0xffb347, price:68000,  speed:9, accel:9, handling:8, weight:5, boostPower:9 },
-  { name:'Cobalt Nova',     color:0x2f6fed, price:95000,  speed:9, accel:8, handling:9, weight:5, boostPower:8 },
-  { name:'Rogue Wraith',    color:0x2f3542, price:130000, speed:9, accel:9, handling:7, weight:7, boostPower:9 },
-  { name:'Crimson Vortex',  color:0xff2e5b, price:175000, speed:9, accel:9, handling:9, weight:6, boostPower:9 },
-  { name:'Ghost Aurora',    color:0x6fe3d9, price:230000, speed:9, accel:9, handling:9, weight:4, boostPower:9 }
+  { name:'Solar Vanguard',  color:0xffb347, price:68000,  speed:9, accel:9, handling:8, weight:5, boostPower:9 }
 ];
 const CAR_STAT_MAX = 9; // stat bars in the garage are drawn as val / CAR_STAT_MAX
 
@@ -696,7 +717,10 @@ const UPGRADE_DEFS = [
   { key:'grip', name:'Grip', desc:'Lose less speed when you clip a wall.' },
   { key:'nitro', name:'Nitro Charge', desc:'Boost meter fills up faster between uses.' },
   { key:'boostPower', name:'Boost Power', desc:'Bigger speed and acceleration spike while boosting.' },
-  { key:'armor', name:'Collision Resistance', desc:'Lose less speed when you crash into rivals.' }
+  { key:'armor', name:'Collision Resistance', desc:'Lose less speed when you crash into rivals.' },
+  { key:'drift', name:'Drift Tuning', desc:'Charge drift boosts faster and keep them longer.' },
+  { key:'slipstream', name:'Slipstream', desc:'Extra top speed while tucked in close behind a rival.' },
+  { key:'luck', name:'Lucky Streak', desc:'Bigger coin payouts from drift boosts and near misses.' }
 ];
 const MAX_UPGRADE_LEVEL = 8;
 function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
@@ -740,31 +764,6 @@ function renameStage(i, newName){
   saveTrackNameOverrides();
 }
 loadTrackNameOverrides();
-
-// Admin-only car renaming, same pattern as track renaming above: names are
-// stored separately from CARS (still the source of truth for stats/price)
-// and shared globally across all local profiles.
-const CAR_NAMES_KEY = 'velocityCircuit_carNames';
-let carNameOverrides = {};
-function loadCarNameOverrides(){
-  try{
-    const raw = localStorage.getItem(CAR_NAMES_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    carNameOverrides = (parsed && typeof parsed === 'object') ? parsed : {};
-  }catch(e){ carNameOverrides = {}; }
-}
-function saveCarNameOverrides(){
-  try{ localStorage.setItem(CAR_NAMES_KEY, JSON.stringify(carNameOverrides)); }catch(e){}
-}
-function getCarName(i){
-  const override = carNameOverrides[i];
-  return (typeof override === 'string' && override.trim()) ? override.trim() : CARS[i].name;
-}
-function renameCar(i, newName){
-  carNameOverrides[i] = newName;
-  saveCarNameOverrides();
-}
-loadCarNameOverrides();
 
 // Harder tracks pay out more: every point of difficulty above 1 adds 20% to
 // every coin source in that race (per-lap coins, finish bonus, position bonus).
@@ -954,6 +953,10 @@ function renderStagePhoto(stageIndex){
   return out;
 }
 
+$('startRaceBtn').addEventListener('click', ()=>{
+  if(!isStageUnlocked(selectedStage)) return;
+  startRace(selectedStage);
+});
 $('openGarageBtn').addEventListener('click', ()=>{ showScreen('garage'); renderCarGrid(); });
 $('garageBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 $('openUpgradesBtn').addEventListener('click', ()=>{ showScreen('upgrades'); renderUpgrades(); });
@@ -970,9 +973,6 @@ function renderCarGrid(){
   CARS.forEach((c,i)=>{
     const owned = gameState.ownedCars.includes(i);
     const equipped = gameState.selectedCar === i;
-    const displayName = getCarName(i);
-    const wrap = document.createElement('div');
-    wrap.className = 'carCardWrap';
     const card = document.createElement('div');
     card.className = 'carCard' + (equipped ? ' equipped' : '') + (owned ? '' : ' locked');
     const statDefs = [
@@ -999,34 +999,11 @@ function renderCarGrid(){
     }
     card.innerHTML = `
       <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
-      <p class="carName">${owned ? displayName : '🔒 ' + displayName}</p>
+      <p class="carName">${owned ? c.name : '🔒 ' + c.name}</p>
       <div class="carStatsWrap" role="img" aria-label="${statsAria}">${statBars}</div>
       ${buttonHtml}
     `;
-    wrap.appendChild(card);
-
-    if(isAdmin){
-      const renameBtn = document.createElement('button');
-      renameBtn.type = 'button';
-      renameBtn.className = 'trackRenameBtn';
-      renameBtn.setAttribute('aria-label', 'Rename ' + displayName);
-      renameBtn.title = 'Rename car';
-      renameBtn.textContent = '✏️';
-      renameBtn.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        const next = window.prompt('Rename car:', displayName);
-        if(next === null) return;
-        const trimmed = next.trim();
-        if(!trimmed || trimmed === displayName) return;
-        renameCar(i, trimmed);
-        renderCarGrid();
-        announce('Car renamed to ' + trimmed + '.');
-        showToast('Car renamed');
-      });
-      wrap.appendChild(renameBtn);
-    }
-
-    carGrid.appendChild(wrap);
+    carGrid.appendChild(card);
   });
   startGaragePreviews();
   carGrid.querySelectorAll('button[data-buy]').forEach(btn=>{
@@ -1041,7 +1018,7 @@ function renderCarGrid(){
       saveState();
       refreshCoinDisplays();
       renderCarGrid();
-      announce(getCarName(i) + ' purchased and equipped.');
+      announce(car.name + ' purchased and equipped.');
     });
   });
   carGrid.querySelectorAll('button[data-select]').forEach(btn=>{
@@ -1050,7 +1027,7 @@ function renderCarGrid(){
       gameState.selectedCar = i;
       saveState();
       renderCarGrid();
-      announce(getCarName(i) + ' equipped.');
+      announce(CARS[i].name + ' equipped.');
     });
   });
 }
@@ -1658,7 +1635,7 @@ function addCoastalDecor(group){
   }
 }
 
-function addMountainDecor(group){
+function addMountainDecor(group, clearOfTrack){
   const rock1 = new THREE.MeshStandardMaterial({ color:0x5a4638, roughness:1 });
   const rock2 = new THREE.MeshStandardMaterial({ color:0x71583f, roughness:1 });
   const snowMat = new THREE.MeshStandardMaterial({ color:0xf4f6fa, roughness:0.9 });
@@ -1679,9 +1656,11 @@ function addMountainDecor(group){
   for(let i=0;i<16;i++){
     const ang = Math.random()*Math.PI*2;
     const r = 85 + Math.random()*45;
+    const px = Math.cos(ang)*r, pz = Math.sin(ang)*r;
+    if(clearOfTrack && !clearOfTrack({ x:px, z:pz }, -1, 2.5)) continue; // too close to the road
     const tree = buildPineTree();
     tree.scale.setScalar(0.8 + Math.random()*0.7);
-    tree.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
+    tree.position.set(px, 0, pz);
     tree.rotation.y = Math.random()*Math.PI*2;
     group.add(tree);
   }
@@ -1797,14 +1776,14 @@ function addNeonDecor(group){
   }
 }
 
-function buildScenery(theme){
+function buildScenery(theme, clearOfTrack){
   const group = new THREE.Group();
   if(theme.deco==='desert') addDesertDecor(group);
   else if(theme.deco==='stadium') addStadiumDecor(group);
   else if(theme.deco==='ice') addIceDecor(group);
   else if(theme.deco==='coastal') addCoastalDecor(group);
   else if(theme.deco==='canyon') addCanyonDecor(group);
-  else if(theme.deco==='mountain') addMountainDecor(group);
+  else if(theme.deco==='mountain') addMountainDecor(group, clearOfTrack);
   else if(theme.deco==='forest') addForestDecor(group);
   else if(theme.deco==='neon') addNeonDecor(group);
   else if(theme.deco==='city') addCityDecor(group);
@@ -1818,7 +1797,7 @@ function buildScenery(theme){
    sound bed), with a floor so even remote tracks get a few onlookers. */
 const CROWD_SHIRT_COLORS = [0xd94452, 0x4fd8ff, 0xffc94f, 0x6fe38f, 0xffffff, 0x8a6fe3, 0x2f3542, 0xff8c42];
 const CROWD_SKIN_TONES   = [0xe8b892, 0xc98a5e, 0x8d5a3c, 0x4a2f22, 0xf2d3ae];
-function buildCrowd(theme, points, normals, half){
+function buildCrowd(theme, points, normals, half, clearOfTrack){
   const group = new THREE.Group();
   const density = Math.max(0.18, (theme && theme.crowd) || 0);
   const N = points.length;
@@ -1854,37 +1833,19 @@ function buildCrowd(theme, points, normals, half){
   const m = new THREE.Matrix4();
   const upAxis = new THREE.Vector3(0,1,0);
 
-  // On tight, wiggly tracks the centerline can loop back close to itself, so
-  // a stand of spectators offset from point i can land right on the road
-  // surface near some other, far-away point j — the same issue the barriers
-  // already guard against. Reuse that same check here so people never end up
-  // standing on the track itself.
-  const NEIGHBOR_GAP = Math.max(4, Math.round(N*0.03));
-  function collidesWithTrack(pos, selfIndex){
-    for(let j=0;j<N;j++){
-      let d = Math.abs(j-selfIndex); d = Math.min(d, N-d);
-      if(d <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
-      if(pos.distanceTo(points[j]) < half) return true;
-    }
-    return false;
-  }
-
   for(let i=0;i<N;i+=step){
     if(Math.random() > density + 0.3) continue; // irregular gaps in the crowd
     const n = normals[i];
     const tangent = new THREE.Vector3(-n.z, 0, n.x);
     const baseAngle = Math.atan2(tangent.x, tangent.z);
     [1,-1].forEach(sign=>{
-      // Skip this whole stand if its front row would land on the road
-      // surface somewhere else on the track.
-      const frontRowPos = points[i].clone().addScaledVector(n, sign*(half+2.6));
-      if(collidesWithTrack(frontRowPos, i)) return;
       for(let row=0; row<rowsPerCluster; row++){
         const dist = half + 2.6 + row*0.9;   // stepped-back rows, like simple stands
         const baseY = 0.5 + row*0.55;
         for(let p=0;p<peoplePerRow;p++){
           const along = (p - (peoplePerRow-1)/2) * 0.6 + (Math.random()-0.5)*0.25;
           const pos = points[i].clone().addScaledVector(n, sign*dist).addScaledVector(tangent, along);
+          if(clearOfTrack && !clearOfTrack(pos, i, 0.5)) continue; // spot is on another stretch of road
           // Height/build variation so the crowd isn't a rank of identical clones.
           const build = 0.82 + Math.random()*0.4;
           const heightJ = 0.85 + Math.random()*0.32;
@@ -1943,9 +1904,27 @@ function buildTrack(stageIndex){
 
   const group = new THREE.Group();
 
+  /* On tracks that fold close to themselves (serpents, switchbacks, canyon),
+     positions offset from one section of centerline can land on the road
+     surface of ANOTHER section — leaving barrier blocks and spectators
+     standing in the middle of the track. This predicate rejects any position
+     that falls within the road corridor of a non-local stretch of track. */
+  const clearOfTrack = (pos, ownIndex, reach)=>{
+    const limit = half + reach;
+    for(let j=0; j<N_POINTS; j++){
+      if(ownIndex >= 0){
+        const d = Math.abs(ownIndex - j);
+        if(Math.min(d, N_POINTS - d) <= 6) continue; // this position's own stretch of road
+      }
+      const dx = pos.x - points[j].x, dz = pos.z - points[j].z;
+      if(dx*dx + dz*dz < limit*limit) return false;
+    }
+    return true;
+  };
+
   // Sky and background scenery, unique per track theme
   group.add(buildSkyDome(theme));
-  group.add(buildScenery(theme));
+  group.add(buildScenery(theme, clearOfTrack));
 
   // Ground
   const groundGeo = new THREE.PlaneGeometry(2000,2000);
@@ -2010,76 +1989,35 @@ function buildTrack(stageIndex){
   const dashMat = new THREE.MeshBasicMaterial({ map:dashTex, transparent:true });
   group.add(new THREE.Mesh(dashGeo, dashMat));
 
-  // Barriers — a single continuous solid wall per side (instead of hundreds
-  // of separate boxes), built as one extruded ribbon that follows the track.
-  const barrierMat = new THREE.MeshStandardMaterial({ color:0x9aa2b0, roughness:0.85, side: THREE.DoubleSide });
-  const barrierOffset = half+0.9;
-  const barrierThickness = 1.1;
-  const barrierHeight = 1.2;
-  const innerOffset = barrierOffset - barrierThickness/2;
-  const outerOffset = barrierOffset + barrierThickness/2;
-  // On tight, wiggly tracks (switchback/canyon/serpent) the centerline can
-  // loop back close to itself, so a barrier offset from point i can land
-  // right on top of the road surface near some other, far-away point j —
-  // not just near its own point. Rather than guessing from local curvature
-  // (which also strips barriers that never actually overlap anything), we
-  // directly test each candidate barrier position against the whole track
-  // and only drop the segments that truly collide with the road.
-  const NEIGHBOR_GAP = Math.max(4, Math.round(N*0.03));
-  function collidesWithTrack(pos, selfIndex){
-    for(let j=0;j<N;j++){
-      let d = Math.abs(j-selfIndex); d = Math.min(d, N-d);
-      if(d <= NEIGHBOR_GAP) continue; // skip its own stretch of road, that's expected
-      if(pos.distanceTo(points[j]) < half) return true;
-    }
-    return false;
-  }
+  // Barriers (instanced, alternating red/white)
+  const barrierGeo = new THREE.BoxGeometry(1.1, 1.3, 2.6);
+  const redMat = new THREE.MeshStandardMaterial({ color:0xd94452 });
+  const whiteMat = new THREE.MeshStandardMaterial({ color:0xeef1f5 });
   function buildBarrierSide(sign){
-    const valid = new Array(N);
+    const redCount = Math.ceil(N/2), whiteCount = Math.floor(N/2);
+    const redMesh = new THREE.InstancedMesh(barrierGeo, redMat, redCount);
+    const whiteMesh = new THREE.InstancedMesh(barrierGeo, whiteMat, whiteCount);
+    let ri=0, wi=0;
+    const m = new THREE.Matrix4();
     for(let i=0;i<N;i++){
-      const checkPos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*barrierOffset));
-      checkPos.y = 0.6;
-      valid[i] = !collidesWithTrack(checkPos, i);
+      const pos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*(half+0.9)));
+      if(!clearOfTrack(pos, i, 0.7)) continue; // would sit on another stretch of road
+      pos.y = 0.6;
+      const angle = Math.atan2(normals[i].x, normals[i].z);
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), angle);
+      m.compose(pos, q, new THREE.Vector3(1,1,1));
+      if(i%2===0) redMesh.setMatrixAt(ri++, m); else whiteMesh.setMatrixAt(wi++, m);
     }
-    const positions = [];
-    function addQuad(a,b,c,d){
-      // a,b,c,d in order around the quad; split into two triangles.
-      positions.push(a.x,a.y,a.z, b.x,b.y,b.z, c.x,c.y,c.z);
-      positions.push(a.x,a.y,a.z, c.x,c.y,c.z, d.x,d.y,d.z);
-    }
-    for(let i=0;i<N;i++){
-      const j=(i+1)%N;
-      if(!(valid[i] && valid[j])) continue;
-      const nI = normals[i], nJ = normals[j];
-      const inI = points[i].clone().addScaledVector(nI, sign*innerOffset);
-      const outI = points[i].clone().addScaledVector(nI, sign*outerOffset);
-      const inJ = points[j].clone().addScaledVector(nJ, sign*innerOffset);
-      const outJ = points[j].clone().addScaledVector(nJ, sign*outerOffset);
-      const inIt = inI.clone(); inIt.y = barrierHeight;
-      const outIt = outI.clone(); outIt.y = barrierHeight;
-      const inJt = inJ.clone(); inJt.y = barrierHeight;
-      const outJt = outJ.clone(); outJt.y = barrierHeight;
-      const inIb = inI.clone(); inIb.y = 0;
-      const outIb = outI.clone(); outIb.y = 0;
-      const inJb = inJ.clone(); inJb.y = 0;
-      const outJb = outJ.clone(); outJb.y = 0;
-      // Top face
-      addQuad(inIt, outIt, outJt, inJt);
-      // Outer face (away from track)
-      addQuad(outIt, outIb, outJb, outJt);
-      // Inner face (facing the track)
-      addQuad(inIb, inIt, inJt, inJb);
-    }
-    if(positions.length === 0) return;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-    geo.computeVertexNormals();
-    group.add(new THREE.Mesh(geo, barrierMat));
+    redMesh.count = ri;
+    whiteMesh.count = wi;
+    redMesh.instanceMatrix.needsUpdate = true;
+    whiteMesh.instanceMatrix.needsUpdate = true;
+    group.add(redMesh, whiteMesh);
   }
   buildBarrierSide(1);
   buildBarrierSide(-1);
 
-  group.add(buildCrowd(theme, points, normals, half));
+  group.add(buildCrowd(theme, points, normals, half, clearOfTrack));
 
   group.add(buildFinishLine(points, normals, trackWidth));
 
@@ -2220,6 +2158,7 @@ let collisionToastCooldown = 0;
 let boostCharge = 0;
 let boosting = false;
 let boostTimer = 0;
+let slipActive = false;
 
 function forwardVec(heading){ return new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)); }
 function normalizeAngle(a){ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; }
@@ -2342,6 +2281,14 @@ function startRace(stageIndex){
   boostCharge = 0;
   boosting = false;
   boostTimer = 0;
+  driftBoostTimer = 0;
+  driftBoostTier = 0;
+  driftComboCount = 0;
+  driftComboClock = -99;
+  slipActive = false;
+  createSparkFX();
+  $('popupLayer').innerHTML = '';
+  $('driftBarTrack').hidden = true;
   $('boostBarFill').style.width = '0%';
   $('boostBtn').classList.remove('ready','active');
   $('boostBtn').disabled = true;
@@ -2353,6 +2300,10 @@ function startRace(stageIndex){
     car.pos.copy(track.points[0]).add(startNormal.clone().multiplyScalar(gridOff));
     car.pos.y = 0;
     car.heading = startHeading;
+    car.travelHeading = startHeading;
+    car.drifting = false; car.driftCharge = 0; car.driftDir = 0;
+    car.driftVis = 0; car.driftBlend = 0;
+    car.nearMissCd = 0; car.lastHitClock = -99;
     car.trackIndex = 0; car.prevIndex = 0; car.aiTarget = 8;
     car.mesh.position.copy(car.pos);
     car.mesh.rotation.y = car.heading;
@@ -2394,7 +2345,7 @@ function applyBoundary(car){
   const rel = new THREE.Vector3().subVectors(car.pos, center);
   const lateral = rel.dot(normal);
   const limit = track.width/2 - CAR_HALF_WIDTH;
-  const retain = car.isPlayer ? Math.min(0.9, 0.55 + gameState.upgrades.grip*0.03) : 0.55;
+  const retain = car.isPlayer ? Math.min(0.9, 0.55 + gameState.upgrades.grip*0.045) : 0.55;
   if(lateral > limit){
     car.pos.addScaledVector(normal, limit - lateral);
     car.speed *= retain;
@@ -2423,17 +2374,39 @@ function updateBoostFlames(car, dt){
 function updateCar(car, dt){
   const rb = car.isPlayer ? 1 : (car.rubberBand || 1);
   let maxSpeed = (BASE_MAX_SPEED
-    + (car.isPlayer ? gameState.upgrades.speed*4 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
+    + (car.isPlayer ? gameState.upgrades.speed*6 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
   let accel = (BASE_ACCEL
-    + (car.isPlayer ? gameState.upgrades.accel*3.5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
+    + (car.isPlayer ? gameState.upgrades.accel*5 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
   if(car.isPlayer && boosting){
-    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.02 + playerCarDef.boostPower*0.02;
-    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.055 + playerCarDef.boostPower*0.05;
+    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.035 + playerCarDef.boostPower*0.02;
+    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.09 + playerCarDef.boostPower*0.05;
+  }
+  if(car.isPlayer && driftBoostTimer > 0){
+    maxSpeed *= 1.08 + driftBoostTier*0.05;   // mini-turbo from a released drift
+    accel *= 1.7;
+  }
+  if(car.isPlayer){
+    // Slipstream: tucked in close behind a rival grants extra pace.
+    let slip = false;
+    if(Math.abs(car.speed) > maxSpeed*0.5){
+      const fwd0 = forwardVec(car.heading);
+      const range = 8 + gameState.upgrades.slipstream*0.7;
+      for(const other of cars){
+        if(other === car || other.finished) continue;
+        const dx = other.pos.x - car.pos.x, dz = other.pos.z - car.pos.z;
+        const d = Math.hypot(dx, dz);
+        if(d > range || d < 1.2) continue;
+        if((dx*fwd0.x + dz*fwd0.z)/d > 0.86){ slip = true; break; }
+      }
+    }
+    if(slip){ maxSpeed += 3 + gameState.upgrades.slipstream*1.6; accel += 5; }
+    slipActive = slip;
   }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
-  const turnRate = (BASE_TURN
-    + (car.isPlayer ? gameState.upgrades.handling*0.18 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
-  const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*4.5 : 0);
+  let turnRate = (BASE_TURN
+    + (car.isPlayer ? gameState.upgrades.handling*0.28 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
+  if(car.isPlayer && car.drifting) turnRate *= 1.45 + gameState.upgrades.drift*0.03;
+  const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*7 : 0);
 
   let throttle=0, brake=0, steer=0;
 
@@ -2442,6 +2415,7 @@ function updateCar(car, dt){
     brake = (keys['ArrowDown']||keys['KeyS']) ? 1 : 0;
     steer = ((keys['ArrowLeft']||keys['KeyA'])?1:0) - ((keys['ArrowRight']||keys['KeyD'])?1:0);
     if(gameState.invertSteering) steer = -steer;
+    updateDrift(car, steer, brake, maxSpeed, dt);
   } else {
     // Build a lane-offset waypoint: shift the centreline point laterally by
     // this CPU's assigned lane so it steers toward its own lane, not the middle.
@@ -2476,7 +2450,9 @@ function updateCar(car, dt){
   const dir = car.speed < 0 ? -1 : 1;
   car.heading += steer*turnRate*dt*speedFactor*dir;
 
-  const fwd = forwardVec(car.heading);
+  const moveHeading = (car.isPlayer && car.travelHeading !== undefined && (car.drifting || car.driftBlend > 0))
+    ? car.travelHeading : car.heading;
+  const fwd = forwardVec(moveHeading);
   car.pos.addScaledVector(fwd, car.speed*dt);
 
   car.trackIndex = findNearestIndex(car);
@@ -2522,7 +2498,7 @@ function updateCar(car, dt){
   car.prevIndex = car.trackIndex;
 
   car.mesh.position.copy(car.pos);
-  car.mesh.rotation.y = car.heading;
+  car.mesh.rotation.y = car.heading + (car.driftVis || 0);
   const wheelSpin = car.speed*dt*0.6;
   car.mesh.userData.wheels.forEach(w=>{ w.rotation.x += wheelSpin; });
 
@@ -2587,7 +2563,7 @@ function resolveCollisions(dt){
             // Inelastic: remove exactly the approach component, split evenly.
             // Collision Resistance and car weight soften how much of that gets applied to the player.
             const correction = relApproach * 0.5;
-            const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.045 - playerCarDef.weight*0.03);
+            const playerFactor = Math.max(0.35, 1 - gameState.upgrades.armor*0.07 - playerCarDef.weight*0.03);
             const aFactor = a.isPlayer ? playerFactor : 1;
             const bFactor = b.isPlayer ? playerFactor : 1;
             a.speed -= correction * aVn * 0.6 * aFactor;
@@ -2600,6 +2576,7 @@ function resolveCollisions(dt){
           b.speed *= 0.98;
 
           if(a.isPlayer || b.isPlayer){
+            (a.isPlayer ? b : a).lastHitClock = raceClock;
             playerCollisions++;
             if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
             if(collisionToastCooldown <= 0){
@@ -2669,10 +2646,19 @@ function updateCamera(dt){
   const lookAt = new THREE.Vector3().copy(player.pos).addScaledVector(fwd, 6);
   lookAt.y = 1.2;
   camera.lookAt(lookAt);
+
+  // Sense of speed: the field of view widens with pace and surges on boosts.
+  const speedFrac = player.maxSpeed ? Math.min(1, Math.abs(player.speed)/player.maxSpeed) : 0;
+  const targetFov = 62 + speedFrac*3 + (boosting ? 7 : 0) + (driftBoostTimer > 0 ? 5 : 0);
+  if(Math.abs(camera.fov - targetFov) > 0.05){
+    camera.fov += (targetFov - camera.fov) * Math.min(1, dt*5);
+    camera.updateProjectionMatrix();
+  }
 }
 
 /* ---------- HUD ---------- */
 function updateHUD(){
+  $('slipChip').hidden = !(appState === 'racing' && slipActive);
   const lapShown = Math.min(player.lap+1, TOTAL_LAPS);
   $('hudLap').textContent = 'Lap ' + lapShown + '/' + TOTAL_LAPS;
   $('hudTime').textContent = formatTime(raceClock);
@@ -2686,15 +2672,28 @@ function updateHUD(){
 
 /* ---------- Boost ---------- */
 function updateBoost(dt){
+  if(driftBoostTimer > 0){
+    driftBoostTimer -= dt;
+    if(driftBoostTimer <= 0){ driftBoostTimer = 0; driftBoostTier = 0; }
+  }
+  const dBar = $('driftBarTrack');
+  if(player && player.drifting){
+    dBar.hidden = false;
+    const t = driftTierFor(player.driftCharge);
+    const fill = $('driftBarFill');
+    fill.className = 'driftBarFill' + (t >= 3 ? ' tier3' : (t === 2 ? ' tier2' : ''));
+    const next = t >= 3 ? DRIFT_TIER_TIMES[3] : DRIFT_TIER_TIMES[t+1];
+    fill.style.width = (t >= 3 ? 100 : Math.min(100, player.driftCharge/next*100)) + '%';
+  } else if(!dBar.hidden){
+    dBar.hidden = true;
+  }
   if(boosting){
     boostTimer -= dt;
-    if(boostTimer <= 0){ boosting = false; boostTimer = 0; boostCharge = 0; }
+    if(boostTimer <= 0){ boosting = false; boostTimer = 0; }
   } else {
-    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * (1 + gameState.upgrades.nitro*0.08) * dt);
+    boostCharge = Math.min(BOOST_MAX, boostCharge + BOOST_CHARGE_RATE * (1 + gameState.upgrades.nitro*0.12) * dt);
   }
-  // While boosting, drain the bar down over the boost's duration instead of
-  // holding it pegged at full, so the meter visibly empties as it's used.
-  const pct = boosting ? Math.max(0, (boostTimer / BOOST_DURATION) * 100) : (boostCharge / BOOST_MAX * 100);
+  const pct = boosting ? 100 : (boostCharge / BOOST_MAX * 100);
   $('boostBarFill').style.width = pct + '%';
   const btn = $('boostBtn');
   const ready = !boosting && boostCharge >= BOOST_MAX;
@@ -2712,6 +2711,197 @@ function triggerBoost(){
   announce('Boost activated!');
 }
 $('boostBtn').addEventListener('click', triggerBoost);
+
+/* ---------- Drift & mini-turbo ----------
+   Kart-style: hold Shift while steering at speed to break the rear loose.
+   While drifting the car's facing turns ~45% sharper but its direction of
+   travel chases the facing slowly, producing a real controllable slide.
+   Holding the slide charges three boost tiers (cyan → orange → violet);
+   releasing fires a mini-turbo plus sparks, sound, coins and combo bonuses.
+   Normal (non-drift) driving is bit-for-bit identical to the old physics:
+   travelHeading snaps to heading except during a short blend after a slide. */
+const DRIFT_TIER_TIMES = [0, 0.7, 1.5, 2.6]; // seconds of charge per tier
+let driftBoostTimer = 0, driftBoostTier = 0;
+let driftComboCount = 0, driftComboClock = -99;
+
+function driftKeyHeld(){ return !!(keys['ShiftLeft'] || keys['ShiftRight']); }
+function driftTierFor(charge){
+  if(charge >= DRIFT_TIER_TIMES[3]) return 3;
+  if(charge >= DRIFT_TIER_TIMES[2]) return 2;
+  if(charge >= DRIFT_TIER_TIMES[1]) return 1;
+  return 0;
+}
+
+function updateDrift(car, steer, brake, maxSpeed, dt){
+  if(car.travelHeading === undefined){
+    car.travelHeading = car.heading;
+    car.drifting = false; car.driftCharge = 0; car.driftDir = 0;
+    car.driftVis = 0; car.driftBlend = 0;
+  }
+  const fastEnough = car.speed > maxSpeed*0.42;
+
+  if(!car.drifting){
+    if(driftKeyHeld() && Math.abs(steer) > 0.3 && fastEnough && !brake){
+      car.drifting = true;
+      car.driftDir = steer > 0 ? 1 : -1;
+      car.driftCharge = 0;
+    }
+  } else {
+    if(driftKeyHeld() && fastEnough && !brake){
+      const steerFactor = 0.55 + 0.45*Math.max(0, steer*car.driftDir);
+      car.driftCharge += dt * steerFactor * (1 + gameState.upgrades.drift*0.10);
+      car.speed -= car.speed * 0.10 * dt; // mild scrub while sliding
+    } else {
+      releaseDrift(car);
+    }
+  }
+
+  // Visual slide garnish on top of the real heading/travel divergence.
+  const targetVis = car.drifting ? car.driftDir*0.15 : 0;
+  car.driftVis += (targetVis - car.driftVis) * Math.min(1, dt*8);
+
+  // Travel direction: lags while drifting; identical to facing otherwise.
+  if(car.drifting){
+    car.travelHeading += normalizeAngle(car.heading - car.travelHeading) * Math.min(1, dt*3.0);
+    car.driftBlend = 0.35;
+  } else if(car.driftBlend > 0){
+    car.driftBlend -= dt;
+    car.travelHeading += normalizeAngle(car.heading - car.travelHeading) * Math.min(1, dt*6);
+    if(Math.abs(normalizeAngle(car.heading - car.travelHeading)) < 0.02) car.driftBlend = 0;
+  } else {
+    car.travelHeading = car.heading;
+  }
+}
+
+function releaseDrift(car){
+  const tier = driftTierFor(car.driftCharge);
+  car.drifting = false;
+  car.driftCharge = 0;
+  if(tier === 0) return;
+  driftBoostTier = tier;
+  driftBoostTimer = tier * (0.55 + gameState.upgrades.drift*0.06);
+
+  if(raceClock - driftComboClock < 5) driftComboCount++; else driftComboCount = 1;
+  driftComboClock = raceClock;
+  const combo = Math.min(driftComboCount, 5);
+  const coins = Math.round([0, 2, 5, 10][tier] * combo * (1 + gameState.upgrades.luck*0.15));
+  gameState.coins += coins;
+  lapCoinsEarned += coins;
+  refreshCoinDisplays();
+
+  const tierName = tier === 3 ? 'ULTRA DRIFT!' : tier === 2 ? 'SUPER DRIFT!' : 'DRIFT BOOST!';
+  showPopup(tierName + ' +' + coins + ' 🪙', 'drift' + tier);
+  if(combo > 1) showPopup('COMBO ×' + combo, 'combo', 0.18);
+  spawnSparkBurst(car, tier);
+  Sound.driftBoost(tier);
+  if(gameState.cameraShake !== false) cameraShakeTime = Math.max(cameraShakeTime, 0.10 + tier*0.04);
+  announce('Drift boost tier ' + tier + '. Plus ' + coins + ' coins.');
+}
+
+/* ---------- Floating reward popups ---------- */
+function showPopup(text, kind, delay){
+  const layer = $('popupLayer');
+  if(!layer) return;
+  const el = document.createElement('span');
+  el.className = 'popup ' + (kind || 'coin');
+  el.textContent = text;
+  el.style.marginLeft = Math.round((Math.random()-0.5)*120) + 'px';
+  if(delay){ el.style.animationDelay = delay + 's'; el.style.opacity = '0'; }
+  layer.appendChild(el);
+  el.addEventListener('animationend', ()=> el.remove());
+}
+
+/* ---------- Drift sparks (pooled additive points) ---------- */
+const SPARK_POOL = 150;
+const SPARK_TIER_COLORS = [[0.31,0.85,1],[0.31,0.85,1],[1,0.79,0.31],[0.88,0.31,1]];
+let sparkFX = null;
+
+function createSparkFX(){
+  if(sparkFX){ disposeObject(sparkFX.points); sparkFX = null; }
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(SPARK_POOL*3);
+  for(let i=0;i<SPARK_POOL;i++) pos[i*3+1] = -50; // park dead particles underground
+  const col = new Float32Array(SPARK_POOL*3);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({ size:0.32, vertexColors:true, transparent:true, opacity:0.95,
+    blending:THREE.AdditiveBlending, depthWrite:false });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  scene.add(points);
+  sparkFX = { points, pos, col, vel:new Float32Array(SPARK_POOL*3), life:new Float32Array(SPARK_POOL), next:0 };
+}
+
+function emitSpark(x, y, z, spread, tier){
+  const s = sparkFX; if(!s) return;
+  const i = s.next; s.next = (s.next+1) % SPARK_POOL;
+  s.pos[i*3]=x; s.pos[i*3+1]=y; s.pos[i*3+2]=z;
+  s.vel[i*3]=(Math.random()-0.5)*spread;
+  s.vel[i*3+1]=1.5+Math.random()*2.4;
+  s.vel[i*3+2]=(Math.random()-0.5)*spread;
+  const c = SPARK_TIER_COLORS[tier] || SPARK_TIER_COLORS[0];
+  s.col[i*3]=c[0]; s.col[i*3+1]=c[1]; s.col[i*3+2]=c[2];
+  s.life[i]=0.55+Math.random()*0.3;
+}
+
+function spawnSparkBurst(car, tier){
+  if(!sparkFX) return;
+  const back = forwardVec(car.heading).multiplyScalar(-1.6);
+  for(let i=0;i<26;i++){
+    emitSpark(car.pos.x + back.x + (Math.random()-0.5), 0.35,
+              car.pos.z + back.z + (Math.random()-0.5), 6, tier);
+  }
+}
+
+function updateSparks(dt){
+  const s = sparkFX; if(!s) return;
+  if(player && player.drifting && player.speed > 4){
+    const tier = driftTierFor(player.driftCharge);
+    const back = forwardVec(player.heading).multiplyScalar(-1.7);
+    const side = forwardVec(player.heading + Math.PI/2).multiplyScalar(-0.9*player.driftDir);
+    for(let i=0;i<3;i++){
+      emitSpark(player.pos.x + back.x + side.x + (Math.random()-0.5)*0.5, 0.28,
+                player.pos.z + back.z + side.z + (Math.random()-0.5)*0.5, 3.5, tier);
+    }
+  }
+  let any = false;
+  for(let i=0;i<SPARK_POOL;i++){
+    if(s.life[i] <= 0) continue;
+    s.life[i] -= dt;
+    if(s.life[i] <= 0){ s.pos[i*3+1] = -50; continue; }
+    any = true;
+    s.vel[i*3+1] -= 9.5*dt;
+    s.pos[i*3]   += s.vel[i*3]*dt;
+    s.pos[i*3+1]  = Math.max(0.04, s.pos[i*3+1] + s.vel[i*3+1]*dt);
+    s.pos[i*3+2] += s.vel[i*3+2]*dt;
+  }
+  s.points.visible = any;
+  s.points.geometry.attributes.position.needsUpdate = true;
+  s.points.geometry.attributes.color.needsUpdate = true;
+}
+
+/* ---------- Near-miss rewards ---------- */
+function updateNearMiss(dt){
+  if(!player || player.finished) return;
+  for(const c of cars){
+    if(c.isPlayer) continue;
+    if(c.nearMissCd === undefined) c.nearMissCd = 0;
+    if(c.nearMissCd > 0){ c.nearMissCd -= dt; continue; }
+    const d = Math.hypot(c.pos.x - player.pos.x, c.pos.z - player.pos.z);
+    const recentHit = raceClock - (c.lastHitClock || -99) < 1.4;
+    if(d > COLLISION_DIST + 0.05 && d < COLLISION_DIST + 1.0 && !recentHit
+       && player.speed > (player.maxSpeed || 1)*0.55
+       && Math.abs(player.speed - c.speed) > 6){
+      c.nearMissCd = 4;
+      const coins = Math.round(3 * (1 + gameState.upgrades.luck*0.15));
+      gameState.coins += coins;
+      lapCoinsEarned += coins;
+      refreshCoinDisplays();
+      showPopup('NEAR MISS +' + coins + ' 🪙', 'nearmiss');
+      Sound.nearMiss();
+    }
+  }
+}
 
 function formatTime(t){
   if(!isFinite(t)) return '--:--';
@@ -3108,6 +3298,42 @@ const Sound = (function(){
       this.cheer(isFinal ? 1.6 : 1);
     },
 
+    /* Rising zip for a released mini-turbo; pitch and level scale with tier. */
+    driftBoost(tier){
+      this.unlock();
+      if(!ctx || !this.isOn() || ctx.state !== 'running') return;
+      const t = ctx.currentTime + 0.01;
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(180 + tier*40, t);
+      o.frequency.exponentialRampToValueAtTime(480 + tier*220, t + 0.16);
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2200;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.30 + tier*0.05, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      o.connect(f); f.connect(g); g.connect(uiBus);
+      o.start(t); o.stop(t + 0.3);
+      if(tier >= 2) this.chime(tier === 3 ? 'final' : 'lap');
+    },
+
+    /* Short airy whoosh when the player threads past a rival. */
+    nearMiss(){
+      this.unlock();
+      if(!ctx || !this.isOn() || ctx.state !== 'running') return;
+      const t = ctx.currentTime + 0.01;
+      const dur = 0.22;
+      const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate*dur), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i] = (Math.random()*2 - 1) * (1 - i/d.length);
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
+      f.frequency.setValueAtTime(700, t);
+      f.frequency.exponentialRampToValueAtTime(2600, t + dur*0.8);
+      const g = ctx.createGain(); g.gain.value = 0.5;
+      src.connect(f); f.connect(g); g.connect(uiBus);
+      src.start(t);
+    },
+
     start(theme){
       this.unlock();
       if(!ctx) return;
@@ -3455,6 +3681,8 @@ function animate(now){
     cars.forEach(c=>{ if(!c.finished || c.isPlayer) updateCar(c, dt); });
     resolveCollisions(dt);
     updateRubberBand(dt);
+    updateNearMiss(dt);
+    updateSparks(dt);
     updateBoost(dt);
     updateHUD();
     Sound.update(dt);
