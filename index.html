@@ -2559,15 +2559,33 @@ document.addEventListener('visibilitychange', ()=>{
 });
 window.addEventListener('keydown', e=>{
   const typingInField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
-  if(typingInField) return; // let normal typing/cursor movement happen in form fields (e.g. login)
+  // Escape is a universal "back" key, so let it through even if focus happens
+  // to be sitting on a settings slider/checkbox — only real typing (text
+  // fields, like login) should swallow it.
+  if(typingInField && e.code !== 'Escape') return;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
   if(e.code === 'KeyM' && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
     Sound.toggle(); refreshSoundBtn();
   }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
-  if(e.code === 'Escape' && appState==='racing'){ pauseRace(); }
-  else if(e.code === 'Escape' && appState==='paused'){ resumeRace(); }
+  if(e.code === 'Escape'){
+    if(appState === 'racing' || appState === 'racing-countdown'){
+      pauseRace();
+    } else if(appState === 'paused'){
+      // Step back one level at a time: out of Settings to the pause menu
+      // first, then Resume on a second press, same as tapping the buttons.
+      if(!$('settingsCard').hidden){ $('settingsBackBtn').click(); }
+      else { resumeRace(); }
+    } else if(appState === 'results'){
+      $('resultsHomeBtn').click();
+    } else if(appState === 'home'){
+      // On Home itself Escape has nowhere further to go; from Garage or
+      // Upgrades it steps back to Home, just like their Back buttons.
+      if(!garageScreen.hidden){ showScreen('home'); }
+      else if(!upgradesScreen.hidden){ showScreen('home'); }
+    }
+  }
 });
 window.addEventListener('keyup', e=>{ keys[e.code] = false; });
 
@@ -3569,7 +3587,14 @@ const Sound = (function(){
 })();
 
 /* ---------- Race flow control ---------- */
+let statePriorToPause = 'racing';
 function pauseRace(){
+  // Remember what we're pausing out of (racing vs still-counting-down) so
+  // resumeRace() can put things back exactly as they were — otherwise
+  // resuming always dropped straight into 'racing', which left a paused
+  // countdown overlay stuck on screen forever since nothing was left to
+  // tick it down or hide it.
+  statePriorToPause = appState;
   appState = 'paused';
   // Always show the main pause card, not settings, when pausing.
   $('pauseCard').hidden = false;
@@ -3579,7 +3604,7 @@ function pauseRace(){
   announce('Race paused');
 }
 function resumeRace(){
-  appState = 'racing';
+  appState = statePriorToPause;
   $('pauseOverlay').hidden = true;
   Sound.resume();
 }
