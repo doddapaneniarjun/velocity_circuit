@@ -884,6 +884,7 @@ function getStageName(i){
 function renameStage(i, newName){
   trackNameOverrides[i] = newName;
   saveTrackNameOverrides();
+  pushSharedNames().then(ok=>{ if(!ok) showToast('Renamed on this device, but couldn\u2019t sync to other players — check the shared database setup'); });
 }
 loadTrackNameOverrides();
 
@@ -909,8 +910,93 @@ function getCarName(i){
 function renameCar(i, newName){
   carNameOverrides[i] = newName;
   saveCarNameOverrides();
+  pushSharedNames().then(ok=>{ if(!ok) showToast('Renamed on this device, but couldn\u2019t sync to other players — check the shared database setup'); });
 }
 loadCarNameOverrides();
+
+/* ============================= SHARED NAME SYNC =============================
+   This game is a static site (GitHub Pages) — there's no server of its own, so
+   on its own a rename only ever lives in the admin's own browser (localStorage,
+   above). To make a rename show up for every player on every device/account,
+   it needs to live somewhere on the internet that every visitor's browser
+   checks. This uses a free Firebase Realtime Database as that shared spot,
+   talked to with plain fetch() (no SDK needed) so it works from a static
+   GitHub Pages site with no build step.
+
+   ONE-TIME SETUP (~5 minutes, needs a free Google account):
+   1. https://console.firebase.google.com -> Add project (Spark/free plan is
+      plenty; you can skip Google Analytics).
+   2. In the project: Build -> Realtime Database -> Create Database -> pick a
+      location -> start in locked mode.
+   3. Go to the "Rules" tab and paste this (NOT the default test-mode rules,
+      which auto-expire after 30 days and would silently break this feature):
+        {
+          "rules": {
+            "gameNames": { ".read": true, ".write": true }
+          }
+        }
+   4. Copy the database URL shown at the top of the Realtime Database page
+      (looks like https://YOUR-PROJECT-default-rtdb.firebaseio.com) into
+      SHARED_DB_URL below.
+
+   Leave SHARED_DB_URL empty and everything falls back to the old
+   this-device-only behavior — nothing breaks, renames just stay local again.
+
+   Heads up on security: this rule allows anyone to write to /gameNames, not
+   just the in-game admin — there's no server here to actually check who's an
+   admin, so "admin" is just a client-side password, the same soft protection
+   the local save system already had. That's a reasonable tradeoff for
+   cosmetic track/car names in a casual game, but don't reuse this open-write
+   pattern for anything that needs real security. */
+const SHARED_DB_URL = ''; // e.g. 'https://your-project-default-rtdb.firebaseio.com'
+const SHARED_NAMES_PATH = 'gameNames'; // stores { tracks:{...}, cars:{...} }
+
+function sharedNamesUrl(){
+  return SHARED_DB_URL.replace(/\/$/,'') + '/' + SHARED_NAMES_PATH + '.json';
+}
+async function fetchSharedNames(){
+  if(!SHARED_DB_URL) return null;
+  try{
+    const res = await fetch(sharedNamesUrl());
+    if(!res.ok) return null;
+    return await res.json();
+  }catch(e){ return null; }
+}
+async function pushSharedNames(){
+  if(!SHARED_DB_URL) return true; // nothing configured — local save above is already done
+  try{
+    const res = await fetch(sharedNamesUrl(), {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ tracks:trackNameOverrides, cars:carNameOverrides })
+    });
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+let lastSharedSync = 0;
+// Pulls the latest shared names and, if anything actually changed, saves them
+// locally and re-renders whichever grid is currently on screen. Safe to call
+// often — debounced so rapid screen navigation doesn't hammer the database.
+async function syncSharedNames(force){
+  if(!SHARED_DB_URL) return;
+  const now = Date.now();
+  if(!force && now - lastSharedSync < 5000) return;
+  lastSharedSync = now;
+  const data = await fetchSharedNames();
+  if(!data || typeof data !== 'object') return;
+  let changed = false;
+  if(data.tracks && typeof data.tracks === 'object' && JSON.stringify(data.tracks) !== JSON.stringify(trackNameOverrides)){
+    trackNameOverrides = data.tracks; saveTrackNameOverrides(); changed = true;
+  }
+  if(data.cars && typeof data.cars === 'object' && JSON.stringify(data.cars) !== JSON.stringify(carNameOverrides)){
+    carNameOverrides = data.cars; saveCarNameOverrides(); changed = true;
+  }
+  if(changed){
+    if(!homeScreen.hidden) renderStageGrid();
+    if(!garageScreen.hidden) renderCarGrid();
+  }
+}
 
 // Harder tracks pay out more: every point of difficulty above 1 adds 20% to
 // every coin source in that race (per-lap coins, finish bonus, position bonus).
@@ -933,6 +1019,7 @@ function showScreen(name){
   garageScreen.hidden = name!=='garage';
   upgradesScreen.hidden = name!=='upgrades';
   gameScreen.hidden = name!=='game';
+  if(name === 'home' || name === 'garage') syncSharedNames();
 }
 
 // Driver rating has no ceiling (it can only ever go down to 0), so the visual
@@ -2879,15 +2966,45 @@ const Online = {
   LOBBY_ID: 'velocity-circuit-mm-lobby-v1',
   available: typeof Peer !== 'undefined',
   myId: Math.random().toString(36).slice(2,10),
+  // Matchmaking itself has nothing to do with the local sign-in system above —
+  // it's peer-to-peer over the public internet, so two different people on two
+  // different devices, browsers, and local game profiles already match up fine.
+  // What DOES commonly break a cross-network match is NAT/firewalls: STUN alone
+  // (the old default) only helps when a direct route between the two players
+  // can be found. School/work Wi-Fi, VPNs, and some home routers block that
+  // direct path entirely, so we also offer a TURN relay as a fallback so
+  // traffic can still get through when a direct peer-to-peer path isn't possible.
+  ICE_CONFIG: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    ]
+  },
   peer: null, hostConn: null,      // client -> host connection
   conns: {},                       // host: logicalId -> conn
   roster: [],                      // lobby players [{id,name,car}]
   isHost: false, searching: false, startScheduled: false,
   room: null, netCars: {},
   lastSend: 0, retryTimer: null,
+  connectTimer: null, waitHintTimer: null,
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
   status(msg){ $('lobbyStatus').textContent = msg; },
+
+  // After a while alone in the lobby, surface a network troubleshooting tip.
+  // Harmless if no one else has searched yet — the next real status update
+  // (a player joining, etc.) simply overwrites this text.
+  armWaitHint(){
+    if(this.waitHintTimer) clearTimeout(this.waitHintTimer);
+    this.waitHintTimer = setTimeout(()=>{
+      if(this.searching && !this.room && this.roster.length <= 1){
+        this.status('Still waiting… if a friend is trying to join and nothing happens, restrictive Wi-Fi (school, work, some public networks) can block peer-to-peer play — a mobile hotspot usually gets around it.');
+      }
+    }, 20000);
+  },
 
   startSearch(){
     if(!this.available){ this.status('Online needs the PeerJS library — check your internet connection and reload.'); return; }
@@ -2902,7 +3019,7 @@ const Online = {
   tryBecomeHost(){
     this.cleanupPeer();
     let decided = false;
-    const p = new Peer(this.LOBBY_ID);
+    const p = new Peer(this.LOBBY_ID, { config:this.ICE_CONFIG });
     this.peer = p;
     p.on('open', ()=>{
       if(decided || !this.searching) return; decided = true;
@@ -2910,6 +3027,7 @@ const Online = {
       this.roster = [{ id:this.myId, name:this.displayName(), car:gameState.selectedCar }];
       this.renderLobby();
       this.status('Looking for racers… (1 in lobby)');
+      this.armWaitHint();
       p.on('connection', conn => this.hostAccept(conn));
     });
     p.on('error', err => {
@@ -2985,19 +3103,31 @@ const Online = {
   /* ---------- CLIENT side ---------- */
   joinAsClient(){
     this.cleanupPeer();
-    const p = new Peer();                              // random id from broker
+    const p = new Peer({ config:this.ICE_CONFIG });     // random id from broker
     this.peer = p;
     this.status('Joining lobby…');
     p.on('open', ()=>{
       if(!this.searching) return;
       const conn = p.connect(this.LOBBY_ID);
       this.hostConn = conn;
+      // If the two players can't establish a direct/relayed route (common on
+      // restrictive school/work networks), this connection will just hang
+      // instead of firing an error — so time it out with a clear explanation.
+      if(this.connectTimer) clearTimeout(this.connectTimer);
+      this.connectTimer = setTimeout(()=>{
+        if(this.hostConn === conn && this.searching && !this.room){
+          this.status('Couldn\u2019t connect to the other player — this can happen on school, work, or public Wi-Fi that blocks peer-to-peer traffic. Try a mobile hotspot or a different network, then search again.');
+          try{ conn.close(); }catch(e){}
+        }
+      }, 15000);
       conn.on('open', ()=>{
+        if(this.connectTimer){ clearTimeout(this.connectTimer); this.connectTimer = null; }
         conn.send({ type:'join', id:this.myId, name:this.displayName(), car:gameState.selectedCar });
         this.status('In lobby — waiting for the race to start…');
       });
       conn.on('data', m => this.clientOnMsg(m));
       const lost = ()=>{
+        if(this.connectTimer){ clearTimeout(this.connectTimer); this.connectTimer = null; }
         if(this.room){ showToast('Lost connection to the race host'); return; }
         if(!this.searching) return;
         // Host left — try to take over hosting, otherwise keep searching
@@ -3123,6 +3253,8 @@ const Online = {
 
   cleanupPeer(){
     if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
+    if(this.connectTimer){ clearTimeout(this.connectTimer); this.connectTimer = null; }
+    if(this.waitHintTimer){ clearTimeout(this.waitHintTimer); this.waitHintTimer = null; }
     if(this.peer){ try{ this.peer.destroy(); }catch(e){} }
     this.peer = null; this.hostConn = null; this.conns = {};
     this.isHost = false; this.startScheduled = false;
