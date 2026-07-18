@@ -3132,10 +3132,10 @@ function applyBoundary(car, dt){
   // BOUNCE PENALTY — applies on ANY wall contact, no matter which way the
   // car is pointing. (Previously it only fired when the nose pointed into
   // the wall, which let you hold straight and let curved walls steer you
-  // for free.) Flat 75% slowdown on touch, again every 0.6s while touching.
+  // for free.) Flat 90% slowdown on touch, again every 0.6s while touching.
   car.wallPenaltyCd = (car.wallPenaltyCd || 0) - dt;
   if(car.wallPenaltyCd <= 0){
-    car.speed *= 0.25;
+    car.speed *= 0.10;
     car.wallPenaltyCd = 0.6;
   }
   // Continuous scrub while touching (~25%/sec), also unconditional.
