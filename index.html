@@ -3113,7 +3113,14 @@ function applyBoundary(car, dt){
   // Margin matches the car's real visual extent so nothing clips into the wall.
   const WALL_HALF_WIDTH = 1.45;
   const limit = track.width/2 - WALL_HALF_WIDTH;
-  if(lateral <= limit && lateral >= -limit) return;
+  if(lateral <= limit && lateral >= -limit){
+    // Off the wall: after a short clean stretch, the next touch counts as a
+    // fresh bounce (and takes the full penalty again).
+    car.wallOffTime = (car.wallOffTime || 0) + dt;
+    if(car.wallOffTime > 0.3) car.wallPenaltyCd = 0;
+    return;
+  }
+  car.wallOffTime = 0;
 
   const side = lateral > 0 ? 1 : -1;
 
@@ -3122,9 +3129,22 @@ function applyBoundary(car, dt){
   const BOUNCE_GAP = 0.065;
   car.pos.addScaledVector(normal, side*(limit - BOUNCE_GAP) - lateral);
 
+  // BOUNCE PENALTY — applies on ANY wall contact, no matter which way the
+  // car is pointing. (Previously it only fired when the nose pointed into
+  // the wall, which let you hold straight and let curved walls steer you
+  // for free.) Flat 30% on touch, again every 0.6s while still touching.
+  car.wallPenaltyCd = (car.wallPenaltyCd || 0) - dt;
+  if(car.wallPenaltyCd <= 0){
+    car.speed *= 0.7;
+    car.wallPenaltyCd = 0.6;
+  }
+  // Continuous scrub while touching (~25%/sec), also unconditional.
+  const scrub = car.isPlayer ? Math.max(0.12, 0.25 - gameState.upgrades.grip*0.012) : 0.25;
+  car.speed *= Math.max(0, 1 - scrub*dt);
+
   // Gently steer the nose away from the wall over time instead of snapping
-  // it. Contact every frame = continuous soft push back toward the track,
-  // so you still can't grind along the wall — it just eases you off it.
+  // it — this part still only makes sense when the car is actually heading
+  // into the wall.
   const fwd = forwardVec(car.heading);
   const fDotN = fwd.dot(normal);
   if(car.speed * fDotN * side > 0){
@@ -3134,10 +3154,6 @@ function applyBoundary(car, dt){
     // of the car's velocity (gradient of speed*(fwd·n)*side wrt heading).
     const grad = car.speed * (Math.cos(car.heading)*normal.x - Math.sin(car.heading)*normal.z) * side;
     car.heading = normalizeAngle(car.heading - Math.sign(grad) * correction);
-    // Mild continuous scrub while pressing the wall (~25%/sec), instead of
-    // a big chunk per bounce.
-    const scrub = car.isPlayer ? Math.max(0.12, 0.25 - gameState.upgrades.grip*0.012) : 0.25;
-    car.speed *= Math.max(0, 1 - scrub*dt);
   }
 }
 
