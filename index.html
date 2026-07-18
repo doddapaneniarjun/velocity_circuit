@@ -3117,10 +3117,11 @@ function applyBoundary(car, dt){
     // Off the wall: after a short clean stretch, the next touch counts as a
     // fresh bounce (and takes the full penalty again).
     car.wallOffTime = (car.wallOffTime || 0) + dt;
-    if(car.wallOffTime > 0.3) car.wallPenaltyCd = 0;
+    if(car.wallOffTime > 0.3){ car.wallPenaltyCd = 0; car.touchingWall = false; }
     return;
   }
   car.wallOffTime = 0;
+  car.touchingWall = true;
 
   const side = lateral > 0 ? 1 : -1;
 
@@ -3196,7 +3197,10 @@ function updateCar(car, dt){
     + (car.isPlayer ? gameState.upgrades.speed*2.7 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
   let accel = (BASE_ACCEL
     + (car.isPlayer ? gameState.upgrades.accel*2.3 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
-  if(car.isPlayer && boosting){
+  if(car.isPlayer && boosting && !car.touchingWall){
+    // Boost power is nullified while wall-bouncing (car.touchingWall) —
+    // the flames/glow/HUD stay on since they read the `boosting` flag,
+    // but the wall eats all the extra speed and acceleration.
     maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.013 + playerCarDef.boostPower*0.02;
     accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.037 + playerCarDef.boostPower*0.05;
   }
