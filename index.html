@@ -201,9 +201,8 @@
   .speedNum{ font-size:44px; font-weight:800; line-height:1; text-shadow:0 0 18px rgba(79,216,255,.6); }
   .minimapWrap{ position:absolute; bottom:18px; left:18px; }
   #minimap{ background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:12px; }
-  .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); z-index:2;
+  .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:all; }
-  .boostWrap[hidden]{ display:none !important; }
   .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:rgba(10,14,20,.72);
     border:1px solid rgba(79,216,255,.25); overflow:hidden; }
   .boostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #ff8a1e, #ffd23f); }
@@ -218,7 +217,7 @@
   @keyframes boostPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
   .controlsHint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); background:rgba(10,14,20,.72);
     border:1px solid rgba(79,216,255,.25); border-radius:10px; padding:6px 14px; font-size:13px; color:var(--muted); }
-  .soundBtn{ position:absolute; top:14px; right:14px; margin-top:64px; pointer-events:all; z-index:2;
+  .soundBtn{ position:absolute; top:14px; right:14px; margin-top:64px; pointer-events:all;
     background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:10px;
     color:var(--muted); font:inherit; font-size:13px; font-weight:700; padding:7px 12px; cursor:pointer;
     display:flex; align-items:center; gap:7px; }
@@ -226,41 +225,6 @@
   .soundBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   .soundBtn.off{ color:var(--danger); border-color:rgba(255,95,109,.45); }
   .soundBtn.warn{ color:var(--accent2); border-color:rgba(255,201,79,.6); }
-  /* ---------- On-screen (touch) controls ---------- */
-  .touchControls{ position:absolute; inset:0; }
-  .touchControls[hidden]{ display:none !important; }
-  .touchJoystickZone{ position:absolute; right:0; bottom:0; width:58%; height:62%; z-index:1;
-    pointer-events:all; touch-action:none; }
-  .touchJoystick{ position:fixed; width:190px; height:190px; margin-left:-95px; margin-top:-95px; border-radius:50%;
-    background:rgba(10,14,20,.55); border:1px solid rgba(79,216,255,.35); pointer-events:none;
-    opacity:0; transition:opacity .15s ease; }
-  .touchJoystick.active{ opacity:1; }
-  .touchJoystickStick{ position:absolute; left:50%; top:50%; width:84px; height:84px; border-radius:50%;
-    background:rgba(79,216,255,.5); border:1px solid rgba(79,216,255,.85); pointer-events:none;
-    transform:translate(-50%,-50%); transition:background .1s; }
-  .touchJoystickStick.pressed{ background:rgba(79,216,255,.85); }
-  .touchKey{ width:54px; height:54px; border-radius:14px; border:1px solid rgba(79,216,255,.35);
-    background:rgba(10,14,20,.72); color:var(--text); font:inherit; font-size:20px; font-weight:800;
-    display:flex; align-items:center; justify-content:center; cursor:pointer; touch-action:none;
-    -webkit-user-select:none; user-select:none; padding:0; }
-  .touchKey:active, .touchKey.pressed{ background:rgba(79,216,255,.35); border-color:var(--accent); }
-  .touchKey:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
-  .touchKey:disabled{ opacity:.5; cursor:not-allowed; }
-  .touchBoostKey.ready{ color:#241a06; background:linear-gradient(135deg,#ffd23f,#ff8a1e); border-color:#ffd23f;
-    animation:boostPulse 1s ease-in-out infinite; }
-  .touchBoostKey.active{ color:#241a06; background:linear-gradient(135deg,#fff2b0,#ff8a1e); border-color:#fff2b0;
-    animation:none; }
-  .touchSideKeys{ position:absolute; left:16px; bottom:190px; z-index:2; pointer-events:all;
-    display:flex; flex-direction:column; align-items:center; gap:10px; }
-  .touchSideKeys .touchKey{ width:54px; height:44px; font-size:13px; letter-spacing:.5px; border-radius:10px; }
-  .touchBoostGroup{ position:absolute; bottom:190px; z-index:2; pointer-events:all;
-    display:flex; flex-direction:column; align-items:center; gap:10px; }
-  .touchBoostGroup.side-left{ left:16px; bottom:300px; }
-  .touchBoostGroup.side-right{ right:16px; bottom:190px; }
-  .touchBoostGroup .touchBoostKey{ width:82px; height:82px; font-size:34px; border-radius:20px; }
-  .touchBoostBarTrack{ width:82px; height:9px; border-radius:999px; background:rgba(10,14,20,.72);
-    border:1px solid rgba(79,216,255,.25); overflow:hidden; }
-  .touchBoostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #ff8a1e, #ffd23f); }
   .toast{ position:absolute; top:80px; left:50%; transform:translateX(-50%); background:rgba(61,220,132,.15);
     border:1px solid var(--good); color:var(--good); font-weight:700; padding:8px 18px; border-radius:999px;
     font-size:15px; opacity:0; transition:opacity .25s, transform .25s; }
@@ -357,7 +321,6 @@
       <button class="btn ghost" id="homeMenuBtn">&larr; Menu</button>
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
-      <button class="btn secondary" id="homeSettingsBtn">⚙️ Settings</button>
     </div>
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
@@ -414,27 +377,11 @@
         <span class="hudSmall" id="fpsText">60 fps</span>
       </div>
       <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
-      <div class="boostWrap" id="boostWrap">
+      <div class="boostWrap">
         <button class="boostBtn" id="boostBtn" type="button" aria-label="Activate boost (Space)" disabled>
           <span id="boostIcon" aria-hidden="true">🔥</span><span id="boostLabel">BOOST</span>
         </button>
         <div class="boostBarTrack"><div class="boostBarFill" id="boostBarFill"></div></div>
-      </div>
-      <!-- On-screen controls — shown when "Play Without a Keyboard" is enabled in Settings -->
-      <div class="touchControls" id="touchControls" hidden>
-        <div class="touchJoystickZone" id="touchJoystickZone" aria-label="Drive (touch and drag anywhere here to steer, throttle, and brake)">
-          <div class="touchJoystick" id="touchJoystickBase">
-            <div class="touchJoystickStick" id="touchJoystickStick"></div>
-          </div>
-        </div>
-        <div class="touchBoostGroup" id="touchBoostGroup">
-          <div class="touchBoostBarTrack" id="touchBoostBarTrack"><div class="touchBoostBarFill" id="touchBoostBarFill"></div></div>
-          <button class="touchKey touchBoostKey" type="button" id="touchBoostBtn" aria-label="Activate boost (Space)" disabled>🔥</button>
-        </div>
-        <div class="touchSideKeys">
-          <button class="touchKey" type="button" id="touchEscBtn" aria-label="Pause (Escape)">Esc</button>
-          <button class="touchKey" type="button" id="touchMuteBtn" aria-label="Mute / unmute (M)">M</button>
-        </div>
       </div>
     </div>
 
@@ -449,6 +396,76 @@
           <button class="btn secondary" id="restartBtn">Restart Race</button>
           <button class="btn ghost" id="quitBtn">Quit to Home</button>
         </div>
+      </div>
+      <!-- Settings panel (hidden until Settings is clicked) -->
+      <div class="overlayCard" id="settingsCard" hidden>
+        <h2>Settings</h2>
+        <p style="color:var(--muted);margin:0 0 22px;">Adjust controls and preferences.</p>
+        <div style="margin-bottom:24px;text-align:left;">
+          <label style="display:block;font-weight:700;margin-bottom:8px;">
+            Steering Sensitivity
+            <span id="sensitivityVal" style="color:var(--accent);margin-left:8px;">50</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="color:var(--muted);font-size:13px;">Low</span>
+            <input type="range" id="sensitivitySlider" min="0" max="100" value="50"
+              style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
+            <span style="color:var(--muted);font-size:13px;">High</span>
+          </div>
+          <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">Controls how sharply your car responds to steering input.</p>
+        </div>
+        <div style="margin-bottom:24px;text-align:left;">
+          <label style="display:block;font-weight:700;margin-bottom:8px;">
+            Master Volume
+            <span id="volumeVal" style="color:var(--accent);margin-left:8px;">70</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="color:var(--muted);font-size:13px;">🔈</span>
+            <input type="range" id="volumeSlider" min="0" max="100" value="70"
+              style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
+            <span style="color:var(--muted);font-size:13px;">🔊</span>
+          </div>
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="invertSteeringToggle" style="display:block;font-weight:700;">Invert Steering</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Swap left/right controls.</p>
+          </div>
+          <input type="checkbox" id="invertSteeringToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="minimapToggle" style="display:block;font-weight:700;">Show Minimap</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Toggle the track overview in the corner.</p>
+          </div>
+          <input type="checkbox" id="minimapToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="unitsToggle" style="display:block;font-weight:700;">Speed Units</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Show speed in mph or km/h.</p>
+          </div>
+          <select id="unitsToggle" style="background:var(--panel);color:var(--text);border:1px solid #2a3549;border-radius:8px;padding:6px 10px;cursor:pointer;flex:none;">
+            <option value="mph">mph</option>
+            <option value="kph">km/h</option>
+          </select>
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="cameraShakeToggle" style="display:block;font-weight:700;">Camera Shake</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Screen shake on collisions.</p>
+          </div>
+          <input type="checkbox" id="cameraShakeToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="fpsCounterToggle" style="display:block;font-weight:700;">Show FPS Counter</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Display frame rate during races.</p>
+          </div>
+          <input type="checkbox" id="fpsCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
+        <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
       </div>
     </div>
 
@@ -465,98 +482,6 @@
       </div>
     </div>
   </section>
-
-  <!-- Settings — a standalone overlay (not nested in gameScreen) so it can be
-       opened from Home to set up controls before ever starting a race, as
-       well as from the in-race pause menu. -->
-  <div class="overlay" id="settingsOverlay" hidden>
-    <div class="overlayCard" id="settingsCard">
-      <h2>Settings</h2>
-      <p style="color:var(--muted);margin:0 0 22px;">Adjust controls and preferences.</p>
-      <div style="margin-bottom:24px;text-align:left;">
-        <label style="display:block;font-weight:700;margin-bottom:8px;">
-          Steering Sensitivity
-          <span id="sensitivityVal" style="color:var(--accent);margin-left:8px;">50</span>
-        </label>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <span style="color:var(--muted);font-size:13px;">Low</span>
-          <input type="range" id="sensitivitySlider" min="0" max="100" value="50"
-            style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
-          <span style="color:var(--muted);font-size:13px;">High</span>
-        </div>
-        <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">Controls how sharply your car responds to steering input.</p>
-      </div>
-      <div style="margin-bottom:24px;text-align:left;">
-        <label style="display:block;font-weight:700;margin-bottom:8px;">
-          Master Volume
-          <span id="volumeVal" style="color:var(--accent);margin-left:8px;">70</span>
-        </label>
-        <div style="display:flex;align-items:center;gap:12px;">
-          <span style="color:var(--muted);font-size:13px;">🔈</span>
-          <input type="range" id="volumeSlider" min="0" max="100" value="70"
-            style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
-          <span style="color:var(--muted);font-size:13px;">🔊</span>
-        </div>
-      </div>
-      <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-          <label for="invertSteeringToggle" style="display:block;font-weight:700;">Invert Steering</label>
-          <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Swap left/right controls.</p>
-        </div>
-        <input type="checkbox" id="invertSteeringToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
-      </div>
-      <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-          <label for="minimapToggle" style="display:block;font-weight:700;">Show Minimap</label>
-          <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Toggle the track overview in the corner.</p>
-        </div>
-        <input type="checkbox" id="minimapToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
-      </div>
-      <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-          <label for="unitsToggle" style="display:block;font-weight:700;">Speed Units</label>
-          <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Show speed in mph or km/h.</p>
-        </div>
-        <select id="unitsToggle" style="background:var(--panel);color:var(--text);border:1px solid #2a3549;border-radius:8px;padding:6px 10px;cursor:pointer;flex:none;">
-          <option value="mph">mph</option>
-          <option value="kph">km/h</option>
-        </select>
-      </div>
-      <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-          <label for="cameraShakeToggle" style="display:block;font-weight:700;">Camera Shake</label>
-          <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Screen shake on collisions.</p>
-        </div>
-        <input type="checkbox" id="cameraShakeToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
-      </div>
-      <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-          <label for="fpsCounterToggle" style="display:block;font-weight:700;">Show FPS Counter</label>
-          <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Display frame rate during races.</p>
-        </div>
-        <input type="checkbox" id="fpsCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
-      </div>
-      <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-          <label for="onScreenControlsToggle" style="display:block;font-weight:700;">Play Without a Keyboard</label>
-          <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Show on-screen arrow keys, Esc, and M buttons you can tap or click.</p>
-        </div>
-        <input type="checkbox" id="onScreenControlsToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
-      </div>
-      <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <div>
-          <label for="boostSideToggle" style="display:block;font-weight:700;">Boost Button Side</label>
-          <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Which side the on-screen boost button appears on.</p>
-        </div>
-        <select id="boostSideToggle" style="background:var(--panel);color:var(--text);border:1px solid #2a3549;border-radius:8px;padding:6px 10px;cursor:pointer;flex:none;">
-          <option value="left">Left</option>
-          <option value="right">Right</option>
-        </select>
-      </div>
-      <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
-      <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
-    </div>
-  </div>
 
   <div class="liveRegion" id="liveRegion" aria-live="assertive" aria-atomic="true"></div>
 </div>
@@ -583,9 +508,7 @@ const DEFAULT_STATE = {
   showMinimap: true,
   units: 'mph',        // 'mph' or 'kph'
   cameraShake: true,
-  showFps: false,
-  onScreenControls: false,  // shows tappable arrow/Esc/M buttons for playing without a keyboard
-  boostButtonSide: 'left'   // 'left' or 'right' — which side the on-screen boost button sits on
+  showFps: false
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -632,8 +555,6 @@ function loadState(){
       gameState.units          = parsed.units === 'kph' ? 'kph' : 'mph';
       gameState.cameraShake    = parsed.cameraShake !== false;
       gameState.showFps        = parsed.showFps === true;
-      gameState.onScreenControls = parsed.onScreenControls === true;
-      gameState.boostButtonSide = parsed.boostButtonSide === 'right' ? 'right' : 'left';
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -648,7 +569,6 @@ function loadState(){
   applyMinimapVisibility();
   applySpeedUnitLabel();
   applyFpsVisibility();
-  applyBoostButtonSide();
 }
 
 function saveState(){
@@ -884,7 +804,6 @@ function getStageName(i){
 function renameStage(i, newName){
   trackNameOverrides[i] = newName;
   saveTrackNameOverrides();
-  pushSharedNames().then(ok=>{ if(!ok) showToast('Renamed on this device, but couldn\u2019t sync to other players — check the shared database setup'); });
 }
 loadTrackNameOverrides();
 
@@ -910,93 +829,8 @@ function getCarName(i){
 function renameCar(i, newName){
   carNameOverrides[i] = newName;
   saveCarNameOverrides();
-  pushSharedNames().then(ok=>{ if(!ok) showToast('Renamed on this device, but couldn\u2019t sync to other players — check the shared database setup'); });
 }
 loadCarNameOverrides();
-
-/* ============================= SHARED NAME SYNC =============================
-   This game is a static site (GitHub Pages) — there's no server of its own, so
-   on its own a rename only ever lives in the admin's own browser (localStorage,
-   above). To make a rename show up for every player on every device/account,
-   it needs to live somewhere on the internet that every visitor's browser
-   checks. This uses a free Firebase Realtime Database as that shared spot,
-   talked to with plain fetch() (no SDK needed) so it works from a static
-   GitHub Pages site with no build step.
-
-   ONE-TIME SETUP (~5 minutes, needs a free Google account):
-   1. https://console.firebase.google.com -> Add project (Spark/free plan is
-      plenty; you can skip Google Analytics).
-   2. In the project: Build -> Realtime Database -> Create Database -> pick a
-      location -> start in locked mode.
-   3. Go to the "Rules" tab and paste this (NOT the default test-mode rules,
-      which auto-expire after 30 days and would silently break this feature):
-        {
-          "rules": {
-            "gameNames": { ".read": true, ".write": true }
-          }
-        }
-   4. Copy the database URL shown at the top of the Realtime Database page
-      (looks like https://YOUR-PROJECT-default-rtdb.firebaseio.com) into
-      SHARED_DB_URL below.
-
-   Leave SHARED_DB_URL empty and everything falls back to the old
-   this-device-only behavior — nothing breaks, renames just stay local again.
-
-   Heads up on security: this rule allows anyone to write to /gameNames, not
-   just the in-game admin — there's no server here to actually check who's an
-   admin, so "admin" is just a client-side password, the same soft protection
-   the local save system already had. That's a reasonable tradeoff for
-   cosmetic track/car names in a casual game, but don't reuse this open-write
-   pattern for anything that needs real security. */
-const SHARED_DB_URL = ''; // e.g. 'https://your-project-default-rtdb.firebaseio.com'
-const SHARED_NAMES_PATH = 'gameNames'; // stores { tracks:{...}, cars:{...} }
-
-function sharedNamesUrl(){
-  return SHARED_DB_URL.replace(/\/$/,'') + '/' + SHARED_NAMES_PATH + '.json';
-}
-async function fetchSharedNames(){
-  if(!SHARED_DB_URL) return null;
-  try{
-    const res = await fetch(sharedNamesUrl());
-    if(!res.ok) return null;
-    return await res.json();
-  }catch(e){ return null; }
-}
-async function pushSharedNames(){
-  if(!SHARED_DB_URL) return true; // nothing configured — local save above is already done
-  try{
-    const res = await fetch(sharedNamesUrl(), {
-      method:'PUT',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ tracks:trackNameOverrides, cars:carNameOverrides })
-    });
-    return res.ok;
-  }catch(e){ return false; }
-}
-
-let lastSharedSync = 0;
-// Pulls the latest shared names and, if anything actually changed, saves them
-// locally and re-renders whichever grid is currently on screen. Safe to call
-// often — debounced so rapid screen navigation doesn't hammer the database.
-async function syncSharedNames(force){
-  if(!SHARED_DB_URL) return;
-  const now = Date.now();
-  if(!force && now - lastSharedSync < 5000) return;
-  lastSharedSync = now;
-  const data = await fetchSharedNames();
-  if(!data || typeof data !== 'object') return;
-  let changed = false;
-  if(data.tracks && typeof data.tracks === 'object' && JSON.stringify(data.tracks) !== JSON.stringify(trackNameOverrides)){
-    trackNameOverrides = data.tracks; saveTrackNameOverrides(); changed = true;
-  }
-  if(data.cars && typeof data.cars === 'object' && JSON.stringify(data.cars) !== JSON.stringify(carNameOverrides)){
-    carNameOverrides = data.cars; saveCarNameOverrides(); changed = true;
-  }
-  if(changed){
-    if(!homeScreen.hidden) renderStageGrid();
-    if(!garageScreen.hidden) renderCarGrid();
-  }
-}
 
 // Harder tracks pay out more: every point of difficulty above 1 adds 20% to
 // every coin source in that race (per-lap coins, finish bonus, position bonus).
@@ -1019,7 +853,6 @@ function showScreen(name){
   garageScreen.hidden = name!=='garage';
   upgradesScreen.hidden = name!=='upgrades';
   gameScreen.hidden = name!=='game';
-  if(name === 'home' || name === 'garage') syncSharedNames();
 }
 
 // Driver rating has no ceiling (it can only ever go down to 0), so the visual
@@ -2790,132 +2623,37 @@ const keys = {};
 document.addEventListener('visibilitychange', ()=>{
   if(!document.hidden && (appState==='racing' || appState==='racing-countdown')) Sound.unlock();
 });
-/* Shared handlers so the physical keyboard and the on-screen touch buttons
-   (Settings → "Play Without a Keyboard") trigger identical behavior. */
-function handleMuteToggleAction(){
-  if(appState==='racing' || appState==='racing-countdown' || appState==='paused'){
-    Sound.toggle(); refreshSoundBtn();
-  }
-}
-function handleEscapeAction(){
-  if(appState === 'racing' || appState === 'racing-countdown'){
-    pauseRace();
-  } else if(appState === 'paused'){
-    // Step back one level at a time: out of Settings to the pause menu
-    // first, then Resume on a second press, same as tapping the buttons.
-    if(!$('settingsOverlay').hidden){ $('settingsBackBtn').click(); }
-    else { resumeRace(); }
-  } else if(appState === 'results'){
-    $('resultsHomeBtn').click();
-  } else if(appState === 'home'){
-    // On Home itself Escape has nowhere further to go; from Garage,
-    // Upgrades, or Settings it steps back to Home, just like their Back buttons.
-    if(!$('settingsOverlay').hidden){ $('settingsBackBtn').click(); }
-    else if(!garageScreen.hidden){ showScreen('home'); }
-    else if(!upgradesScreen.hidden){ showScreen('home'); }
-  }
-}
 window.addEventListener('keydown', e=>{
   const typingInField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
   // Escape is a universal "back" key, so let it through even if focus happens
   // to be sitting on a settings slider/checkbox — only real typing (text
   // fields, like login) should swallow it.
   if(typingInField && e.code !== 'Escape') return;
-  const isArrowKey = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code);
-  // While "Play Without a Keyboard" is on, driving/pausing/muting are handled
-  // entirely by the on-screen touch buttons — the physical arrow keys, Esc,
-  // and M are switched off so the two control schemes can't fight each other.
-  if(gameState.onScreenControls === true && (isArrowKey || e.code === 'Escape' || e.code === 'KeyM')) return;
-  if(isArrowKey || e.code === 'Space') e.preventDefault();
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
-  if(e.code === 'KeyM') handleMuteToggleAction();
+  if(e.code === 'KeyM' && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
+    Sound.toggle(); refreshSoundBtn();
+  }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
-  if(e.code === 'Escape') handleEscapeAction();
+  if(e.code === 'Escape'){
+    if(appState === 'racing' || appState === 'racing-countdown'){
+      pauseRace();
+    } else if(appState === 'paused'){
+      // Step back one level at a time: out of Settings to the pause menu
+      // first, then Resume on a second press, same as tapping the buttons.
+      if(!$('settingsCard').hidden){ $('settingsBackBtn').click(); }
+      else { resumeRace(); }
+    } else if(appState === 'results'){
+      $('resultsHomeBtn').click();
+    } else if(appState === 'home'){
+      // On Home itself Escape has nowhere further to go; from Garage or
+      // Upgrades it steps back to Home, just like their Back buttons.
+      if(!garageScreen.hidden){ showScreen('home'); }
+      else if(!upgradesScreen.hidden){ showScreen('home'); }
+    }
+  }
 });
 window.addEventListener('keyup', e=>{ keys[e.code] = false; });
-
-/* ---------- On-screen touch controls ---------- */
-let touchControlsVisible = false;
-function updateTouchControlsVisibility(){
-  const inRace = (appState === 'racing' || appState === 'racing-countdown');
-  const wantVisible = gameState.onScreenControls === true && inRace;
-  if(wantVisible !== touchControlsVisible){
-    touchControlsVisible = wantVisible;
-    $('touchControls').hidden = !wantVisible;
-    if(!wantVisible) resetJoystick();
-  }
-  // The center keyboard/mouse boost button: only for racing, and only for
-  // players who haven't turned on tap controls. This used to be tied to
-  // `wantVisible` above, so leaving the racing state (finishing a race,
-  // pausing) unhid it again — since its z-index sits above the results/pause
-  // overlay it would float on top of them, and being a real button it could
-  // still be tapped on a touchscreen even though it's the non-touch control.
-  const wantBoostWrapVisible = inRace && gameState.onScreenControls !== true;
-  $('boostWrap').hidden = !wantBoostWrapVisible;
-}
-// Joystick: dynamic — appears wherever the player first touches inside the
-// drive zone, then drag to steer/throttle/brake. Maps stick position to the
-// same ArrowUp/Down/Left/Right keys the keyboard and physics code already
-// read, so no changes were needed to updateCar()'s driving logic.
-const joystickZone = $('touchJoystickZone');
-const joystickBase = $('touchJoystickBase');
-const joystickStick = $('touchJoystickStick');
-const JOYSTICK_MAX_DIST = 62;   // px the stick can travel from center
-const JOYSTICK_DEADZONE = 0.3;  // fraction of max travel before a direction registers
-let joystickPointerId = null;
-let joystickCenter = { x:0, y:0 };
-function clearJoystickKeys(){
-  keys['ArrowUp'] = false; keys['ArrowDown'] = false;
-  keys['ArrowLeft'] = false; keys['ArrowRight'] = false;
-}
-function setJoystickStickPos(dx, dy){
-  joystickStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-}
-function resetJoystick(){
-  setJoystickStickPos(0, 0);
-  joystickStick.classList.remove('pressed');
-  joystickBase.classList.remove('active');
-  clearJoystickKeys();
-}
-function updateJoystickFromPoint(clientX, clientY){
-  let dx = clientX - joystickCenter.x, dy = clientY - joystickCenter.y;
-  const dist = Math.hypot(dx, dy);
-  if(dist > JOYSTICK_MAX_DIST){ const s = JOYSTICK_MAX_DIST/dist; dx *= s; dy *= s; }
-  setJoystickStickPos(dx, dy);
-  const nx = dx / JOYSTICK_MAX_DIST, ny = dy / JOYSTICK_MAX_DIST; // -1..1, y grows downward
-  keys['ArrowLeft']  = nx < -JOYSTICK_DEADZONE;
-  keys['ArrowRight'] = nx >  JOYSTICK_DEADZONE;
-  keys['ArrowUp']    = ny < -JOYSTICK_DEADZONE;
-  keys['ArrowDown']  = ny >  JOYSTICK_DEADZONE;
-}
-joystickZone.addEventListener('pointerdown', e=>{
-  if(joystickPointerId !== null) return; // already tracking a touch — ignore any other simultaneous touches
-  e.preventDefault();
-  joystickPointerId = e.pointerId;
-  joystickZone.setPointerCapture(e.pointerId);
-  joystickCenter = { x:e.clientX, y:e.clientY };
-  joystickBase.style.left = e.clientX + 'px';
-  joystickBase.style.top = e.clientY + 'px';
-  joystickBase.classList.add('active');
-  joystickStick.classList.add('pressed');
-  setJoystickStickPos(0, 0);
-});
-joystickZone.addEventListener('pointermove', e=>{
-  if(e.pointerId !== joystickPointerId) return;
-  e.preventDefault();
-  updateJoystickFromPoint(e.clientX, e.clientY);
-});
-function endJoystickDrag(e){
-  if(e && e.pointerId !== joystickPointerId) return;
-  joystickPointerId = null;
-  resetJoystick();
-}
-joystickZone.addEventListener('pointerup', endJoystickDrag);
-joystickZone.addEventListener('pointercancel', endJoystickDrag);
-joystickZone.addEventListener('lostpointercapture', endJoystickDrag);
-// Esc / M buttons: one tap = one press, same as a single key tap.
-$('touchEscBtn').addEventListener('click', ()=>handleEscapeAction());
-$('touchMuteBtn').addEventListener('click', ()=>handleMuteToggleAction());
 
 /* ---------- Race setup ---------- */
 /* Themed scene + lighting, shared by the race itself and the home-screen
@@ -2966,45 +2704,15 @@ const Online = {
   LOBBY_ID: 'velocity-circuit-mm-lobby-v1',
   available: typeof Peer !== 'undefined',
   myId: Math.random().toString(36).slice(2,10),
-  // Matchmaking itself has nothing to do with the local sign-in system above —
-  // it's peer-to-peer over the public internet, so two different people on two
-  // different devices, browsers, and local game profiles already match up fine.
-  // What DOES commonly break a cross-network match is NAT/firewalls: STUN alone
-  // (the old default) only helps when a direct route between the two players
-  // can be found. School/work Wi-Fi, VPNs, and some home routers block that
-  // direct path entirely, so we also offer a TURN relay as a fallback so
-  // traffic can still get through when a direct peer-to-peer path isn't possible.
-  ICE_CONFIG: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-    ]
-  },
   peer: null, hostConn: null,      // client -> host connection
   conns: {},                       // host: logicalId -> conn
   roster: [],                      // lobby players [{id,name,car}]
   isHost: false, searching: false, startScheduled: false,
   room: null, netCars: {},
   lastSend: 0, retryTimer: null,
-  connectTimer: null, waitHintTimer: null,
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
   status(msg){ $('lobbyStatus').textContent = msg; },
-
-  // After a while alone in the lobby, surface a network troubleshooting tip.
-  // Harmless if no one else has searched yet — the next real status update
-  // (a player joining, etc.) simply overwrites this text.
-  armWaitHint(){
-    if(this.waitHintTimer) clearTimeout(this.waitHintTimer);
-    this.waitHintTimer = setTimeout(()=>{
-      if(this.searching && !this.room && this.roster.length <= 1){
-        this.status('Still waiting… if a friend is trying to join and nothing happens, restrictive Wi-Fi (school, work, some public networks) can block peer-to-peer play — a mobile hotspot usually gets around it.');
-      }
-    }, 20000);
-  },
 
   startSearch(){
     if(!this.available){ this.status('Online needs the PeerJS library — check your internet connection and reload.'); return; }
@@ -3019,7 +2727,7 @@ const Online = {
   tryBecomeHost(){
     this.cleanupPeer();
     let decided = false;
-    const p = new Peer(this.LOBBY_ID, { config:this.ICE_CONFIG });
+    const p = new Peer(this.LOBBY_ID);
     this.peer = p;
     p.on('open', ()=>{
       if(decided || !this.searching) return; decided = true;
@@ -3027,7 +2735,6 @@ const Online = {
       this.roster = [{ id:this.myId, name:this.displayName(), car:gameState.selectedCar }];
       this.renderLobby();
       this.status('Looking for racers… (1 in lobby)');
-      this.armWaitHint();
       p.on('connection', conn => this.hostAccept(conn));
     });
     p.on('error', err => {
@@ -3103,31 +2810,19 @@ const Online = {
   /* ---------- CLIENT side ---------- */
   joinAsClient(){
     this.cleanupPeer();
-    const p = new Peer({ config:this.ICE_CONFIG });     // random id from broker
+    const p = new Peer();                              // random id from broker
     this.peer = p;
     this.status('Joining lobby…');
     p.on('open', ()=>{
       if(!this.searching) return;
       const conn = p.connect(this.LOBBY_ID);
       this.hostConn = conn;
-      // If the two players can't establish a direct/relayed route (common on
-      // restrictive school/work networks), this connection will just hang
-      // instead of firing an error — so time it out with a clear explanation.
-      if(this.connectTimer) clearTimeout(this.connectTimer);
-      this.connectTimer = setTimeout(()=>{
-        if(this.hostConn === conn && this.searching && !this.room){
-          this.status('Couldn\u2019t connect to the other player — this can happen on school, work, or public Wi-Fi that blocks peer-to-peer traffic. Try a mobile hotspot or a different network, then search again.');
-          try{ conn.close(); }catch(e){}
-        }
-      }, 15000);
       conn.on('open', ()=>{
-        if(this.connectTimer){ clearTimeout(this.connectTimer); this.connectTimer = null; }
         conn.send({ type:'join', id:this.myId, name:this.displayName(), car:gameState.selectedCar });
         this.status('In lobby — waiting for the race to start…');
       });
       conn.on('data', m => this.clientOnMsg(m));
       const lost = ()=>{
-        if(this.connectTimer){ clearTimeout(this.connectTimer); this.connectTimer = null; }
         if(this.room){ showToast('Lost connection to the race host'); return; }
         if(!this.searching) return;
         // Host left — try to take over hosting, otherwise keep searching
@@ -3253,8 +2948,6 @@ const Online = {
 
   cleanupPeer(){
     if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
-    if(this.connectTimer){ clearTimeout(this.connectTimer); this.connectTimer = null; }
-    if(this.waitHintTimer){ clearTimeout(this.waitHintTimer); this.waitHintTimer = null; }
     if(this.peer){ try{ this.peer.destroy(); }catch(e){} }
     this.peer = null; this.hostConn = null; this.conns = {};
     this.isHost = false; this.startScheduled = false;
@@ -3366,12 +3059,9 @@ function startRace(stageIndex, onlineRoom){
   boosting = false;
   boostTimer = 0;
   $('boostBarFill').style.width = '0%';
-  $('touchBoostBarFill').style.width = '0%';
   $('boostBtn').classList.remove('ready','active');
   $('boostBtn').disabled = true;
   $('boostLabel').textContent = 'BOOST';
-  $('touchBoostBtn').classList.remove('ready','active');
-  $('touchBoostBtn').disabled = true;
 
   cars.forEach((car, i)=>{
     // Starting grid position: player gets slot index 1 (-1.35), CPUs use their assigned lane offsets
@@ -3414,19 +3104,40 @@ function findNearestIndex(car){
   return bestIdx;
 }
 
-function applyBoundary(car){
+function applyBoundary(car, dt){
+  dt = dt || 1/60;
   const idx = car.trackIndex;
   const center = track.points[idx], normal = track.normals[idx];
   const rel = new THREE.Vector3().subVectors(car.pos, center);
   const lateral = rel.dot(normal);
-  const limit = track.width/2 - CAR_HALF_WIDTH;
-  const retain = car.isPlayer ? Math.min(0.9, 0.55 + gameState.upgrades.grip*0.02) : 0.55;
-  if(lateral > limit){
-    car.pos.addScaledVector(normal, limit - lateral);
-    car.speed *= retain;
-  } else if(lateral < -limit){
-    car.pos.addScaledVector(normal, -limit - lateral);
-    car.speed *= retain;
+  // Margin matches the car's real visual extent so nothing clips into the wall.
+  const WALL_HALF_WIDTH = 1.45;
+  const limit = track.width/2 - WALL_HALF_WIDTH;
+  if(lateral <= limit && lateral >= -limit) return;
+
+  const side = lateral > 0 ? 1 : -1;
+
+  // SMOOTH push-off: hold the car right at the wall (no visible hop — the
+  // camera never jumps) with only a whisper of separation.
+  const BOUNCE_GAP = 0.065;
+  car.pos.addScaledVector(normal, side*(limit - BOUNCE_GAP) - lateral);
+
+  // Gently steer the nose away from the wall over time instead of snapping
+  // it. Contact every frame = continuous soft push back toward the track,
+  // so you still can't grind along the wall — it just eases you off it.
+  const fwd = forwardVec(car.heading);
+  const fDotN = fwd.dot(normal);
+  if(car.speed * fDotN * side > 0){
+    const STEER_AWAY_RATE = 2.2;                    // rad/sec of correction
+    const correction = Math.min(Math.abs(fDotN), STEER_AWAY_RATE * dt);
+    // Rotate heading in whichever direction reduces the into-wall component
+    // of the car's velocity (gradient of speed*(fwd·n)*side wrt heading).
+    const grad = car.speed * (Math.cos(car.heading)*normal.x - Math.sin(car.heading)*normal.z) * side;
+    car.heading = normalizeAngle(car.heading - Math.sign(grad) * correction);
+    // Mild continuous scrub while pressing the wall (~25%/sec), instead of
+    // a big chunk per bounce.
+    const scrub = car.isPlayer ? Math.max(0.12, 0.25 - gameState.upgrades.grip*0.012) : 0.25;
+    car.speed *= Math.max(0, 1 - scrub*dt);
   }
 }
 
@@ -3523,7 +3234,7 @@ function updateCar(car, dt){
   car.pos.addScaledVector(fwd, car.speed*dt);
 
   car.trackIndex = findNearestIndex(car);
-  applyBoundary(car);
+  applyBoundary(car, dt);
 
   // Lap detection. A crossing only counts once the car has genuinely been
   // out around the track (past the midpoint) since the last time it counted —
@@ -3777,17 +3488,12 @@ function updateBoost(dt){
   // holding it pegged at full, so the meter visibly empties as it's used.
   const pct = boosting ? Math.max(0, (boostTimer / BOOST_DURATION) * 100) : (boostCharge / BOOST_MAX * 100);
   $('boostBarFill').style.width = pct + '%';
-  $('touchBoostBarFill').style.width = pct + '%';
   const btn = $('boostBtn');
   const ready = !boosting && boostCharge >= BOOST_MAX;
   btn.classList.toggle('ready', ready);
   btn.classList.toggle('active', boosting);
   btn.disabled = !ready;
   $('boostLabel').textContent = boosting ? 'BOOSTING' : (ready ? 'BOOST!' : 'BOOST');
-  const touchBtn = $('touchBoostBtn');
-  touchBtn.classList.toggle('ready', ready);
-  touchBtn.classList.toggle('active', boosting);
-  touchBtn.disabled = !ready;
 }
 function triggerBoost(){
   if(appState !== 'racing' || boosting || boostCharge < BOOST_MAX) return;
@@ -3798,13 +3504,6 @@ function triggerBoost(){
   announce('Boost activated!');
 }
 $('boostBtn').addEventListener('click', triggerBoost);
-$('touchBoostBtn').addEventListener('pointerdown', e=>{
-  // pointerdown (not click) so a second finger tapping this button while the
-  // first is already dragging the joystick registers immediately, instead of
-  // waiting on a full click gesture that can be unreliable during multi-touch.
-  e.preventDefault();
-  triggerBoost();
-});
 
 function formatTime(t){
   if(!isFinite(t)) return '--:--';
@@ -4335,7 +4034,7 @@ function pauseRace(){
   appState = 'paused';
   // Always show the main pause card, not settings, when pausing.
   $('pauseCard').hidden = false;
-  $('settingsOverlay').hidden = true;
+  $('settingsCard').hidden = true;
   $('pauseOverlay').hidden = false;
   Sound.suspend();
   announce('Race paused');
@@ -4378,11 +4077,9 @@ $('resumeBtn').addEventListener('click', resumeRace);
 function applyMinimapVisibility(){
   $('minimapWrap').style.display = gameState.showMinimap === false ? 'none' : '';
 }
-// Settings can be opened either from the in-race pause menu or straight from
-// Home (so touch/keyboard preferences can be set up before ever starting a
-// race). settingsReturnTo remembers which one, so Back goes to the right place.
-let settingsReturnTo = 'home';
-function populateSettingsFields(){
+$('settingsBtn').addEventListener('click', ()=>{
+  $('pauseCard').hidden = true;
+  $('settingsCard').hidden = false;
   $('sensitivitySlider').value = gameState.sensitivity;
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
   $('volumeSlider').value = gameState.volume;
@@ -4392,25 +4089,11 @@ function populateSettingsFields(){
   $('unitsToggle').value = gameState.units === 'kph' ? 'kph' : 'mph';
   $('cameraShakeToggle').checked = gameState.cameraShake !== false;
   $('fpsCounterToggle').checked = gameState.showFps === true;
-  $('onScreenControlsToggle').checked = gameState.onScreenControls === true;
-  $('boostSideToggle').value = gameState.boostButtonSide === 'right' ? 'right' : 'left';
-}
-function openSettings(returnTo){
-  settingsReturnTo = returnTo;
-  populateSettingsFields();
-  if(returnTo === 'pause') $('pauseOverlay').hidden = true;
-  $('settingsOverlay').hidden = false;
-}
-function closeSettings(){
-  $('settingsOverlay').hidden = true;
-  if(settingsReturnTo === 'pause'){
-    $('pauseCard').hidden = false;
-    $('pauseOverlay').hidden = false;
-  }
-}
-$('settingsBtn').addEventListener('click', ()=> openSettings('pause'));
-$('homeSettingsBtn').addEventListener('click', ()=> openSettings('home'));
-$('settingsBackBtn').addEventListener('click', closeSettings);
+});
+$('settingsBackBtn').addEventListener('click', ()=>{
+  $('settingsCard').hidden = true;
+  $('pauseCard').hidden = false;
+});
 $('sensitivitySlider').addEventListener('input', ()=>{
   gameState.sensitivity = Number($('sensitivitySlider').value);
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
@@ -4437,11 +4120,6 @@ function applySpeedUnitLabel(){
 function applyFpsVisibility(){
   $('fpsCounter').hidden = gameState.showFps !== true;
 }
-function applyBoostButtonSide(){
-  const onRight = gameState.boostButtonSide === 'right';
-  $('touchBoostGroup').classList.toggle('side-left', !onRight);
-  $('touchBoostGroup').classList.toggle('side-right', onRight);
-}
 $('unitsToggle').addEventListener('change', ()=>{
   gameState.units = $('unitsToggle').value === 'kph' ? 'kph' : 'mph';
   applySpeedUnitLabel();
@@ -4456,24 +4134,12 @@ $('fpsCounterToggle').addEventListener('change', ()=>{
   applyFpsVisibility();
   saveState();
 });
-$('onScreenControlsToggle').addEventListener('change', ()=>{
-  gameState.onScreenControls = $('onScreenControlsToggle').checked;
-  updateTouchControlsVisibility();
-  saveState();
-});
-$('boostSideToggle').addEventListener('change', ()=>{
-  gameState.boostButtonSide = $('boostSideToggle').value === 'right' ? 'right' : 'left';
-  applyBoostButtonSide();
-  saveState();
-});
 $('resetProgressBtn').addEventListener('click', ()=>{
   if(!confirm('Reset all progress? This clears your coins, upgrades, unlocked tracks, and records. This cannot be undone.')) return;
   const keepSoundOn = gameState.soundOn, keepSensitivity = gameState.sensitivity,
         keepVolume = gameState.volume, keepInvert = gameState.invertSteering,
         keepMinimap = gameState.showMinimap, keepUnits = gameState.units,
-        keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps,
-        keepOnScreenControls = gameState.onScreenControls,
-        keepBoostButtonSide = gameState.boostButtonSide;
+        keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps;
   gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
   // Preserve control/audio preferences through a progress reset — those
   // aren't "progress", they're how the player likes to play.
@@ -4481,15 +4147,12 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   gameState.volume = keepVolume; gameState.invertSteering = keepInvert;
   gameState.showMinimap = keepMinimap; gameState.units = keepUnits;
   gameState.cameraShake = keepCameraShake; gameState.showFps = keepShowFps;
-  gameState.onScreenControls = keepOnScreenControls;
-  gameState.boostButtonSide = keepBoostButtonSide;
   saveState();
   refreshCoinDisplays();
   renderStageGrid();
   renderGarage();
   applySpeedUnitLabel();
   applyFpsVisibility();
-  applyBoostButtonSide();
   announce('Progress reset.');
   showToast('Progress reset');
 });
@@ -4598,8 +4261,6 @@ function animate(now){
   const dt = Math.min((now - lastTime)/1000, 0.05);
   lastTime = now;
 
-  updateTouchControlsVisibility();
-
   if(gameState.showFps === true){
     fpsFrameCount++;
     fpsAccum += dt;
@@ -4661,7 +4322,6 @@ function init(){
   initThree();
   renderStageGrid();
   refreshSoundBtn();
-  applyBoostButtonSide();
 
   // "Stay logged in" resumes the last profile automatically; otherwise land
   // on the login screen so progress is saved to the right person's slot.
