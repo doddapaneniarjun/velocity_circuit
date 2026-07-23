@@ -40,13 +40,13 @@
     text-align:center; padding:24px; overflow-y:auto; justify-content:flex-start;
   }
   .title{ font-size:clamp(32px,6vw,58px); font-weight:800; letter-spacing:2px; margin:0; color:var(--text);
-    text-shadow:0 0 24px rgba(193,80,46,.45); }
+    text-shadow:0 0 20px rgba(193,80,46,.38); }
   .title span{ color:var(--accent); }
   .subtitle{ color:var(--muted); margin:6px 0 28px; font-size:16px; }
 
   .coinBar{ position:fixed; top:16px; right:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:16px; display:flex; align-items:center; gap:8px; z-index:20; }
-  .coinDot{ width:16px; height:16px; border-radius:50%; background:var(--accent2); box-shadow:0 0 10px var(--accent2); flex:none; }
+  .coinDot{ width:16px; height:16px; border-radius:50%; background:var(--accent2); box-shadow:0 0 8px var(--accent2); flex:none; }
   .ratingBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .ratingBar strong{ color:var(--text); }
@@ -149,13 +149,13 @@
     text-align:center; padding:24px;
   }
   .megaTitle{ font-size:clamp(44px,10vw,110px); font-weight:900; letter-spacing:4px; margin:0 0 42px;
-    color:var(--text); text-shadow:0 0 34px rgba(193,80,46,.55); line-height:1.05; }
+    color:var(--text); text-shadow:0 0 28px rgba(193,80,46,.46); line-height:1.05; }
   .megaTitle span{ color:var(--accent); }
   .modeBtn{ font:inherit; font-weight:800; font-size:clamp(20px,3.4vw,28px); letter-spacing:2px;
     border:2px solid #d9c3a1; border-radius:18px; padding:22px 0; width:min(340px,84vw);
     background:var(--panel); color:var(--text); cursor:pointer; display:block; margin:0 auto 18px;
     transition:transform .12s, border-color .12s, box-shadow .12s; }
-  .modeBtn:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 0 22px rgba(193,80,46,.25); }
+  .modeBtn:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 0 18px rgba(193,80,46,.21); }
   .modeBtn.online{ border-color:var(--accent); color:var(--accent); }
   .modeBtn small{ display:block; font-weight:600; font-size:13px; letter-spacing:.5px; color:var(--muted); margin-top:6px; }
   .modeFootnote{ color:var(--muted); font-size:12px; margin-top:26px; }
@@ -207,11 +207,11 @@
   .hudBig{ font-size:22px; font-weight:800; }
   .hudSmall{ font-size:13px; color:var(--muted); }
   .speedo{ position:absolute; bottom:18px; right:18px; text-align:right; }
-  .speedNum{ font-size:44px; font-weight:800; line-height:1; color:#ffcba4; text-shadow:0 0 18px rgba(193,80,46,.6); }
+  .speedNum{ font-size:44px; font-weight:800; line-height:1; color:#ffcba4; text-shadow:0 0 15px rgba(193,80,46,.51); }
   .minimapWrap{ position:absolute; bottom:18px; left:18px; }
   #minimap{ background:rgba(255,255,255,.95); border:1px solid rgba(193,80,46,.25); border-radius:12px; pointer-events:all; }
   #minimap.ownerTeleportable{ cursor:crosshair; }
-  #minimap.ownerTeleportable:hover{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(193,80,46,.3); }
+  #minimap.ownerTeleportable:hover{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(193,80,46,.25); }
   .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:all; }
   .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:rgba(10,14,20,.72);
@@ -221,9 +221,9 @@
     color:var(--muted); font:inherit; font-size:14px; font-weight:800; padding:9px 22px; cursor:not-allowed;
     display:flex; align-items:center; gap:8px; letter-spacing:.5px; transition:transform .15s, box-shadow .15s, color .15s, background .15s, border-color .15s; }
   .boostBtn.ready{ color:#fff8ef; background:linear-gradient(135deg,#d98c3d,#c1502e); border-color:#d98c3d;
-    cursor:pointer; box-shadow:0 0 18px rgba(217,140,61,.7); animation:boostPulse 1s ease-in-out infinite; }
+    cursor:pointer; box-shadow:0 0 15px rgba(217,140,61,.6); animation:boostPulse 1s ease-in-out infinite; }
   .boostBtn.active{ color:#fff8ef; background:linear-gradient(135deg,#f3cd8e,#c1502e); border-color:#f3cd8e;
-    cursor:default; animation:none; box-shadow:0 0 24px rgba(217,140,61,.85); }
+    cursor:default; animation:none; box-shadow:0 0 20px rgba(217,140,61,.72); }
   .boostBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   .teleportBtn{ position:fixed; top:78px; right:16px; z-index:20; background:linear-gradient(135deg,#a83a2a,#7a2418);
     color:#fff3e6; border:none; border-radius:999px; padding:10px 16px; font-weight:800; font-size:13px; cursor:pointer; }
@@ -246,7 +246,7 @@
   .toast.show{ opacity:1; }
   .countdownWrap{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   .countdownWrap[hidden]{ display:none !important; }
-  .countdownNum{ font-size:clamp(60px,14vw,140px); font-weight:900; color:var(--accent); text-shadow:0 0 40px rgba(193,80,46,.7); }
+  .countdownNum{ font-size:clamp(60px,14vw,140px); font-weight:900; color:#ffcba4; text-shadow:0 0 33px rgba(193,80,46,.6); }
 
   .overlay{ position:absolute; inset:0; background:rgba(59,36,21,.55); display:flex; align-items:center; justify-content:center; pointer-events:all; }
   .overlay[hidden]{ display:none !important; }
@@ -927,16 +927,16 @@ function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
 
 const STAGES = [
   { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0 },
-  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:2, width:20, unlockRaces:0 },
+  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:0 },
   { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:1 },
-  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:3, width:19, unlockRaces:2 },
-  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:4, width:21, unlockRaces:4 },
-  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:4, width:21, unlockRaces:6 },
-  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:5, width:20, unlockRaces:9 },
-  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:6, width:19, unlockRaces:12 },
-  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:6, width:19, unlockRaces:16 },
+  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:2 },
+  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:3, width:21, unlockRaces:4 },
+  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:6 },
+  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:9 },
+  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:4, width:19, unlockRaces:12 },
+  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:16 },
   { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:20 },
-  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:5, width:20, unlockRaces:24 },
+  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:24 },
   { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:28 }
 ];
 let selectedStage = 0;
@@ -3299,6 +3299,14 @@ function teleportPlayerToIndex(newIdx, announceMsg){
     player.lapArmed = false;
     completeLap(player);
     lapCounted = true;
+  }
+  // Landing anywhere past the midpoint arming zone — including right up
+  // against the finish line — without having driven through that zone this
+  // lap would otherwise leave lapArmed false, so the very next time the car
+  // crosses the line for real goes uncounted. Teleporting "behind" the
+  // finish line is exactly this case: arm the lap here too.
+  if(!lapCounted && newIdx >= N*0.35){
+    player.lapArmed = true;
   }
   // Resync prevIndex to the new position now, so the very next physics tick
   // doesn't also see a stale prevIndex and either double-count this same
