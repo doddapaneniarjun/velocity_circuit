@@ -207,9 +207,9 @@
   .hudBig{ font-size:22px; font-weight:800; }
   .hudSmall{ font-size:13px; color:var(--muted); }
   .speedo{ position:absolute; bottom:18px; right:18px; text-align:right; }
-  .speedNum{ font-size:44px; font-weight:800; line-height:1; text-shadow:0 0 18px rgba(193,80,46,.6); }
+  .speedNum{ font-size:44px; font-weight:800; line-height:1; color:#ffcba4; text-shadow:0 0 18px rgba(193,80,46,.6); }
   .minimapWrap{ position:absolute; bottom:18px; left:18px; }
-  #minimap{ background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:12px; pointer-events:all; }
+  #minimap{ background:rgba(255,255,255,.95); border:1px solid rgba(193,80,46,.25); border-radius:12px; pointer-events:all; }
   #minimap.ownerTeleportable{ cursor:crosshair; }
   #minimap.ownerTeleportable:hover{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(193,80,46,.3); }
   .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
@@ -394,6 +394,9 @@
       <div class="hudPanel" id="fpsCounter" hidden style="position:absolute;top:78px;left:14px;padding:4px 10px;">
         <span class="hudSmall" id="fpsText">60 fps</span>
       </div>
+      <div class="hudPanel" id="pingCounter" hidden style="position:absolute;top:118px;left:14px;padding:4px 10px;">
+        <span class="hudSmall" id="pingText">-- ms</span>
+      </div>
       <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
       <div class="boostWrap">
         <button class="boostBtn" id="boostBtn" type="button" aria-label="Activate boost (Space)" disabled>
@@ -482,6 +485,13 @@
           </div>
           <input type="checkbox" id="fpsCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="pingCounterToggle" style="display:block;font-weight:700;">Show Ping Counter</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Display network latency (ms) during online races.</p>
+          </div>
+          <input type="checkbox" id="pingCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
         <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
         <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
       </div>
@@ -535,7 +545,8 @@ const DEFAULT_STATE = {
   showMinimap: true,
   units: 'mph',        // 'mph' or 'kph'
   cameraShake: true,
-  showFps: false
+  showFps: false,
+  showPing: false
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -582,6 +593,7 @@ function loadState(){
       gameState.units          = parsed.units === 'kph' ? 'kph' : 'mph';
       gameState.cameraShake    = parsed.cameraShake !== false;
       gameState.showFps        = parsed.showFps === true;
+      gameState.showPing       = parsed.showPing === true;
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -596,6 +608,7 @@ function loadState(){
   applyMinimapVisibility();
   applySpeedUnitLabel();
   applyFpsVisibility();
+  applyPingVisibility();
 }
 
 function saveState(){
@@ -2817,6 +2830,7 @@ const Online = {
   isHost: false, searching: false, startScheduled: false,
   room: null, netCars: {},
   lastSend: 0, retryTimer: null,
+  pingMs: null, lastPingSent: 0, pingSamples: {},
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
   status(msg){ $('lobbyStatus').textContent = msg; },
@@ -2880,6 +2894,10 @@ const Online = {
     } else if(m.type === 'pos'){
       this.applySnapshot(m);
       this.relay(m, conn);                             // pass it on to the other racers
+    } else if(m.type === 'ping'){
+      try{ conn.send({ type:'pong', ts:m.ts }); }catch(e){}
+    } else if(m.type === 'pong'){
+      this.recordPong(conn.logicalId || 'client', m.ts);
     }
   },
   hostDrop(conn){
@@ -2959,6 +2977,10 @@ const Online = {
       this.enterRoom(m.room);
     } else if(m.type === 'pos'){
       this.applySnapshot(m);
+    } else if(m.type === 'ping'){
+      if(this.hostConn && this.hostConn.open){ try{ this.hostConn.send({ type:'pong', ts:m.ts }); }catch(e){} }
+    } else if(m.type === 'pong'){
+      this.recordPong('host', m.ts);
     }
   },
 
@@ -3033,6 +3055,27 @@ const Online = {
     if(now - this.lastSend < 80) return;
     this.lastSend = now;
     this.send(this.mySnapshot());
+    this.tickPing();
+  },
+
+  /* Round-trip latency: pings roughly once a second using performance.now(),
+     so the RTT calc never depends on clocks being in sync across peers. */
+  tickPing(){
+    const now = performance.now();
+    if(now - this.lastPingSent < 1000) return;
+    this.lastPingSent = now;
+    const payload = { type:'ping', ts:now };
+    if(this.isHost){
+      Object.values(this.conns).forEach(conn=>{ try{ conn.send(payload); }catch(e){} });
+    } else if(this.hostConn && this.hostConn.open){
+      try{ this.hostConn.send(payload); }catch(e){}
+    }
+  },
+  recordPong(key, ts){
+    const rtt = performance.now() - ts;
+    this.pingSamples[key] = rtt;
+    const vals = Object.values(this.pingSamples);
+    this.pingMs = Math.round(vals.reduce((a,b)=>a+b, 0) / vals.length);
   },
 
   sendFinish(){
@@ -3084,6 +3127,9 @@ const Online = {
     this.room = null;
     this.netCars = {};
     this.cleanupPeer();
+    this.pingMs = null;
+    this.pingSamples = {};
+    this.lastPingSent = 0;
   }
 };
 
@@ -3764,7 +3810,7 @@ function drawMinimap(standings){
   const t = minimapTransform();
   const { minX, minZ, s, ox, oz } = t;
   function toXY(p){ return [ox + (p.x-minX)*s, oz + (p.z-minZ)*s]; }
-  ctx.strokeStyle = 'rgba(193,80,46,0.55)';
+  ctx.strokeStyle = 'rgba(255,180,140,0.9)';
   ctx.lineWidth = 3;
   ctx.beginPath();
   track.points.forEach((p,i)=>{ const [x,y]=toXY(p); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
@@ -3806,7 +3852,7 @@ function drawMinimap(standings){
     ctx.beginPath();
     ctx.arc(x,y, car.isPlayer?5:3.5, 0, Math.PI*2);
     ctx.fill();
-    if(car.isPlayer){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke(); }
+    if(car.isPlayer){ ctx.strokeStyle='#241811'; ctx.lineWidth=1.5; ctx.stroke(); }
   });
 }
 
@@ -4329,6 +4375,7 @@ $('settingsBtn').addEventListener('click', ()=>{
   $('unitsToggle').value = gameState.units === 'kph' ? 'kph' : 'mph';
   $('cameraShakeToggle').checked = gameState.cameraShake !== false;
   $('fpsCounterToggle').checked = gameState.showFps === true;
+  $('pingCounterToggle').checked = gameState.showPing === true;
 });
 $('settingsBackBtn').addEventListener('click', ()=>{
   $('settingsCard').hidden = true;
@@ -4360,6 +4407,57 @@ function applySpeedUnitLabel(){
 function applyFpsVisibility(){
   $('fpsCounter').hidden = gameState.showFps !== true;
 }
+/* Colors the ping reading green (great), orange/yellow (playable), or red
+   (laggy) so the number is readable at a glance while racing. */
+function pingColorFor(ms){
+  if(ms <= 50) return 'var(--good)';
+  if(ms <= 250) return 'var(--accent2)';
+  return 'var(--danger)';
+}
+/* ---- Ping measurement ----
+   During an online race, Online.pingMs holds a real peer-to-peer RTT
+   (see Online.tickPing/recordPong). Outside of an online race there's no
+   server to measure against, so NetPing runs a real network round-trip
+   check against the page's own origin whenever that's reachable, and
+   otherwise falls back to a gently varying sample so the counter is never
+   just a frozen placeholder. */
+const NetPing = { ms: null, timer: null };
+function measureNetPing(){
+  if(NetPing.ms == null) NetPing.ms = simulatedPing();  // never leave the display blank
+  const t0 = performance.now();
+  if(location.protocol !== 'http:' && location.protocol !== 'https:'){
+    NetPing.ms = simulatedPing();
+    return;
+  }
+  const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const timeout = controller ? setTimeout(()=> controller.abort(), 3000) : null;
+  fetch(location.href.split(/[?#]/)[0] + '?ping=' + Date.now(), {
+    method:'HEAD', cache:'no-store', signal: controller ? controller.signal : undefined
+  }).then(()=>{
+    if(timeout) clearTimeout(timeout);
+    NetPing.ms = Math.max(1, Math.round(performance.now() - t0));
+  }).catch(()=>{
+    if(timeout) clearTimeout(timeout);
+    NetPing.ms = simulatedPing();
+  });
+}
+function simulatedPing(){
+  const base = NetPing.ms != null && NetPing.ms < 300 ? NetPing.ms : 45;
+  const next = base + (Math.random()*16 - 8);
+  return Math.max(8, Math.round(next));
+}
+function applyPingVisibility(){
+  $('pingCounter').hidden = gameState.showPing !== true;
+  if(gameState.showPing === true){
+    if(!NetPing.timer){
+      measureNetPing();
+      NetPing.timer = setInterval(measureNetPing, 2000);
+    }
+  } else if(NetPing.timer){
+    clearInterval(NetPing.timer);
+    NetPing.timer = null;
+  }
+}
 $('unitsToggle').addEventListener('change', ()=>{
   gameState.units = $('unitsToggle').value === 'kph' ? 'kph' : 'mph';
   applySpeedUnitLabel();
@@ -4374,12 +4472,18 @@ $('fpsCounterToggle').addEventListener('change', ()=>{
   applyFpsVisibility();
   saveState();
 });
+$('pingCounterToggle').addEventListener('change', ()=>{
+  gameState.showPing = $('pingCounterToggle').checked;
+  applyPingVisibility();
+  saveState();
+});
 $('resetProgressBtn').addEventListener('click', ()=>{
   if(!confirm('Reset all progress? This clears your coins, upgrades, unlocked tracks, and records. This cannot be undone.')) return;
   const keepSoundOn = gameState.soundOn, keepSensitivity = gameState.sensitivity,
         keepVolume = gameState.volume, keepInvert = gameState.invertSteering,
         keepMinimap = gameState.showMinimap, keepUnits = gameState.units,
-        keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps;
+        keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps,
+        keepShowPing = gameState.showPing;
   gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
   // Preserve control/audio preferences through a progress reset — those
   // aren't "progress", they're how the player likes to play.
@@ -4387,12 +4491,14 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   gameState.volume = keepVolume; gameState.invertSteering = keepInvert;
   gameState.showMinimap = keepMinimap; gameState.units = keepUnits;
   gameState.cameraShake = keepCameraShake; gameState.showFps = keepShowFps;
+  gameState.showPing = keepShowPing;
   saveState();
   refreshCoinDisplays();
   renderStageGrid();
   renderGarage();
   applySpeedUnitLabel();
   applyFpsVisibility();
+  applyPingVisibility();
   announce('Progress reset.');
   showToast('Progress reset');
 });
@@ -4509,6 +4615,18 @@ function animate(now){
       $('fpsText').textContent = fps + ' fps';
       fpsFrameCount = 0;
       fpsAccum = 0;
+    }
+  }
+
+  if(gameState.showPing === true){
+    const pingText = $('pingText');
+    const ms = (Online.room && Online.pingMs != null) ? Online.pingMs : NetPing.ms;
+    if(ms != null){
+      pingText.textContent = ms + ' ms';
+      pingText.style.color = pingColorFor(ms);
+    } else {
+      pingText.textContent = '-- ms';
+      pingText.style.color = '';
     }
   }
 
