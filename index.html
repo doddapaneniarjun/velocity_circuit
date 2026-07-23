@@ -6,15 +6,15 @@
 <title>Velocity Circuit — 3D Racing</title>
 <style>
   :root{
-    --bg:#0a0e14;
-    --panel:#121826;
-    --panel2:#1a2233;
-    --text:#eef2f7;
-    --muted:#93a1b5;
-    --accent:#4fd8ff;
-    --accent2:#ffc94f;
-    --danger:#ff5f6d;
-    --good:#3ddc84;
+    --bg:#f3e6d3;
+    --panel:#fbf1e4;
+    --panel2:#ead9bd;
+    --text:#3b2415;
+    --muted:#8a6f52;
+    --accent:#c1502e;
+    --accent2:#d98c3d;
+    --danger:#a83a2a;
+    --good:#6f8f46;
     --radius:14px;
   }
   *{box-sizing:border-box;}
@@ -34,42 +34,51 @@
 
   /* ---------- Home ---------- */
   #homeScreen{ background:
-      radial-gradient(1200px 700px at 20% 15%, #16233a 0%, transparent 60%),
-      radial-gradient(1000px 700px at 85% 85%, #1c1330 0%, transparent 60%),
+      radial-gradient(1200px 700px at 20% 15%, #fff6e8 0%, transparent 60%),
+      radial-gradient(1000px 700px at 85% 85%, #e7c9a0 0%, transparent 60%),
       var(--bg);
     text-align:center; padding:24px; overflow-y:auto; justify-content:flex-start;
   }
   .title{ font-size:clamp(32px,6vw,58px); font-weight:800; letter-spacing:2px; margin:0; color:var(--text);
-    text-shadow:0 0 24px rgba(79,216,255,.45); }
+    text-shadow:0 0 24px rgba(193,80,46,.45); }
   .title span{ color:var(--accent); }
   .subtitle{ color:var(--muted); margin:6px 0 28px; font-size:16px; }
 
-  .coinBar{ position:fixed; top:16px; right:16px; background:var(--panel); border:1px solid #2a3549;
+  .coinBar{ position:fixed; top:16px; right:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:16px; display:flex; align-items:center; gap:8px; z-index:20; }
   .coinDot{ width:16px; height:16px; border-radius:50%; background:var(--accent2); box-shadow:0 0 10px var(--accent2); flex:none; }
-  .ratingBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid #2a3549;
+  .ratingBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .ratingBar strong{ color:var(--text); }
 
-  .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid #2a3549;
+  .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:8px 14px; border-radius:999px; font-weight:600; font-size:13px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .profileBar strong{ color:var(--text); }
-  .adminBadge{ background:linear-gradient(135deg,#ffd23f,#ff8a1e); color:#241a06; font-weight:800;
+  .adminBadge{ background:linear-gradient(135deg,#d98c3d,#c1502e); color:#fff8ef; font-weight:800;
     font-size:11px; padding:3px 8px; border-radius:999px; letter-spacing:.5px; }
+  .ownerBadge{ background:linear-gradient(135deg,#a83a2a,#7a2418); color:#fff3e6; font-weight:800;
+    font-size:11px; padding:3px 8px; border-radius:999px; letter-spacing:.5px; }
+  .managePlayersBtn{ position:fixed; top:112px; right:16px; z-index:20; }
+  .playerRow{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--panel2); border:1px solid #d9c3a1; border-radius:10px; padding:10px 12px; margin-bottom:8px; text-align:left; }
+  .playerRow .who{ display:flex; flex-direction:column; }
+  .playerRow .who small{ color:var(--muted); }
+  .playerRow.banned{ opacity:.55; }
+  .playerListWrap{ max-height:340px; overflow-y:auto; margin:16px 0; }
   .logoutLink{ background:none; border:none; color:var(--accent); font:inherit; font-weight:700; font-size:13px; cursor:pointer; padding:0; }
   .logoutLink:hover{ text-decoration:underline; }
   .logoutLink:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
 
   /* ---------- Login ---------- */
   #loginScreen{ background:
-      radial-gradient(1200px 700px at 20% 15%, #16233a 0%, transparent 60%),
-      radial-gradient(1000px 700px at 85% 85%, #1c1330 0%, transparent 60%),
+      radial-gradient(1200px 700px at 20% 15%, #fff6e8 0%, transparent 60%),
+      radial-gradient(1000px 700px at 85% 85%, #e7c9a0 0%, transparent 60%),
       var(--bg);
     padding:24px; }
   .loginCard{ width:min(380px,92vw); text-align:center; }
   .loginField{ text-align:left; margin-bottom:16px; }
   .loginField label{ display:block; font-weight:700; font-size:14px; margin-bottom:6px; }
-  .loginInput{ width:100%; padding:12px 14px; border-radius:10px; border:1px solid #2e3a52;
+  .loginInput{ width:100%; padding:12px 14px; border-radius:10px; border:1px solid #d9c3a1;
     background:var(--panel); color:var(--text); font:inherit; font-size:15px; }
   .loginInput:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
   .loginError{ color:var(--danger); font-size:13px; margin:0 0 14px; min-height:16px; }
@@ -77,7 +86,7 @@
   .loginNote{ color:var(--muted); font-size:12px; margin-top:22px; line-height:1.5; }
 
   .stageGrid{ display:flex; gap:18px; flex-wrap:wrap; justify-content:center; max-width:920px; margin-bottom:26px; }
-  .stageCard{ width:220px; background:var(--panel); border:2px solid #263349; border-radius:var(--radius);
+  .stageCard{ width:220px; background:var(--panel); border:2px solid #cbb08a; border-radius:var(--radius);
     padding:14px; cursor:pointer; text-align:left; color:var(--text); font:inherit; transition:border-color .15s, transform .15s; }
   .stageCard:hover{ transform:translateY(-2px); }
   .stageCard:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
@@ -94,75 +103,75 @@
   .carCardWrap{ position:relative; width:206px; }
   .carCardWrap .carCard{ width:100%; }
   .trackRenameBtn{ position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:50%;
-    border:1px solid #2a3549; background:rgba(10,14,20,.82); color:var(--text); font-size:13px;
+    border:1px solid #d9c3a1; background:rgba(59,36,21,.78); color:var(--text); font-size:13px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; padding:0; }
   .trackRenameBtn:hover{ border-color:var(--accent); }
   .trackRenameBtn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
   .carGrid{ display:flex; gap:14px; flex-wrap:wrap; }
-  .carCard{ width:206px; background:var(--panel); border:2px solid #263349; border-radius:var(--radius);
+  .carCard{ width:206px; background:var(--panel); border:2px solid #cbb08a; border-radius:var(--radius);
     padding:14px; text-align:left; }
   .carCard.equipped{ border-color:var(--good); box-shadow:0 0 0 1px var(--good) inset; }
   .carCard.locked{ opacity:.72; }
   .carPreview{ width:100%; height:auto; display:block; border-radius:10px; margin-bottom:10px;
-    background:radial-gradient(120% 95% at 50% 20%, #1d2940 0%, #0c111d 75%); }
+    background:radial-gradient(120% 95% at 50% 20%, #f6e9d6 0%, #ecd8b8 75%); }
   .carName{ font-weight:700; font-size:15px; margin:0 0 8px; }
   .carStatsWrap{ margin:0 0 12px; }
   .statRow{ display:flex; align-items:center; gap:7px; margin-bottom:5px; }
   .statRow:last-child{ margin-bottom:0; }
   .statLabel{ width:30px; font-size:10px; font-weight:700; letter-spacing:.5px; color:var(--muted); }
-  .statTrack{ flex:1; height:6px; border-radius:999px; background:#232e44; overflow:hidden; }
+  .statTrack{ flex:1; height:6px; border-radius:999px; background:#e4d3b3; overflow:hidden; }
   .statFill{ display:block; height:100%; border-radius:999px; }
   .statFill.spd{ background:linear-gradient(90deg,#37b6ff,#4fd8ff); }
   .statFill.acc{ background:linear-gradient(90deg,#2fbf71,#3ddc84); }
   .statFill.hnd{ background:linear-gradient(90deg,#7d4fff,#9b5cff); }
   .statFill.wgt{ background:linear-gradient(90deg,#8fa0b8,#b8c4d9); }
-  .statFill.bst{ background:linear-gradient(90deg,#ff8a1e,#ffd23f); }
+  .statFill.bst{ background:linear-gradient(90deg,#c1502e,#d98c3d); }
   .statVal{ width:14px; font-size:10px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums; }
   .carCard .btn{ width:100%; padding:10px 12px; font-size:14px; min-height:38px; }
 
   .btn{ font:inherit; font-weight:700; font-size:16px; border:none; border-radius:12px; padding:14px 26px;
-    cursor:pointer; color:#06101c; background:var(--accent); min-height:48px; letter-spacing:.3px;
+    cursor:pointer; color:#fff8ef; background:var(--accent); min-height:48px; letter-spacing:.3px;
     transition:transform .12s, filter .12s; }
   .btn:hover{ filter:brightness(1.08); transform:translateY(-1px); }
   .btn:focus-visible{ outline:3px solid #fff; outline-offset:2px; }
   .btn:active{ transform:translateY(0); }
-  .btn.secondary{ background:var(--panel2); color:var(--text); border:1px solid #2e3a52; }
-  .btn.ghost{ background:transparent; color:var(--text); border:1px solid #35415a; }
+  .btn.secondary{ background:var(--panel2); color:var(--text); border:1px solid #d9c3a1; }
+  .btn.ghost{ background:transparent; color:var(--text); border:1px solid #cbb08a; }
   .btn:disabled{ opacity:.45; cursor:not-allowed; filter:none; transform:none; }
   .btnRow{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
 
   /* ---------- Mode select (new home) ---------- */
   #modeScreen{ background:
-      radial-gradient(1200px 700px at 20% 15%, #16233a 0%, transparent 60%),
-      radial-gradient(1000px 700px at 85% 85%, #1c1330 0%, transparent 60%),
+      radial-gradient(1200px 700px at 20% 15%, #fff6e8 0%, transparent 60%),
+      radial-gradient(1000px 700px at 85% 85%, #e7c9a0 0%, transparent 60%),
       var(--bg);
     text-align:center; padding:24px;
   }
   .megaTitle{ font-size:clamp(44px,10vw,110px); font-weight:900; letter-spacing:4px; margin:0 0 42px;
-    color:var(--text); text-shadow:0 0 34px rgba(79,216,255,.55); line-height:1.05; }
+    color:var(--text); text-shadow:0 0 34px rgba(193,80,46,.55); line-height:1.05; }
   .megaTitle span{ color:var(--accent); }
   .modeBtn{ font:inherit; font-weight:800; font-size:clamp(20px,3.4vw,28px); letter-spacing:2px;
-    border:2px solid #2a3549; border-radius:18px; padding:22px 0; width:min(340px,84vw);
+    border:2px solid #d9c3a1; border-radius:18px; padding:22px 0; width:min(340px,84vw);
     background:var(--panel); color:var(--text); cursor:pointer; display:block; margin:0 auto 18px;
     transition:transform .12s, border-color .12s, box-shadow .12s; }
-  .modeBtn:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 0 22px rgba(79,216,255,.25); }
+  .modeBtn:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 0 22px rgba(193,80,46,.25); }
   .modeBtn.online{ border-color:var(--accent); color:var(--accent); }
   .modeBtn small{ display:block; font-weight:600; font-size:13px; letter-spacing:.5px; color:var(--muted); margin-top:6px; }
   .modeFootnote{ color:var(--muted); font-size:12px; margin-top:26px; }
 
   /* ---------- Online lobby ---------- */
   #onlineScreen{ background:var(--bg); padding:24px; }
-  .lobbyCard{ background:var(--panel); border:1px solid #2a3549; border-radius:var(--radius);
+  .lobbyCard{ background:var(--panel); border:1px solid #d9c3a1; border-radius:var(--radius);
     padding:28px 26px; width:min(460px,94vw); text-align:center; }
   .lobbyStatus{ font-size:18px; font-weight:700; margin:14px 0 6px; }
   .lobbySub{ color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.5; }
   .lobbyPlayers{ list-style:none; margin:0 0 18px; padding:0; }
-  .lobbyPlayers li{ background:var(--panel2); border:1px solid #2a3549; border-radius:10px;
+  .lobbyPlayers li{ background:var(--panel2); border:1px solid #d9c3a1; border-radius:10px;
     padding:10px 14px; margin-bottom:8px; font-weight:700; display:flex; justify-content:space-between; }
   .lobbyPlayers li .you{ color:var(--accent); font-weight:600; }
   .spinner{ width:34px; height:34px; border-radius:50%; margin:6px auto 0;
-    border:3px solid #2a3549; border-top-color:var(--accent); animation:spin 0.9s linear infinite; }
+    border:3px solid #d9c3a1; border-top-color:var(--accent); animation:spin 0.9s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
 
@@ -172,19 +181,19 @@
   #garageScreen{ background:var(--bg); padding:24px; overflow-y:auto; justify-content:flex-start; }
   #upgradesScreen{ background:var(--bg); padding:24px; overflow-y:auto; justify-content:flex-start; }
   .garageWrap{ width:min(920px,94vw); }
-  .garageHeader{ display:flex; align-items:center; justify-content:space-between; margin:-24px -24px 18px; padding:16px 24px; gap:10px; flex-wrap:wrap; position:sticky; top:-24px; background:var(--bg); z-index:5; border-bottom:1px solid #1a2233; }
+  .garageHeader{ display:flex; align-items:center; justify-content:space-between; margin:-24px -24px 18px; padding:16px 24px; gap:10px; flex-wrap:wrap; position:sticky; top:-24px; background:var(--bg); z-index:5; border-bottom:1px solid #e3d2b3; }
   .sectionTitle{ font-size:20px; font-weight:800; margin:22px 0 12px; }
   .colorRow{ display:flex; gap:12px; flex-wrap:wrap; }
   .colorSwatch{ width:56px; height:56px; border-radius:14px; border:3px solid transparent; cursor:pointer; }
-  .colorSwatch.selected{ border-color:#fff; }
+  .colorSwatch.selected{ border-color:var(--text); }
   .colorSwatch:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
 
-  .upgradeCard{ background:var(--panel); border:1px solid #263349; border-radius:var(--radius); padding:16px 18px;
+  .upgradeCard{ background:var(--panel); border:1px solid #cbb08a; border-radius:var(--radius); padding:16px 18px;
     display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:12px; flex-wrap:wrap; }
   .upgradeInfo{ min-width:220px; }
   .upgradeName{ font-weight:700; font-size:16px; margin:0 0 6px; }
   .dots{ display:flex; gap:6px; }
-  .dot{ width:14px; height:14px; border-radius:50%; background:#2a3549; }
+  .dot{ width:14px; height:14px; border-radius:50%; background:#d9c3a1; }
   .dot.filled{ background:var(--accent); }
   .upgradeBuy{ display:flex; align-items:center; gap:10px; }
   .costTag{ color:var(--muted); font-size:14px; min-width:90px; text-align:right; }
@@ -194,58 +203,64 @@
   #canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
   #hud{ position:absolute; inset:0; pointer-events:none; }
   .hudTop{ position:absolute; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-start; }
-  .hudPanel{ background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:12px; padding:10px 16px; backdrop-filter:blur(4px); }
+  .hudPanel{ background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:12px; padding:10px 16px; backdrop-filter:blur(4px); }
   .hudBig{ font-size:22px; font-weight:800; }
   .hudSmall{ font-size:13px; color:var(--muted); }
   .speedo{ position:absolute; bottom:18px; right:18px; text-align:right; }
-  .speedNum{ font-size:44px; font-weight:800; line-height:1; text-shadow:0 0 18px rgba(79,216,255,.6); }
+  .speedNum{ font-size:44px; font-weight:800; line-height:1; text-shadow:0 0 18px rgba(193,80,46,.6); }
   .minimapWrap{ position:absolute; bottom:18px; left:18px; }
-  #minimap{ background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:12px; }
+  #minimap{ background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:12px; pointer-events:all; }
+  #minimap.ownerTeleportable{ cursor:crosshair; }
+  #minimap.ownerTeleportable:hover{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(193,80,46,.3); }
   .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:all; }
   .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:rgba(10,14,20,.72);
-    border:1px solid rgba(79,216,255,.25); overflow:hidden; }
-  .boostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #ff8a1e, #ffd23f); }
-  .boostBtn{ background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:999px;
+    border:1px solid rgba(193,80,46,.25); overflow:hidden; }
+  .boostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #c1502e, #d98c3d); }
+  .boostBtn{ background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:999px;
     color:var(--muted); font:inherit; font-size:14px; font-weight:800; padding:9px 22px; cursor:not-allowed;
     display:flex; align-items:center; gap:8px; letter-spacing:.5px; transition:transform .15s, box-shadow .15s, color .15s, background .15s, border-color .15s; }
-  .boostBtn.ready{ color:#241a06; background:linear-gradient(135deg,#ffd23f,#ff8a1e); border-color:#ffd23f;
-    cursor:pointer; box-shadow:0 0 18px rgba(255,178,50,.7); animation:boostPulse 1s ease-in-out infinite; }
-  .boostBtn.active{ color:#241a06; background:linear-gradient(135deg,#fff2b0,#ff8a1e); border-color:#fff2b0;
-    cursor:default; animation:none; box-shadow:0 0 24px rgba(255,178,50,.85); }
+  .boostBtn.ready{ color:#fff8ef; background:linear-gradient(135deg,#d98c3d,#c1502e); border-color:#d98c3d;
+    cursor:pointer; box-shadow:0 0 18px rgba(217,140,61,.7); animation:boostPulse 1s ease-in-out infinite; }
+  .boostBtn.active{ color:#fff8ef; background:linear-gradient(135deg,#f3cd8e,#c1502e); border-color:#f3cd8e;
+    cursor:default; animation:none; box-shadow:0 0 24px rgba(217,140,61,.85); }
   .boostBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+  .teleportBtn{ position:fixed; top:78px; right:16px; z-index:20; background:linear-gradient(135deg,#a83a2a,#7a2418);
+    color:#fff3e6; border:none; border-radius:999px; padding:10px 16px; font-weight:800; font-size:13px; cursor:pointer; }
+  .teleportBtn:hover{ filter:brightness(1.08); }
+  .teleportBtn:focus-visible{ outline:3px solid #fff; outline-offset:2px; }
   @keyframes boostPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
   .controlsHint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); background:rgba(10,14,20,.72);
-    border:1px solid rgba(79,216,255,.25); border-radius:10px; padding:6px 14px; font-size:13px; color:var(--muted); }
+    border:1px solid rgba(193,80,46,.25); border-radius:10px; padding:6px 14px; font-size:13px; color:var(--muted); }
   .soundBtn{ position:absolute; top:14px; right:14px; margin-top:64px; pointer-events:all;
-    background:rgba(10,14,20,.72); border:1px solid rgba(79,216,255,.25); border-radius:10px;
+    background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:10px;
     color:var(--muted); font:inherit; font-size:13px; font-weight:700; padding:7px 12px; cursor:pointer;
     display:flex; align-items:center; gap:7px; }
-  .soundBtn:hover{ color:var(--text); border-color:rgba(79,216,255,.6); }
+  .soundBtn:hover{ color:var(--text); border-color:rgba(193,80,46,.6); }
   .soundBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
-  .soundBtn.off{ color:var(--danger); border-color:rgba(255,95,109,.45); }
-  .soundBtn.warn{ color:var(--accent2); border-color:rgba(255,201,79,.6); }
-  .toast{ position:absolute; top:80px; left:50%; transform:translateX(-50%); background:rgba(61,220,132,.15);
+  .soundBtn.off{ color:var(--danger); border-color:rgba(168,58,42,.45); }
+  .soundBtn.warn{ color:var(--accent2); border-color:rgba(217,140,61,.6); }
+  .toast{ position:absolute; top:80px; left:50%; transform:translateX(-50%); background:rgba(111,143,70,.15);
     border:1px solid var(--good); color:var(--good); font-weight:700; padding:8px 18px; border-radius:999px;
     font-size:15px; opacity:0; transition:opacity .25s, transform .25s; }
   .toast.show{ opacity:1; }
   .countdownWrap{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   .countdownWrap[hidden]{ display:none !important; }
-  .countdownNum{ font-size:clamp(60px,14vw,140px); font-weight:900; color:var(--accent); text-shadow:0 0 40px rgba(79,216,255,.7); }
+  .countdownNum{ font-size:clamp(60px,14vw,140px); font-weight:900; color:var(--accent); text-shadow:0 0 40px rgba(193,80,46,.7); }
 
-  .overlay{ position:absolute; inset:0; background:rgba(6,9,14,.86); display:flex; align-items:center; justify-content:center; pointer-events:all; }
+  .overlay{ position:absolute; inset:0; background:rgba(59,36,21,.55); display:flex; align-items:center; justify-content:center; pointer-events:all; }
   .overlay[hidden]{ display:none !important; }
-  .overlayCard{ background:var(--panel); border:1px solid #263349; border-radius:var(--radius); padding:30px 34px; text-align:center; width:min(420px,88vw); }
+  .overlayCard{ background:var(--panel); border:1px solid #cbb08a; border-radius:var(--radius); padding:30px 34px; text-align:center; width:min(420px,88vw); }
   .overlayCard h2{ margin:0 0 6px; font-size:24px; }
   .overlayCard p{ color:var(--muted); margin:4px 0 20px; }
 
-  .resultRow{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #263349; font-size:15px; }
+  .resultRow{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #cbb08a; font-size:15px; }
   .resultRow:last-child{ border-bottom:none; }
 
   .liveRegion{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
 
   ::-webkit-scrollbar{ width:10px; }
-  ::-webkit-scrollbar-thumb{ background:#263349; border-radius:6px; }
+  ::-webkit-scrollbar-thumb{ background:#cbb08a; border-radius:6px; }
 </style>
 </head>
 <body>
@@ -279,8 +294,9 @@
   <!-- MODE SELECT (new home) -->
   <section id="modeScreen" class="screen" hidden>
     <div class="profileBar" aria-label="Logged in profile">
-      <span aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
+      <span aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><span class="adminBadge" id="modeAdminBadge" hidden>ADMIN</span><span class="ownerBadge" id="modeOwnerBadge" hidden>OWNER</span><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
     </div>
+    <button class="btn secondary managePlayersBtn" id="modeManagePlayersBtn" type="button" hidden>Manage Players</button>
     <h1 class="megaTitle">VELOCITY<br><span>CIRCUIT</span></h1>
     <button class="modeBtn online" id="chooseOnlineBtn" type="button">ONLINE<small>Race other people playing right now</small></button>
     <button class="modeBtn" id="choosePrivateBtn" type="button">PRIVATE<small>Race CPU rivals · tracks · garage · upgrades</small></button>
@@ -310,8 +326,9 @@
     </div>
 
     <div class="profileBar" aria-label="Logged in profile">
-      <span aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="adminBadge" id="adminBadge" hidden>ADMIN</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
+      <span aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="adminBadge" id="adminBadge" hidden>ADMIN</span><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
     </div>
+    <button class="btn secondary managePlayersBtn" id="managePlayersBtn" type="button" hidden>Manage Players</button>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
 
@@ -366,7 +383,8 @@
           <div class="hudSmall"><span class="coinDot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> <span id="hudCoins">0</span> coins</div>
         </div>
       </div>
-      <div class="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc to pause &middot; M to mute</div>
+      <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc to pause &middot; M to mute</div>
+      <button class="teleportBtn" id="teleportBtn" type="button" aria-label="Teleport forward (T)" hidden>🌀 Teleport (T)</button>
       <button class="soundBtn" id="soundBtn" type="button" aria-pressed="true">
         <span id="soundIcon" aria-hidden="true">🔊</span><span id="soundLabel">Sound on</span>
       </button>
@@ -482,6 +500,15 @@
       </div>
     </div>
   </section>
+
+  <div class="overlay" id="managePlayersOverlay" hidden>
+    <div class="overlayCard" style="width:min(480px,90vw);">
+      <h2>Manage Players</h2>
+      <p style="color:var(--muted);margin:0 0 4px;font-size:13px;">Local profiles saved in this browser. Banning a profile blocks it from logging back in on this device.</p>
+      <div class="playerListWrap" id="playerListWrap"></div>
+      <button class="btn ghost" id="managePlayersCloseBtn" style="width:100%;">Close</button>
+    </div>
+  </div>
 
   <div class="liveRegion" id="liveRegion" aria-live="assertive" aria-atomic="true"></div>
 </div>
@@ -606,22 +633,44 @@ window.addEventListener('beforeunload', ()=>{
    hash before being stored in localStorage, which stops a save file from casually
    showing a plaintext password but is NOT cryptographic security. Never reuse a
    real password here. */
-const USERS_KEY   = 'velocityCircuit_users';    // { [lowercaseName]: { hash, display, isAdmin } }
+const USERS_KEY   = 'velocityCircuit_users';    // { [lowercaseName]: { hash, display, isAdmin, isOwner, banned } }
 const SESSION_KEY = 'velocityCircuit_session';  // lowercaseName of the "stay logged in" profile
 let currentUser = null;
 let isAdmin = false;
+let isOwner = false;
 
 // One hardcoded admin account, granted the moment this exact username/password
 // combo is used to sign in successfully (new signup or existing profile).
 // Admin unlocks every track and buys cars/upgrades for free — see
 // isStageUnlocked() and the garage purchase handlers below.
 const ADMIN_USERNAME = 'velocityadmin';
-const ADMIN_PASSWORD = 'trollsaretroll123';
+const ADMIN_PASSWORD = 'trollsaretroll';
 function checkAdmin(nameKey, rawPassword){ return nameKey === ADMIN_USERNAME && rawPassword === ADMIN_PASSWORD; }
+
+// A second credential for the SAME username that grants an "owner" tier on
+// top of admin: everything admin gets, plus banning/unbanning local profiles
+// and teleporting during a race. It's a second password rather than a second
+// username so the login screen only shows one "velocityadmin" identity — the
+// extra password just unlocks a higher tier on that account. Still purely a
+// local, client-side cheat/dev feature: with no server, "banning" a profile
+// just flags that browser-local save so it can't log back in on this device.
+const OWNER_USERNAME = 'velocityadmin';
+const OWNER_PASSWORD = 'trollsarereallytroll123';
+function checkOwner(nameKey, rawPassword){ return nameKey === OWNER_USERNAME && rawPassword === OWNER_PASSWORD; }
 
 function updateAdminBadge(){
   const badge = $('adminBadge');
-  if(badge) badge.hidden = !isAdmin;
+  if(badge) badge.hidden = !isAdmin || isOwner;
+  const modeBadge = $('modeAdminBadge');
+  if(modeBadge) modeBadge.hidden = !isAdmin || isOwner;
+  const oBadge = $('ownerBadge');
+  if(oBadge) oBadge.hidden = !isOwner;
+  const modeOBadge = $('modeOwnerBadge');
+  if(modeOBadge) modeOBadge.hidden = !isOwner;
+  const manageBtn = $('managePlayersBtn');
+  if(manageBtn) manageBtn.hidden = !isOwner;
+  const modeManageBtn = $('modeManagePlayersBtn');
+  if(modeManageBtn) modeManageBtn.hidden = !isOwner;
 }
 
 function saveKeyFor(nameKey){ return 'velocityCircuit_save_' + nameKey; }
@@ -634,7 +683,24 @@ function simpleHash(str){
 }
 
 function readUsers(){
-  try{ return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }catch(e){ return {}; }
+  let db;
+  try{ db = JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }catch(e){ return {}; }
+  // Only the single 'velocityadmin' identity (nameKey, not display casing) may
+  // ever carry isAdmin/isOwner — those flags are only ever set by checkAdmin()/
+  // checkOwner() matching the hardcoded credentials. If any other account has
+  // them (corrupted save, manual localStorage edit, old bug, etc.) strip them
+  // here so privilege can never leak onto the wrong username, and persist the
+  // fix so it stays clean going forward.
+  let dirty = false;
+  Object.keys(db).forEach(key=>{
+    if(key !== ADMIN_USERNAME && (db[key].isAdmin || db[key].isOwner)){
+      db[key].isAdmin = false;
+      db[key].isOwner = false;
+      dirty = true;
+    }
+  });
+  if(dirty){ try{ localStorage.setItem(USERS_KEY, JSON.stringify(db)); }catch(e){} }
+  return db;
 }
 function writeUsers(db){
   try{ localStorage.setItem(USERS_KEY, JSON.stringify(db)); }catch(e){}
@@ -653,9 +719,10 @@ function showLoginScreen(){
 // Enters a logged-in session for nameKey/display, points saves at that
 // profile's own slot, and loads whatever progress it already has (or starts
 // fresh if it's brand new).
-function beginSession(nameKey, display, remember, admin){
+function beginSession(nameKey, display, remember, admin, owner){
   currentUser = nameKey;
-  isAdmin = !!admin;
+  isAdmin = !!admin || !!owner;
+  isOwner = !!owner;
   SAVE_KEY = saveKeyFor(nameKey);
   ROLLBACK_KEY = rollbackKeyFor(nameKey);
   if(remember){
@@ -669,7 +736,7 @@ function beginSession(nameKey, display, remember, admin){
   loadState();
   appState = 'home';
   showScreen('mode');
-  announce('Logged in as ' + display + (isAdmin ? ', admin mode on.' : '.'));
+  announce('Logged in as ' + display + (isOwner ? ', owner mode on.' : (isAdmin ? ', admin mode on.' : '.')));
 }
 
 function attemptLogin(rawUsername, rawPassword){
@@ -686,20 +753,36 @@ function attemptLogin(rawUsername, rawPassword){
   const nameKey = username.toLowerCase();
   const hash = simpleHash(password);
   const grantsAdmin = checkAdmin(nameKey, password);
+  const grantsOwner = checkOwner(nameKey, password);
+
+  if(users[nameKey] && users[nameKey].banned){
+    errEl.textContent = 'This profile has been banned on this device.';
+    return;
+  }
 
   if(users[nameKey]){
-    if(users[nameKey].hash !== hash){
+    // The two hardcoded credentials both authenticate the velocityadmin
+    // identity regardless of which hash is on file, since either one proves
+    // the account holder — everyone else still needs their matching hash.
+    if(users[nameKey].hash !== hash && !grantsAdmin && !grantsOwner){
       errEl.textContent = 'Incorrect password for that username.';
       return;
     }
   } else {
-    users[nameKey] = { hash, display: username, isAdmin:false };
+    users[nameKey] = { hash, display: username, isAdmin:false, isOwner:false, banned:false };
   }
-  if(grantsAdmin && !users[nameKey].isAdmin) users[nameKey].isAdmin = true;
+  if(nameKey === ADMIN_USERNAME){
+    // Privilege is derived fresh from THIS login's password every time,
+    // rather than only ever being upgraded — otherwise, once the owner
+    // password was used once, isOwner stayed true forever afterward even
+    // when logging back in with the plain admin password.
+    users[nameKey].isAdmin = grantsAdmin || grantsOwner;
+    users[nameKey].isOwner = grantsOwner;
+  }
   writeUsers(users);
 
   const remember = $('rememberMeToggle').checked;
-  beginSession(nameKey, users[nameKey].display, remember, !!users[nameKey].isAdmin);
+  beginSession(nameKey, users[nameKey].display, remember, !!users[nameKey].isAdmin, !!users[nameKey].isOwner);
 }
 
 function logout(){
@@ -707,10 +790,75 @@ function logout(){
   try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
   currentUser = null;
   isAdmin = false;
+  isOwner = false;
   Sound.stop();
   $('loginPassword').value = '';
   $('loginError').textContent = '';
   showLoginScreen();
+}
+
+/* ---------- Owner tools: manage local players (ban/unban) ---------- */
+function renderPlayerList(){
+  const wrap = $('playerListWrap');
+  if(!wrap) return;
+  const users = readUsers();
+  const rows = Object.keys(users).map(key=>{
+    const u = users[key];
+    const tag = u.isOwner ? ' · owner' : (u.isAdmin ? ' · admin' : '');
+    const isSelf = key === currentUser;
+    return `<div class="playerRow ${u.banned?'banned':''}">
+        <div class="who"><strong>${u.display}${isSelf ? ' (you)' : ''}</strong><small>${u.banned ? 'Banned' : 'Active'}${tag}</small></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn ghost" data-rename-key="${key}" style="min-height:34px;padding:8px 14px;">Rename</button>
+          ${u.isOwner ? '' : `<button class="btn ${u.banned?'':'ghost'}" data-ban-key="${key}" style="min-height:34px;padding:8px 14px;">${u.banned ? 'Unban' : 'Ban'}</button>`}
+        </div>
+      </div>`;
+  }).join('');
+  wrap.innerHTML = rows || '<p style="color:var(--muted);">No local profiles yet.</p>';
+}
+function openManagePlayers(){
+  renderPlayerList();
+  $('managePlayersOverlay').hidden = false;
+}
+function wireOwnerToolsUI(){
+  ['managePlayersBtn','modeManagePlayersBtn'].forEach(id=>{
+    const btn = $(id);
+    if(btn) btn.addEventListener('click', openManagePlayers);
+  });
+  $('managePlayersCloseBtn').addEventListener('click', ()=>{ $('managePlayersOverlay').hidden = true; });
+  $('playerListWrap').addEventListener('click', (e)=>{
+    const renameBtn = e.target.closest('[data-rename-key]');
+    if(renameBtn){
+      const key = renameBtn.getAttribute('data-rename-key');
+      const users = readUsers();
+      if(!users[key]) return;
+      const proposed = prompt('New display name for this profile:', users[key].display);
+      if(proposed === null) return; // cancelled
+      const trimmed = proposed.trim();
+      if(!trimmed){ return; }
+      // This only relabels how the account is shown — the login key, saved
+      // progress, and admin/owner flags all stay attached to the same
+      // account. Nothing about the account is removed.
+      users[key].display = trimmed.slice(0,24);
+      writeUsers(users);
+      if(key === currentUser){
+        $('profileNameText').textContent = users[key].display;
+        $('modeProfileName').textContent = users[key].display;
+      }
+      renderPlayerList();
+      announce('Renamed to ' + users[key].display + '.');
+      return;
+    }
+    const btn = e.target.closest('[data-ban-key]');
+    if(!btn) return;
+    const key = btn.getAttribute('data-ban-key');
+    const users = readUsers();
+    if(!users[key]) return;
+    users[key].banned = !users[key].banned;
+    writeUsers(users);
+    renderPlayerList();
+    announce(users[key].banned ? (users[key].display + ' banned.') : (users[key].display + ' unbanned.'));
+  });
 }
 
 /* ============================= CONSTANTS ============================= */
@@ -905,27 +1053,6 @@ function renderStageGrid(){
     if(unlocked){ card.addEventListener('click', ()=>{ selectedStage = i; startRace(i); }); }
     wrap.appendChild(card);
 
-    if(isAdmin){
-      const renameBtn = document.createElement('button');
-      renameBtn.type = 'button';
-      renameBtn.className = 'trackRenameBtn';
-      renameBtn.setAttribute('aria-label', 'Rename ' + displayName);
-      renameBtn.title = 'Rename track';
-      renameBtn.textContent = '✏️';
-      renameBtn.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        const next = window.prompt('Rename track:', displayName);
-        if(next === null) return;
-        const trimmed = next.trim();
-        if(!trimmed || trimmed === displayName) return;
-        renameStage(i, trimmed);
-        renderStageGrid();
-        announce('Track renamed to ' + trimmed + '.');
-        showToast('Track renamed');
-      });
-      wrap.appendChild(renameBtn);
-    }
-
     grid.appendChild(wrap);
   });
   blitStageThumbs();
@@ -1073,27 +1200,6 @@ function renderCarGrid(){
       ${buttonHtml}
     `;
     wrap.appendChild(card);
-
-    if(isAdmin){
-      const renameBtn = document.createElement('button');
-      renameBtn.type = 'button';
-      renameBtn.className = 'trackRenameBtn';
-      renameBtn.setAttribute('aria-label', 'Rename ' + displayName);
-      renameBtn.title = 'Rename car';
-      renameBtn.textContent = '✏️';
-      renameBtn.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        const next = window.prompt('Rename car:', displayName);
-        if(next === null) return;
-        const trimmed = next.trim();
-        if(!trimmed || trimmed === displayName) return;
-        renameCar(i, trimmed);
-        renderCarGrid();
-        announce('Car renamed to ' + trimmed + '.');
-        showToast('Car renamed');
-      });
-      wrap.appendChild(renameBtn);
-    }
 
     carGrid.appendChild(wrap);
   });
@@ -2635,6 +2741,7 @@ window.addEventListener('keydown', e=>{
     Sound.toggle(); refreshSoundBtn();
   }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
+  if(e.code === 'KeyT' && isOwner && appState==='racing'){ ownerTeleport(); }
   if(e.code === 'Escape'){
     if(appState === 'racing' || appState === 'racing-countdown'){
       pauseRace();
@@ -2996,6 +3103,12 @@ $('lobbyBackBtn').addEventListener('click', ()=>{ Online.stopSearch(); showScree
 
 function startRace(stageIndex, onlineRoom){
   if(!onlineRoom) Online.leaveRace();
+  const teleBtn = $('teleportBtn');
+  if(teleBtn) teleBtn.hidden = !isOwner;
+  const minimapEl = $('minimap');
+  if(minimapEl) minimapEl.classList.toggle('ownerTeleportable', isOwner);
+  const hint = $('controlsHint');
+  if(hint) hint.textContent = 'W/A/S/D or Arrows to drive · Space to boost · Esc to pause · M to mute' + (isOwner ? ' · T to hop forward · click minimap to teleport anywhere' : '');
   // Snapshot current state before the race modifies coins / racesCompleted.
   // If the player closes the tab before finishing, this snapshot is restored.
   takePreRaceSnapshot();
@@ -3114,6 +3227,71 @@ function findNearestIndex(car){
   return bestIdx;
 }
 
+// Owner perk: drop the player car at an arbitrary point along the track's
+// centreline. Client-side only. Shared by the 'T' hotkey (hop forward) and
+// the minimap click handler (jump to wherever you clicked) below.
+function teleportPlayerToIndex(newIdx, announceMsg){
+  if(!player || !track || !track.N) return;
+  const N = track.N;
+  const oldIdx = player.trackIndex;
+  newIdx = ((newIdx % N) + N) % N;
+  const p = track.points[newIdx];
+  const pNext = track.points[(newIdx+1)%N];
+  player.pos.set(p.x, p.y, p.z);
+  player.trackIndex = newIdx;
+  player.heading = Math.atan2(pNext.x - p.x, pNext.z - p.z);
+  player.speed *= 0.4; // shed some speed so the car doesn't rocket off from momentum
+
+  // A teleport moves the car in one jump rather than the small per-frame
+  // steps normal driving takes, so the usual "crossed the line" check never
+  // sees it happen and the lap silently doesn't count. If the destination
+  // index is lower than where the car was (i.e. the jump went forward past
+  // the wraparound point at index 0), treat that exactly like driving across
+  // the finish line for real.
+  let lapCounted = false;
+  if(newIdx < oldIdx && !player.finished){
+    player.lapArmed = false;
+    completeLap(player);
+    lapCounted = true;
+  }
+  // Resync prevIndex to the new position now, so the very next physics tick
+  // doesn't also see a stale prevIndex and either double-count this same
+  // crossing or miss arming the following lap.
+  player.prevIndex = player.trackIndex;
+  if(!lapCounted) announce(announceMsg || 'Teleported.');
+}
+function ownerTeleport(){
+  if(!player || !track || !track.N) return;
+  const step = Math.round(track.N * 0.12); // jump ~12% of the lap forward
+  teleportPlayerToIndex(player.trackIndex + step, 'Teleported forward.');
+}
+// Click anywhere on the minimap to drop the player there instead — this is
+// the "teleport wherever you want" version, only active for owners mid-race.
+function teleportToMinimapPoint(clickX, clickY){
+  const t = minimapTransform();
+  if(!t || !track || !track.N) return;
+  const worldX = t.minX + (clickX - t.ox) / t.s;
+  const worldZ = t.minZ + (clickY - t.oz) / t.s;
+  let bestIdx = 0, bestDist = Infinity;
+  for(let i=0;i<track.N;i++){
+    const p = track.points[i];
+    const dx = p.x - worldX, dz = p.z - worldZ;
+    const dist = dx*dx + dz*dz;
+    if(dist < bestDist){ bestDist = dist; bestIdx = i; }
+  }
+  teleportPlayerToIndex(bestIdx, 'Teleported to selected point.');
+}
+function ownerCanMinimapTeleport(){ return isOwner && appState === 'racing'; }
+$('minimap').addEventListener('click', (e)=>{
+  if(!ownerCanMinimapTeleport()) return;
+  const rect = e.target.getBoundingClientRect();
+  // Scale from displayed CSS size back to the canvas's native 160x160 space,
+  // in case the element is ever rendered at a different size than that.
+  const x = (e.clientX - rect.left) * (160 / rect.width);
+  const y = (e.clientY - rect.top) * (160 / rect.height);
+  teleportToMinimapPoint(x, y);
+});
+
 /* Wall contact: smooth push-off + 90% speed cut + RIVAL BOOST.
    Every wall hit hands all other racers a temporary speed boost — you
    don't just slow yourself down, you actively feed the competition. */
@@ -3210,6 +3388,38 @@ function updateBoostFlames(car, dt){
   }
 }
 
+// Awards lap coins/best-lap tracking and, on the final lap, ends the race.
+// Shared by the normal finish-line crossing check in updateCar() and by
+// teleportPlayerToIndex() below, so a teleport that jumps across the line
+// counts the lap exactly the same way driving across it would.
+function completeLap(car){
+  car.lap += 1;
+  const lapTime = raceClock - car.lapStartClock;
+  car.lapStartClock = raceClock;
+  if(lapTime < car.bestLap) car.bestLap = lapTime;
+  if(car.isPlayer){
+    const lapCoins = coinsPerLapForStage(STAGES[selectedStage]);
+    gameState.coins += lapCoins;
+    lapCoinsEarned += lapCoins;
+    refreshCoinDisplays();
+    saveState();
+    Sound.lap(car.lap >= TOTAL_LAPS);
+    showToast('+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!');
+    announce('Lap ' + car.lap + ' complete. Plus ' + lapCoins + ' coins.');
+    if(!gameState.bestLaps[selectedStage] || lapTime < gameState.bestLaps[selectedStage]){
+      gameState.bestLaps[selectedStage] = lapTime;
+      saveState();
+    }
+    if(car.lap >= TOTAL_LAPS && !car.finished){
+      car.finished = true;
+      car.finishTime = raceClock;
+      finishRace();
+    }
+  } else if(car.lap >= TOTAL_LAPS && !car.finished){
+    car.finished = true;
+    car.finishTime = raceClock;
+  }
+}
 function updateCar(car, dt){
   const rb = car.isPlayer ? 1 : (car.rubberBand || 1);
   let maxSpeed = (BASE_MAX_SPEED
@@ -3291,32 +3501,7 @@ function updateCar(car, dt){
   }
   if(car.lapArmed && car.prevIndex > N*0.82 && car.trackIndex < N*0.18){
     car.lapArmed = false;
-    car.lap += 1;
-    const lapTime = raceClock - car.lapStartClock;
-    car.lapStartClock = raceClock;
-    if(lapTime < car.bestLap) car.bestLap = lapTime;
-    if(car.isPlayer){
-      const lapCoins = coinsPerLapForStage(STAGES[selectedStage]);
-      gameState.coins += lapCoins;
-      lapCoinsEarned += lapCoins;
-      refreshCoinDisplays();
-      saveState();
-      Sound.lap(car.lap >= TOTAL_LAPS);
-      showToast('+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!');
-      announce('Lap ' + car.lap + ' complete. Plus ' + lapCoins + ' coins.');
-      if(!gameState.bestLaps[selectedStage] || lapTime < gameState.bestLaps[selectedStage]){
-        gameState.bestLaps[selectedStage] = lapTime;
-        saveState();
-      }
-      if(car.lap >= TOTAL_LAPS && !car.finished){
-        car.finished = true;
-        car.finishTime = raceClock;
-        finishRace();
-      }
-    } else if(car.lap >= TOTAL_LAPS && !car.finished){
-      car.finished = true;
-      car.finishTime = raceClock;
-    }
+    completeLap(car);
   }
   car.prevIndex = car.trackIndex;
 
@@ -3549,6 +3734,7 @@ function triggerBoost(){
   announce('Boost activated!');
 }
 $('boostBtn').addEventListener('click', triggerBoost);
+$('teleportBtn').addEventListener('click', ()=>{ if(isOwner && appState==='racing'){ ownerTeleport(); } });
 
 function formatTime(t){
   if(!isFinite(t)) return '--:--';
@@ -3557,19 +3743,28 @@ function formatTime(t){
 }
 
 /* ---------- Minimap ---------- */
-function drawMinimap(standings){
-  const cv = $('minimap');
-  const ctx = cv.getContext('2d');
-  ctx.clearRect(0,0,160,160);
-  if(!track) return;
+// Shared world<->minimap mapping so the click-to-teleport handler (owner
+// perk, see below) can invert exactly what drawMinimap projects — otherwise
+// a click could land on a different spot than what's drawn.
+function minimapTransform(){
+  if(!track) return null;
   let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
   track.points.forEach(p=>{ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.z<minZ)minZ=p.z; if(p.z>maxZ)maxZ=p.z; });
   const pad=14, w=160-pad*2, h=160-pad*2;
   const sx = w/(maxX-minX||1), sz = h/(maxZ-minZ||1);
   const s = Math.min(sx,sz);
   const ox = pad + (w-(maxX-minX)*s)/2, oz = pad + (h-(maxZ-minZ)*s)/2;
+  return { minX, minZ, s, ox, oz };
+}
+function drawMinimap(standings){
+  const cv = $('minimap');
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,160,160);
+  if(!track) return;
+  const t = minimapTransform();
+  const { minX, minZ, s, ox, oz } = t;
   function toXY(p){ return [ox + (p.x-minX)*s, oz + (p.z-minZ)*s]; }
-  ctx.strokeStyle = 'rgba(79,216,255,0.55)';
+  ctx.strokeStyle = 'rgba(193,80,46,0.55)';
   ctx.lineWidth = 3;
   ctx.beginPath();
   track.points.forEach((p,i)=>{ const [x,y]=toXY(p); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
@@ -4361,6 +4556,7 @@ $('loginForm').addEventListener('submit', (e)=>{
   attemptLogin($('loginUsername').value, $('loginPassword').value);
 });
 $('logoutBtn').addEventListener('click', logout);
+wireOwnerToolsUI();
 
 /* ============================= INIT ============================= */
 function init(){
@@ -4373,9 +4569,12 @@ function init(){
   let remembered = null;
   try{ remembered = localStorage.getItem(SESSION_KEY); }catch(e){}
   const rememberedUsers = readUsers();
-  if(remembered && rememberedUsers[remembered]){
-    beginSession(remembered, rememberedUsers[remembered].display, true, !!rememberedUsers[remembered].isAdmin);
+  if(remembered && rememberedUsers[remembered] && !rememberedUsers[remembered].banned){
+    beginSession(remembered, rememberedUsers[remembered].display, true, !!rememberedUsers[remembered].isAdmin, !!rememberedUsers[remembered].isOwner);
   } else {
+    if(remembered && rememberedUsers[remembered] && rememberedUsers[remembered].banned){
+      try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+    }
     showLoginScreen();
   }
 
