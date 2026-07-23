@@ -895,7 +895,7 @@ const CARS = [
   { name:'Cobalt Nova',     color:0x2f6fed, price:95000,  speed:9, accel:8, handling:9, weight:5, boostPower:8 },
   { name:'Rogue Wraith',    color:0x2f3542, price:130000, speed:9, accel:9, handling:7, weight:7, boostPower:9 },
   { name:'Crimson Vortex',  color:0xff2e5b, price:175000, speed:9, accel:9, handling:9, weight:6, boostPower:9 },
-  { name:'Ghost Aura',    color:0x6fe3d9, price:230000, speed:9, accel:9, handling:9, weight:4, boostPower:9 }
+  { name:'Ghost Aurora',    color:0x6fe3d9, price:230000, speed:9, accel:9, handling:9, weight:4, boostPower:9 }
 ];
 const CAR_STAT_MAX = 9; // stat bars in the garage are drawn as val / CAR_STAT_MAX
 
@@ -2730,6 +2730,10 @@ function forwardVec(heading){ return new THREE.Vector3(Math.sin(heading), 0, Mat
 function normalizeAngle(a){ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; }
 
 const keys = {};
+// --- Hidden cheat code: hold Shift+E+R together mid-race to warp to the finish ---
+let hyperspeedWarp = false;
+let hyperspeedComboLatched = false;
+const HYPERSPEED_DURATION = 0.5; // seconds to blaze through the remaining laps
 /* Browsers only let audio start from a user gesture — but which gestures count
    varies by browser, and a page opened from disk is stricter than an embedded
    https iframe. So retry on every gesture until the context is actually
@@ -2755,6 +2759,10 @@ window.addEventListener('keydown', e=>{
   }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
   if(e.code === 'KeyT' && isOwner && appState==='racing'){ ownerTeleport(); }
+  if((keys['ShiftLeft']||keys['ShiftRight']) && keys['KeyE'] && keys['KeyR'] && !hyperspeedComboLatched){
+    hyperspeedComboLatched = true;
+    activateHyperspeedCheat();
+  }
   if(e.code === 'Escape'){
     if(appState === 'racing' || appState === 'racing-countdown'){
       pauseRace();
@@ -2773,7 +2781,10 @@ window.addEventListener('keydown', e=>{
     }
   }
 });
-window.addEventListener('keyup', e=>{ keys[e.code] = false; });
+window.addEventListener('keyup', e=>{
+  keys[e.code] = false;
+  if(['ShiftLeft','ShiftRight','KeyE','KeyR'].includes(e.code)) hyperspeedComboLatched = false;
+});
 
 /* ---------- Race setup ---------- */
 /* Themed scene + lighting, shared by the race itself and the home-screen
@@ -3227,6 +3238,8 @@ function startRace(stageIndex, onlineRoom){
   boostCharge = 0;
   boosting = false;
   boostTimer = 0;
+  hyperspeedWarp = false;
+  hyperspeedComboLatched = false;
   $('boostBarFill').style.width = '0%';
   $('boostBtn').classList.remove('ready','active');
   $('boostBtn').disabled = true;
@@ -3310,6 +3323,54 @@ function ownerTeleport(){
   if(!player || !track || !track.N) return;
   const step = Math.round(track.N * 0.12); // jump ~12% of the lap forward
   teleportPlayerToIndex(player.trackIndex + step, 'Teleported forward.');
+}
+
+// Cheat code: Shift+E+R together mid-race. Kicks off a short warp that
+// blasts the player down the remaining laps so fast it's basically over in
+// a split second — while still routing through the real lap-crossing logic
+// (completeLap / finishRace) so coins, times, and results stay correct.
+function activateHyperspeedCheat(){
+  if(appState !== 'racing' || !player || player.finished || hyperspeedWarp) return;
+  hyperspeedWarp = true;
+  showToast('🌀 HYPERSPEED CHEAT ENGAGED!');
+  announce('Hyperspeed cheat activated — warping to the finish.');
+}
+
+// Called instead of updateCar() for the player while a warp is active.
+// Advances trackIndex in big jumps (but capped under a full lap per frame,
+// so at most one finish-line crossing is ever processed in a single tick)
+// until the remaining laps are used up, then hands control back to normal
+// physics via the finished/lap-count check below.
+function hyperspeedWarpStep(car, dt){
+  if(!track || !track.N || car.finished){ hyperspeedWarp = false; return; }
+  const N = track.N;
+  const remainingLaps = Math.max(0, TOTAL_LAPS - car.lap - 1);
+  const remainingIdx = (N - car.trackIndex) + remainingLaps * N;
+  const idxPerSec = remainingIdx / HYPERSPEED_DURATION;
+  let step = Math.round(idxPerSec * dt);
+  step = Math.max(1, Math.min(step, N - 1));
+
+  const oldIdx = car.trackIndex;
+  let newIdx = oldIdx + step;
+  const wrapped = newIdx >= N;
+  newIdx = ((newIdx % N) + N) % N;
+
+  const p = track.points[newIdx];
+  const pNext = track.points[(newIdx+1)%N];
+  car.pos.set(p.x, p.y, p.z);
+  car.mesh.position.copy(car.pos);
+  car.heading = Math.atan2(pNext.x - p.x, pNext.z - p.z);
+  car.mesh.rotation.y = car.heading;
+  car.speed = BASE_MAX_SPEED; // just for the HUD speedometer while warping
+  car.trackIndex = newIdx;
+
+  if(wrapped && !car.finished){
+    car.lapArmed = false;
+    completeLap(car);
+  }
+  car.prevIndex = car.trackIndex;
+
+  if(car.finished || car.lap >= TOTAL_LAPS) hyperspeedWarp = false;
 }
 // Click anywhere on the minimap to drop the player there instead — this is
 // the "teleport wherever you want" version, only active for owners mid-race.
@@ -4650,7 +4711,11 @@ function animate(now){
     renderer.render(scene, camera);
   } else if(appState === 'racing'){
     raceClock += dt;
-    cars.forEach(c=>{ if(c.remote) return; if(!c.finished || c.isPlayer) updateCar(c, dt); });
+    cars.forEach(c=>{
+      if(c.remote) return;
+      if(hyperspeedWarp && c.isPlayer){ hyperspeedWarpStep(c, dt); return; }
+      if(!c.finished || c.isPlayer) updateCar(c, dt);
+    });
     if(Online.room){
       Online.tick();
       Online.updateRemoteCars(dt);
