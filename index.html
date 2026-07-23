@@ -875,7 +875,8 @@ function wireOwnerToolsUI(){
 }
 
 /* ============================= CONSTANTS ============================= */
-const TOTAL_LAPS = 3;
+const DEFAULT_LAPS = 3;
+let raceLaps = DEFAULT_LAPS;   // set per-race in startRace() from the stage's `laps` field
 const TRACK_WIDTH = 20;
 const CAR_HALF_WIDTH = 1.05;
 const N_POINTS = 200;
@@ -926,18 +927,22 @@ const MAX_UPGRADE_LEVEL = 12;
 function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
 
 const STAGES = [
-  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0 },
-  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:0 },
-  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:1 },
-  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:2 },
-  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:3, width:21, unlockRaces:4 },
-  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:6 },
-  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:9 },
-  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:4, width:19, unlockRaces:12 },
-  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:16 },
-  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:20 },
-  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:24 },
-  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:28 }
+  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0, laps:5 },
+  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:0, laps:5 },
+  { name:'Harbor Sprint', type:'harbor', desc:'A short, tight loop around the docks.', grad:['#2f83c4','#bdeeff'], difficulty:1, width:20, unlockRaces:1, laps:5 },
+  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:2, laps:5 },
+  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:3, laps:4 },
+  { name:'Redwood Straightaway', type:'redwood', desc:'A fast, forgiving loop through tall trees.', grad:['#4a90d9','#c8ecff'], difficulty:2, width:20, unlockRaces:4, laps:5 },
+  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:3, width:21, unlockRaces:6, laps:4 },
+  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:8, laps:4 },
+  { name:'Glacier Circuit', type:'glacier', desc:'A sprawling, wide-open ribbon of ice.', grad:['#7fb8e0','#eaf6ff'], difficulty:4, width:20, unlockRaces:10, laps:3 },
+  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:13, laps:3 },
+  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:5, width:19, unlockRaces:16, laps:3 },
+  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:19, laps:3 },
+  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:22, laps:3 },
+  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:2 },
+  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:2 },
+  { name:'Aurora Marathon', type:'aurora', desc:'A sprawling, epic circuit under shifting lights — bring snacks.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:34, laps:2 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isAdmin || gameState.racesCompleted >= STAGES[i].unlockRaces; }
@@ -1058,7 +1063,7 @@ function renderStageGrid(){
       <p class="stageName">${unlocked ? displayName : '🔒 ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
-      <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap</p>
+      <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap &middot; 🏁 ${s.laps || DEFAULT_LAPS} laps</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
         : `<p class="lockNote">Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
@@ -1502,6 +1507,14 @@ function genCityGrid(N){
   }
   return pts;
 }
+// Harbor Sprint — a short, tight stadium loop for a quick sprint race.
+function genHarbor(N){ return genStadium(N, 30, 18); }
+// Redwood Straightaway — fast and forgiving, just a couple of gentle bends.
+function genRedwood(N){ return genSwitchback(N, 50, 8, 3, 4, 7); }
+// Glacier Circuit — a wide, sprawling loop, noticeably longer than Frost Ribbon.
+function genGlacier(N){ return genStadium(N, 160, 42); }
+// Aurora Marathon — the biggest circuit in the game, built for endurance.
+function genAurora(N){ return genSwitchback(N, 130, 22, 3, 12, 7); }
 function generateCenterline(type, N){
   if(type==='oval') return genOval(N);
   if(type==='stadium') return genStadium(N);
@@ -1515,6 +1528,10 @@ function generateCenterline(type, N){
   if(type==='cavern') return genCavern(N);
   if(type==='lunar') return genLunar(N);
   if(type==='citygrid') return genCityGrid(N);
+  if(type==='harbor') return genHarbor(N);
+  if(type==='redwood') return genRedwood(N);
+  if(type==='glacier') return genGlacier(N);
+  if(type==='aurora') return genAurora(N);
   return genWavy(N);
 }
 
@@ -1629,6 +1646,13 @@ const SCENERY_THEMES = {
   cavern:      { ground:0x2a2438, sky:['#0a0612','#2c1a44'], deco:'cavern',  skyStyle:'cave',     groundStyle:'stone',    crowd:0.05 },
   lunar:       { ground:0x9a978c, sky:['#000000','#070818'], deco:'lunar',   skyStyle:'space',    groundStyle:'regolith', crowd:0.00 }
 };
+// New tracks reuse an existing decor/sky set rather than needing brand new
+// art — they're differentiated by geometry (see genHarbor/genRedwood/
+// genGlacier/genAurora below), not by scenery.
+SCENERY_THEMES.harbor  = SCENERY_THEMES.wavy;
+SCENERY_THEMES.redwood = SCENERY_THEMES.serpent;
+SCENERY_THEMES.glacier = SCENERY_THEMES.iceRibbon;
+SCENERY_THEMES.aurora  = SCENERY_THEMES.lunar;
 
 /* Painted sky recipes. Stops run zenith (0) -> horizon (1). `sun` is placed in
    normalized dome coords: u wraps around the horizon, v is 0 at the horizon and
@@ -2908,7 +2932,15 @@ const Online = {
         this.broadcast({ type:'lobby', players:this.roster });
         this.renderLobby();
       } else {
-        showToast('A racer disconnected');
+        // If every other racer has left, racing on alone isn't really an
+        // online race anymore — end it for the host too instead of leaving
+        // them stuck racing an empty room.
+        const remaining = 1 + Object.keys(this.conns).length; // host + still-connected clients
+        if(remaining <= 1){
+          kickFromOnlineRace('All other racers left — race ended.');
+        } else {
+          showToast('A racer disconnected');
+        }
       }
     }
   },
@@ -2916,7 +2948,7 @@ const Online = {
     if(this.room || !this.searching) return;
     const room = {
       roomId: this.myId + '-' + Date.now(),
-      stageIndex: Math.floor(Math.random()*3),
+      stageIndex: Math.floor(Math.random()*STAGES.length),
       startInMs: 5000,
       players: this.roster.slice(0,4)
     };
@@ -2948,7 +2980,7 @@ const Online = {
       });
       conn.on('data', m => this.clientOnMsg(m));
       const lost = ()=>{
-        if(this.room){ showToast('Lost connection to the race host'); return; }
+        if(this.room){ kickFromOnlineRace('Lost connection to the race host — race ended.'); return; }
         if(!this.searching) return;
         // Host left — try to take over hosting, otherwise keep searching
         this.status('Host left — reconnecting…');
@@ -3161,6 +3193,7 @@ function startRace(stageIndex, onlineRoom){
 
   if(trackGroup){ scene && disposeObject(trackGroup); }
   const stage = STAGES[stageIndex];
+  raceLaps = stage.laps || DEFAULT_LAPS;
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
   currentTrackDim = DIM_SKY_STYLES.has(theme.skyStyle);
 
@@ -3457,19 +3490,19 @@ function completeLap(car){
     lapCoinsEarned += lapCoins;
     refreshCoinDisplays();
     saveState();
-    Sound.lap(car.lap >= TOTAL_LAPS);
+    Sound.lap(car.lap >= raceLaps);
     showToast('+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!');
     announce('Lap ' + car.lap + ' complete. Plus ' + lapCoins + ' coins.');
     if(!gameState.bestLaps[selectedStage] || lapTime < gameState.bestLaps[selectedStage]){
       gameState.bestLaps[selectedStage] = lapTime;
       saveState();
     }
-    if(car.lap >= TOTAL_LAPS && !car.finished){
+    if(car.lap >= raceLaps && !car.finished){
       car.finished = true;
       car.finishTime = raceClock;
       finishRace();
     }
-  } else if(car.lap >= TOTAL_LAPS && !car.finished){
+  } else if(car.lap >= raceLaps && !car.finished){
     car.finished = true;
     car.finishTime = raceClock;
   }
@@ -3749,8 +3782,8 @@ function updateCamera(dt){
 
 /* ---------- HUD ---------- */
 function updateHUD(){
-  const lapShown = Math.min(player.lap+1, TOTAL_LAPS);
-  $('hudLap').textContent = 'Lap ' + lapShown + '/' + TOTAL_LAPS;
+  const lapShown = Math.min(player.lap+1, raceLaps);
+  $('hudLap').textContent = 'Lap ' + lapShown + '/' + raceLaps;
   $('hudTime').textContent = formatTime(raceClock);
   const standings = currentStandings();
   const pos = standings.indexOf(player) + 1;
@@ -4550,7 +4583,7 @@ function finishRace(){
     return `<div class="resultRow" style="border-bottom:1px solid #2a3549;"><span><strong>Online standings</strong></span><span></span></div>` +
       st.map((c,i)=>{
         const nm = c.isPlayer ? 'You' : (c.netName || 'Racer');
-        const status = c.finished ? formatTime(c.finishTime) : 'still racing (lap ' + Math.min(TOTAL_LAPS, c.lap+1) + ')';
+        const status = c.finished ? formatTime(c.finishTime) : 'still racing (lap ' + Math.min(raceLaps, c.lap+1) + ')';
         return `<div class="resultRow"><span>${i+1}. ${nm}</span><strong>${status}</strong></div>`;
       }).join('');
   }
@@ -4575,7 +4608,7 @@ function finishRace(){
     <div class="resultRow"><span>Finish position</span><strong>${pos} of ${cars.length}</strong></div>
     <div class="resultRow"><span>Total time</span><strong>${formatTime(player.finishTime)}</strong></div>
     <div class="resultRow"><span>Best lap</span><strong>${formatTime(player.bestLap)}</strong></div>
-    <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/TOTAL_LAPS)}</strong></div>
+    <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/raceLaps)}</strong></div>
     <div class="resultRow"><span>Top speed</span><strong>${Math.round(gameState.units === 'kph' ? player.topSpeed*1.60934 : player.topSpeed)} ${gameState.units === 'kph' ? 'km/h' : 'mph'}</strong></div>
     <div class="resultRow"><span>Collisions</span><strong>${playerCollisions}</strong></div>
     <div class="resultRow"><span>Difficulty payout</span><strong>×${diffMult.toFixed(1)}</strong></div>
@@ -4593,6 +4626,20 @@ let onlineResultsTimer = null;
 function endOnlineIfNeeded(){
   if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
   if(Online.room) Online.leaveRace();
+}
+// Used when an online race can no longer continue as a real multiplayer
+// race — e.g. every other racer has disconnected. Ends the race and drops
+// the remaining player back at mode select, same as a manual quit.
+function kickFromOnlineRace(reason){
+  if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
+  Online.leaveRace();
+  $('pauseOverlay').hidden = true;
+  $('resultsOverlay').hidden = true;
+  appState = 'home';
+  Sound.stop();
+  showScreen('mode');
+  showToast(reason);
+  announce(reason);
 }
 $('raceAgainBtn').addEventListener('click', ()=>{
   $('resultsOverlay').hidden = true;
