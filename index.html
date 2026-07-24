@@ -27,6 +27,8 @@
     --accent-rgb:193,80,46;
     --shadow-rgb:59,36,21;
     --speed-color:#ffcba4;
+    --peach:#ffcba4;
+    --peach-rgb:255,203,164;
   }
   [data-theme="dark"]{
     --bg:#0a0e14;
@@ -49,6 +51,8 @@
     --accent-rgb:79,216,255;
     --shadow-rgb:0,0,0;
     --speed-color:#4fd8ff;
+    --peach:#ffcba4;
+    --peach-rgb:255,203,164;
   }
   *{box-sizing:border-box;}
   body.hide-emojis .emoji{ display:none; }
@@ -163,6 +167,7 @@
   .btn:active{ transform:translateY(0); }
   .btn.secondary{ background:var(--panel2); color:var(--text); border:1px solid var(--border); }
   .btn.ghost{ background:transparent; color:var(--text); border:1px solid var(--border-strong); }
+  .btn.garage{ background:#ead9bd; color:#3b2415; border:1px solid #d9c3a1; }
   .btn:disabled{ opacity:.45; cursor:not-allowed; filter:none; transform:none; }
   .btnRow{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
 
@@ -242,7 +247,7 @@
   .speedo{ position:absolute; top:50%; right:18px; transform:translateY(-50%); text-align:right; }
   .speedNum{ font-size:44px; font-weight:800; line-height:1; color:var(--speed-color); text-shadow:0 0 15px rgba(var(--accent-rgb),.51); }
   .posWrap{ position:absolute; bottom:18px; right:18px; text-align:right; }
-  .posNum{ font-size:44px; font-weight:800; line-height:1; color:var(--accent); text-shadow:0 0 15px rgba(var(--accent-rgb),.51); }
+  .posNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
   .minimapWrap{ position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:calc(18px + env(safe-area-inset-left)); }
   #minimap{ background:var(--minimap-bg); border:1px solid rgba(var(--accent-rgb),.25); border-radius:12px; pointer-events:all; touch-action:none; }
   #minimap.ownerTeleport{ cursor:crosshair; }
@@ -285,6 +290,7 @@
   .soundBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   .soundBtn.off{ color:var(--danger); border-color:rgba(168,58,42,.45); }
   .soundBtn.warn{ color:var(--accent2); border-color:rgba(217,140,61,.6); }
+  .soundBtn[hidden]{ display:none !important; }
   #chatToggleBtn{ position:relative; }
   .chatUnreadDot{ position:absolute; top:3px; right:3px; width:8px; height:8px; border-radius:50%;
     background:var(--danger); box-shadow:0 0 0 2px var(--panel-glass); }
@@ -297,6 +303,12 @@
   .chatMsg .chatName{ font-weight:800; color:var(--muted); }
   .chatMsg.me .chatName{ color:var(--accent); }
   .chatMsg.sys{ color:var(--muted); font-style:italic; }
+  .chatMsg.private{ color:var(--accent2); }
+  .chatMsg.private .chatName{ color:var(--accent2); }
+  .chatMsg .whisperTag{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; opacity:.75; margin-right:4px; }
+  .chatRecipientRow{ padding:8px 8px 0; }
+  .chatRecipientSelect{ width:100%; padding:6px 8px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); font:inherit; font-size:12px; cursor:pointer; }
   .chatForm{ display:flex; gap:6px; padding:8px; border-top:1px solid var(--border); }
   .chatInputField{ flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
     background:var(--panel); color:var(--text); font:inherit; font-size:13px; }
@@ -480,13 +492,13 @@
           <div class="hudSmall"><span class="coinDot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> <span id="hudCoins">0</span> coins</div>
         </div>
       </div>
-      <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap ⏸ to pause &middot; M to mute</div>
+      <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute</div>
       <div class="hudToolbar">
         <button class="soundBtn" id="chatToggleBtn" type="button" aria-label="Toggle race chat" aria-pressed="false" hidden>
           <span class="emoji" aria-hidden="true">💬</span><span>Chat</span><span class="chatUnreadDot" id="chatUnreadDot" hidden></span>
         </button>
         <button class="soundBtn" id="pauseBtn" type="button" aria-label="Pause and open settings">
-          <span aria-hidden="true">⏸</span><span>Pause</span>
+          <span class="emoji" aria-hidden="true">⏸</span><span>Pause</span>
         </button>
         <button class="soundBtn" id="soundBtn" type="button" aria-pressed="true">
           <span id="soundIcon" class="emoji" aria-hidden="true">🔊</span><span id="soundLabel">Sound on</span>
@@ -509,6 +521,11 @@
       <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
       <div class="chatPanel" id="chatPanel" hidden>
         <div class="chatLog" id="chatLog" role="log" aria-live="polite" aria-label="Race chat messages"></div>
+        <div class="chatRecipientRow">
+          <select class="chatRecipientSelect" id="chatRecipient" aria-label="Send to">
+            <option value="">Everyone</option>
+          </select>
+        </div>
         <form class="chatForm" id="chatForm">
           <input class="chatInputField" id="chatInput" type="text" maxlength="120" placeholder="Message racers…" autocomplete="off" aria-label="Chat message" />
           <button class="btn chatSendBtn" type="submit">Send</button>
@@ -535,7 +552,7 @@
         <h2>Paused</h2>
         <p>Take a breath.</p>
         <div class="btnRow" style="flex-direction:column;">
-          <button class="btn" id="resumeBtn">Resume</button>
+          <button class="btn garage" id="resumeBtn">Resume</button>
           <button class="btn secondary" id="settingsBtn"><span class="emoji" aria-hidden="true">⚙️</span> Settings</button>
           <button class="btn secondary" id="restartBtn">Restart Race</button>
           <button class="btn ghost" id="quitBtn">Quit to Home</button>
@@ -653,7 +670,7 @@
         <h2 id="resultTitle">Race Complete!</h2>
         <div id="resultBody"></div>
         <div class="btnRow" style="flex-direction:column; margin-top:14px;">
-          <button class="btn" id="raceAgainBtn">Race Again</button>
+          <button class="btn garage" id="raceAgainBtn">Race Again</button>
           <button class="btn secondary" id="resultsGarageBtn">Garage</button>
           <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
           <button class="btn ghost" id="resultsHomeBtn">Home</button>
@@ -1041,8 +1058,8 @@ const STAGES = [
   { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:19, laps:3 },
   { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:22, laps:3 },
   { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:2 },
-  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:2 },
-  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3 }
+  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:3 },
+  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:2 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
@@ -3208,8 +3225,19 @@ const Online = {
     } else if(m.type === 'pong'){
       this.recordPong(conn.logicalId || 'client', m.ts);
     } else if(m.type === 'chat'){
-      this.relay(m, conn);
-      addChatMessage(m.name, m.text, false);
+      if(m.to){
+        // Private message: forward only to the intended recipient instead
+        // of relaying to everyone.
+        if(m.to === this.myId){
+          addChatMessage(m.name, m.text, false, true);
+        } else {
+          const target = this.conns[m.to];
+          if(target){ try{ target.send(m); }catch(e){} }
+        }
+      } else {
+        this.relay(m, conn);
+        addChatMessage(m.name, m.text, false);
+      }
     } else if(m.type === 'owner_cmd'){
       this.relay(m, conn);
       handleOwnerCmdReceived(m);
@@ -3308,7 +3336,7 @@ const Online = {
     } else if(m.type === 'pong'){
       this.recordPong('host', m.ts);
     } else if(m.type === 'chat'){
-      addChatMessage(m.name, m.text, false);
+      addChatMessage(m.name, m.text, false, !!m.to);
     } else if(m.type === 'owner_cmd'){
       handleOwnerCmdReceived(m);
     } else if(m.type === 'stats_broadcast'){
@@ -3441,12 +3469,26 @@ const Online = {
     this.send(this.mySnapshot({ s:0, f:true, ft:player.finishTime }));
   },
 
-  sendChat(text){
+  sendChat(text, toId){
     if(!this.room) return;
     const clean = String(text||'').trim().slice(0,120);
     if(!clean) return;
-    this.send({ type:'chat', id:this.myId, name:this.displayName(), text:clean });
-    addChatMessage(this.displayName(), clean, true);
+    const msg = { type:'chat', id:this.myId, name:this.displayName(), text:clean };
+    let recipientName = null;
+    if(toId){
+      msg.to = toId;
+      const p = this.room.players && this.room.players.find(p => p.id === toId);
+      recipientName = p ? p.name : null;
+      if(this.isHost){
+        const target = this.conns[toId];
+        if(target){ try{ target.send(msg); }catch(e){} }
+      } else if(this.hostConn && this.hostConn.open){
+        try{ this.hostConn.send(msg); }catch(e){}
+      }
+    } else {
+      this.send(msg);
+    }
+    addChatMessage(this.displayName(), clean, true, !!toId, recipientName);
   },
 
   /* Smoothly move network cars toward their latest snapshot, with light
@@ -3636,9 +3678,9 @@ function startRace(stageIndex, onlineRoom){
   $('resultsOverlay').hidden = true;
   clearChat();
   $('chatToggleBtn').hidden = !onlineRoom;
-  $('controlsHint').textContent = onlineRoom
-    ? 'W/A/S/D or Arrows to drive · Space to boost · Esc or tap ⏸ to pause · M to mute · T to chat'
-    : 'W/A/S/D or Arrows to drive · Space to boost · Esc or tap ⏸ to pause · M to mute';
+  $('controlsHint').innerHTML = onlineRoom
+    ? 'W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute &middot; T to chat'
+    : 'W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute';
   showScreen('game');
   onResize();
   announce('Race starting in 3 seconds');
@@ -3901,6 +3943,14 @@ function resolveCollisions(dt){
   if(collisionToastCooldown > 0) collisionToastCooldown -= dt;
   const n = cars.length;
 
+  // Snapshot who was touching the player as of last frame, then clear the
+  // flags for this frame — this lets us tell a fresh hit (flag was false)
+  // from an ongoing crash the car is still sitting in (flag was already
+  // true), so the stat only increments once per collision instead of once
+  // per physics step for as long as the cars stay overlapped.
+  const wasTouchingPlayer = cars.map(c => !!c._touchingPlayer);
+  cars.forEach(c => { c._touchingPlayer = false; });
+
   for(let iter = 0; iter < COLLISION_ITERS; iter++){
     for(let i = 0; i < n; i++){
       for(let j = i+1; j < n; j++){
@@ -3943,7 +3993,8 @@ function resolveCollisions(dt){
             }
             loc.speed *= 0.98;
             if(loc.isPlayer){
-              playerCollisions++;
+              if(!wasTouchingPlayer[cars.indexOf(rem)]) playerCollisions++;
+              rem._touchingPlayer = true;
               if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
             }
           }
@@ -3980,7 +4031,9 @@ function resolveCollisions(dt){
           b.speed *= 0.98;
 
           if(a.isPlayer || b.isPlayer){
-            playerCollisions++;
+            const rival = a.isPlayer ? b : a;
+            if(!wasTouchingPlayer[cars.indexOf(rival)]) playerCollisions++;
+            rival._touchingPlayer = true;
             if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
           }
         }
@@ -3990,6 +4043,12 @@ function resolveCollisions(dt){
 }
 
 /* ---------- Live rubber-banding ---------- */
+// Runs every frame during a race so CPU pace continuously tracks how well the
+// player is actually driving RIGHT NOW — not just the skillRating snapshot
+// taken at race start. The bigger the live gap (in either direction), the
+// harder the CPUs speed up or ease off, and it keeps re-evaluating lap after
+// lap as the gap changes, so a player who's pulling away gets chased harder
+// and a player who's falling behind gets a bit of breathing room.
 function updateRubberBand(dt){
   if(!track || !player) return;
   const N = track.N;
@@ -3997,8 +4056,10 @@ function updateRubberBand(dt){
   cars.forEach(car=>{
     if(car.isPlayer || car.remote) return;
     const gap = (playerProgress - progressMetric(car)) / N; // >0: player ahead
-    const target = 1 + Math.max(-0.3, Math.min(0.3, gap*0.4));
-    car.rubberBand += (target - car.rubberBand) * Math.min(1, dt*0.8);
+    const target = 1 + Math.max(-0.35, Math.min(0.35, gap*0.55));
+    // Fast-converging (dt*1.6) so the catch-up/ease-off is felt within a
+    // second or two of the gap opening up, not gradually over a full lap.
+    car.rubberBand += (target - car.rubberBand) * Math.min(1, dt*1.6);
   });
 }
 
@@ -4033,17 +4094,18 @@ let chatOpen = false;
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
-function addChatMessage(name, text, isMe){
+function addChatMessage(name, text, isMe, isPrivate, otherName){
   const log = $('chatLog');
   if(!log) return;
   const row = document.createElement('div');
-  row.className = 'chatMsg' + (isMe ? ' me' : '');
-  row.innerHTML = '<span class="chatName">' + escapeHtml(isMe ? 'You' : name) + ':</span> ' + escapeHtml(text);
+  row.className = 'chatMsg' + (isMe ? ' me' : '') + (isPrivate ? ' private' : '');
+  const tag = isPrivate ? '<span class="whisperTag">' + (isMe ? 'To ' + escapeHtml(otherName || 'racer') : 'Whisper') + '</span>' : '';
+  row.innerHTML = tag + '<span class="chatName">' + escapeHtml(isMe ? 'You' : name) + ':</span> ' + escapeHtml(text);
   log.appendChild(row);
   // Cap how much history we keep around so the panel can't grow forever.
   while(log.children.length > 50) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
-  announce((isMe ? 'You' : name) + ' said: ' + text);
+  announce((isMe ? 'You' : name) + (isPrivate ? ' whispered' : ' said') + ': ' + text);
   if(!isMe && !chatOpen){
     const dot = $('chatUnreadDot');
     if(dot) dot.hidden = false;
@@ -4305,10 +4367,29 @@ function clearChat(){
   chatOpen = false;
   $('chatPanel').hidden = true;
   $('chatToggleBtn').setAttribute('aria-pressed', 'false');
+  const sel = $('chatRecipient');
+  if(sel) sel.innerHTML = '<option value="">Everyone</option>';
+}
+function populateChatRecipients(){
+  const sel = $('chatRecipient');
+  if(!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Everyone</option>';
+  const players = (Online.room && Online.room.players) || [];
+  players.forEach(p=>{
+    if(p.id === Online.myId) return;
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+  // Keep the previous selection if that racer is still in the race.
+  if(prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
 }
 function openChat(){
   if($('chatToggleBtn').hidden) return; // not in an online race
   chatOpen = true;
+  populateChatRecipients();
   $('chatPanel').hidden = false;
   $('chatToggleBtn').setAttribute('aria-pressed', 'true');
   const dot = $('chatUnreadDot');
@@ -4328,9 +4409,11 @@ $('chatForm').addEventListener('submit', (e)=>{
   e.preventDefault();
   const input = $('chatInput');
   const text = input.value;
+  const recipientSel = $('chatRecipient');
+  const toId = recipientSel ? recipientSel.value : '';
   input.value = '';
-  if(handleChatSubmission(text)){ input.focus(); return; }
-  Online.sendChat(text);
+  if(!toId && handleChatSubmission(text)){ input.focus(); return; }
+  Online.sendChat(text, toId || null);
   input.focus();
 });
 
@@ -5297,10 +5380,35 @@ function finishRace(){
   const newlyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   const newlyUnlocked = newlyUnlockedCount > previouslyUnlockedCount;
 
-  // Nudge the persistent skill rating toward how the player actually finished,
-  // so next race's CPUs start out matched to their real ability.
-  const posNorm = cars.length > 1 ? (cars.length - pos) / (cars.length - 1) : 0.5; // 1=won, 0=last
-  const ratingDelta = Math.round((posNorm - 0.5) * 18);
+  // Nudge the persistent skill rating toward how CLOSE the race actually was,
+  // not what place the player finished in. A dominant win/loss (big time or
+  // distance gap to the pack) means the current difficulty is mismatched and
+  // the rating should swing hard; a photo finish means CPUs are well matched
+  // and the rating should barely move either way, regardless of who technically
+  // crossed the line first.
+  const opponents = cars.filter(c => c !== player);
+  let ratingDelta = 0;
+  if(opponents.length && track){
+    const trackN = track.N;
+    const totalPoints = raceLaps * trackN;
+    // Seconds-per-track-point, derived from the player's own pace this race —
+    // used to convert a still-racing CPU's remaining distance into an
+    // estimated time gap so it's comparable to a CPU that already finished.
+    const avgPace = totalPoints > 0 ? player.finishTime / totalPoints : 0;
+    const gaps = opponents.map(c=>{
+      // Positive gap = that CPU was faster/ahead of the player; negative = the
+      // player was faster/ahead of that CPU.
+      if(c.finished) return player.finishTime - c.finishTime;
+      const pointsBehind = totalPoints - (c.lap * trackN + c.trackIndex);
+      return -pointsBehind * avgPace;
+    });
+    const avgGap = gaps.reduce((a,b)=>a+b, 0) / gaps.length;
+    const avgLapTime = raceLaps > 0 ? player.finishTime / raceLaps : 0;
+    // + = player ahead of the pack on average, - = player behind, scaled so a
+    // gap of roughly one full lap saturates the swing.
+    const closeness = avgLapTime > 0 ? Math.max(-1, Math.min(1, -avgGap / avgLapTime)) : 0;
+    ratingDelta = Math.round(closeness * 12);
+  }
   gameState.skillRating = Math.max(0, gameState.skillRating + ratingDelta);
 
   refreshCoinDisplays();
@@ -5349,7 +5457,7 @@ function finishRace(){
     <div class="resultRow"><span>Laps coins</span><strong>${lapCoinsEarned}</strong></div>
     <div class="resultRow"><span>Finish bonus</span><strong>+${finishBonus}</strong></div>
     <div class="resultRow"><span>Position bonus</span><strong>+${bonus}</strong></div>
-    <div class="resultRow"><span>Total coins</span><strong>${gameState.coins}</strong></div>
+    <div class="resultRow"><span>Coins earned</span><strong>${lapCoinsEarned + finishBonus + bonus + (gameState.bonusCoinsPerRace || 0)}</strong></div>
     <div class="resultRow"><span>CPU skill match</span><strong>${gameState.skillRating} (${ratingDelta>=0?'+':''}${ratingDelta})</strong></div>
     ${newlyUnlocked ? `<div class="resultRow"><span><span class="emoji" aria-hidden="true">🔓</span> New track</span><strong>Unlocked!</strong></div>` : ''}
   `;
