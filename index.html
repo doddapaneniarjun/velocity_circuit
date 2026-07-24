@@ -1045,18 +1045,18 @@ function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
 
 const STAGES = [
   { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0, laps:5 },
-  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:0, laps:5 },
-  { name:'Harbor Sprint', type:'harbor', desc:'A short, tight loop around the docks.', grad:['#2f83c4','#bdeeff'], difficulty:1, width:20, unlockRaces:1, laps:5 },
-  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:2, laps:5 },
-  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:3, laps:4 },
-  { name:'Redwood Straightaway', type:'redwood', desc:'A fast, forgiving loop through tall trees.', grad:['#4a90d9','#c8ecff'], difficulty:2, width:20, unlockRaces:4, laps:5 },
+  { name:'Redwood Straightaway', type:'redwood', desc:'A fast, forgiving loop through tall trees.', grad:['#4a90d9','#c8ecff'], difficulty:1, width:20, unlockRaces:0, laps:5 },
+  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:1, laps:5 },
+  { name:'Harbor Sprint', type:'harbor', desc:'A short, tight loop around the docks.', grad:['#4a7fa0','#cfe3ee'], difficulty:1, width:20, unlockRaces:2, laps:5 },
+  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:3, laps:5 },
+  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:4, laps:4 },
   { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:3, width:21, unlockRaces:6, laps:4 },
-  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:8, laps:4 },
-  { name:'Glacier Circuit', type:'glacier', desc:'A sprawling, wide-open ribbon of ice.', grad:['#7fb8e0','#eaf6ff'], difficulty:4, width:20, unlockRaces:10, laps:3 },
-  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:13, laps:3 },
-  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:5, width:19, unlockRaces:16, laps:3 },
-  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:19, laps:3 },
-  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:22, laps:3 },
+  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:3, width:21, unlockRaces:8, laps:4 },
+  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:10, laps:4 },
+  { name:'Glacier Circuit', type:'glacier', desc:'A sprawling, wide-open ribbon of ice.', grad:['#7fb8e0','#eaf6ff'], difficulty:4, width:20, unlockRaces:13, laps:3 },
+  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:16, laps:3 },
+  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:5, width:19, unlockRaces:19, laps:3 },
+  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:22, laps:3 },
   { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:2 },
   { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:3 },
   { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:2 }
@@ -1843,7 +1843,10 @@ const SCENERY_THEMES = {
 // New tracks reuse an existing decor/sky set rather than needing brand new
 // art — they're differentiated by geometry (see genHarbor/genRedwood/
 // genGlacier below), not by scenery.
-SCENERY_THEMES.harbor  = SCENERY_THEMES.wavy;
+// Harbor Sprint gets its own working-dockyard look — piers, moored boats,
+// and stacked shipping crates — instead of reusing Coastal Curves' resort
+// beach so the two tracks don't render pixel-for-pixel identical.
+SCENERY_THEMES.harbor  = { ground:0x9a8a68, sky:['#4a7fa0','#cfe3ee'], deco:'harbor', skyStyle:'hazyDay', groundStyle:'sand', crowd:0.06 };
 SCENERY_THEMES.redwood = SCENERY_THEMES.serpent;
 SCENERY_THEMES.glacier = SCENERY_THEMES.iceRibbon;
 // Foggy Mansion — its own theme (not an alias) so it can carry much tighter
@@ -2189,6 +2192,68 @@ function addCoastalDecor(group){
   }
 }
 
+function buildBoat(){
+  const g = new THREE.Group();
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(6,2,14), new THREE.MeshStandardMaterial({ color:0xe8e4da, roughness:0.6 }));
+  hull.position.y = 1; g.add(hull);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(4,2.4,5), new THREE.MeshStandardMaterial({ color:0x2f5a7a, roughness:0.7 }));
+  cabin.position.set(0,3.2,-2); g.add(cabin);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,8,6), new THREE.MeshStandardMaterial({ color:0x3a2c20, roughness:1 }));
+  mast.position.set(0,7,-2); g.add(mast);
+  return g;
+}
+
+function buildDockPier(length){
+  const g = new THREE.Group();
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(6, 0.6, length), new THREE.MeshStandardMaterial({ color:0x8a6a48, roughness:0.9 }));
+  deck.position.y = 1.2;
+  g.add(deck);
+  const pilingMat = new THREE.MeshStandardMaterial({ color:0x5a4230, roughness:1 });
+  const count = Math.max(2, Math.round(length/8));
+  for(let i=0;i<count;i++){
+    const z = -length/2 + i*(length/(count-1||1));
+    const left = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,2.4,6), pilingMat);
+    left.position.set(-2.6, 0, z);
+    g.add(left);
+    const right = left.clone();
+    right.position.x = 2.6;
+    g.add(right);
+  }
+  return g;
+}
+
+// Harbor Sprint — a working dockyard rather than Coastal Curves' resort
+// beach: piers with moored boats and stacked shipping crates in place of
+// palm trees, so the two tracks read as different locations, not a reskin.
+function addHarborDecor(group){
+  const oceanMat = new THREE.MeshStandardMaterial({ color:0x2a6f96, roughness:0.35, transparent:true, opacity:0.92 });
+  const ocean = new THREE.Mesh(new THREE.PlaneGeometry(1700,1700), oceanMat);
+  ocean.rotation.x = -Math.PI/2;
+  ocean.position.y = -0.25;
+  group.add(ocean);
+  for(let i=0;i<5;i++){
+    const ang = (i/5)*Math.PI*2 + Math.random()*0.3;
+    const r = 100 + Math.random()*20;
+    const pier = buildDockPier(24 + Math.random()*16);
+    pier.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
+    pier.rotation.y = ang + Math.PI/2;
+    group.add(pier);
+    const boat = buildBoat();
+    boat.position.set(Math.cos(ang)*(r+9), -0.4, Math.sin(ang)*(r+9));
+    boat.rotation.y = ang + Math.random()*0.6 - 0.3;
+    group.add(boat);
+  }
+  const crateColors = [0xb5432f, 0x2f6b8a, 0xd9a72f, 0x3f7a4a];
+  for(let i=0;i<14;i++){
+    const ang = Math.random()*Math.PI*2;
+    const r = 130 + Math.random()*60;
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(4,4,4), new THREE.MeshStandardMaterial({ color: crateColors[i%crateColors.length], roughness:0.8 }));
+    crate.position.set(Math.cos(ang)*r, 2, Math.sin(ang)*r);
+    crate.rotation.y = Math.random()*Math.PI*2;
+    group.add(crate);
+  }
+}
+
 function addMountainDecor(group){
   const rock1 = new THREE.MeshStandardMaterial({ color:0x5a4638, roughness:1 });
   const rock2 = new THREE.MeshStandardMaterial({ color:0x71583f, roughness:1 });
@@ -2467,6 +2532,7 @@ function buildScenery(theme){
   else if(theme.deco==='stadium') addStadiumDecor(group);
   else if(theme.deco==='ice') addIceDecor(group);
   else if(theme.deco==='coastal') addCoastalDecor(group);
+  else if(theme.deco==='harbor') addHarborDecor(group);
   else if(theme.deco==='canyon') addCanyonDecor(group);
   else if(theme.deco==='mountain') addMountainDecor(group);
   else if(theme.deco==='forest') addForestDecor(group);
