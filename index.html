@@ -40,13 +40,13 @@
     text-align:center; padding:24px; overflow-y:auto; justify-content:flex-start;
   }
   .title{ font-size:clamp(32px,6vw,58px); font-weight:800; letter-spacing:2px; margin:0; color:var(--text);
-    text-shadow:0 0 24px rgba(193,80,46,.45); }
+    text-shadow:0 0 20px rgba(193,80,46,.38); }
   .title span{ color:var(--accent); }
   .subtitle{ color:var(--muted); margin:6px 0 28px; font-size:16px; }
 
   .coinBar{ position:fixed; top:16px; right:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:16px; display:flex; align-items:center; gap:8px; z-index:20; }
-  .coinDot{ width:16px; height:16px; border-radius:50%; background:var(--accent2); box-shadow:0 0 10px var(--accent2); flex:none; }
+  .coinDot{ width:16px; height:16px; border-radius:50%; background:var(--accent2); box-shadow:0 0 8px var(--accent2); flex:none; }
   .ratingBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .ratingBar strong{ color:var(--text); }
@@ -54,17 +54,8 @@
   .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid #d9c3a1;
     padding:8px 14px; border-radius:999px; font-weight:600; font-size:13px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .profileBar strong{ color:var(--text); }
-  .adminBadge{ background:linear-gradient(135deg,#d98c3d,#c1502e); color:#fff8ef; font-weight:800;
+  .ownerBadge{ background:linear-gradient(135deg,#d98c3d,#c1502e); color:#fff8ef; font-weight:800;
     font-size:11px; padding:3px 8px; border-radius:999px; letter-spacing:.5px; }
-  .ownerBadge{ background:linear-gradient(135deg,#a83a2a,#7a2418); color:#fff3e6; font-weight:800;
-    font-size:11px; padding:3px 8px; border-radius:999px; letter-spacing:.5px; }
-  .managePlayersBtn{ position:fixed; top:112px; right:16px; z-index:20; }
-  .playerRow{ display:flex; align-items:center; justify-content:space-between; gap:10px;
-    background:var(--panel2); border:1px solid #d9c3a1; border-radius:10px; padding:10px 12px; margin-bottom:8px; text-align:left; }
-  .playerRow .who{ display:flex; flex-direction:column; }
-  .playerRow .who small{ color:var(--muted); }
-  .playerRow.banned{ opacity:.55; }
-  .playerListWrap{ max-height:340px; overflow-y:auto; margin:16px 0; }
   .logoutLink{ background:none; border:none; color:var(--accent); font:inherit; font-weight:700; font-size:13px; cursor:pointer; padding:0; }
   .logoutLink:hover{ text-decoration:underline; }
   .logoutLink:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
@@ -149,13 +140,13 @@
     text-align:center; padding:24px;
   }
   .megaTitle{ font-size:clamp(44px,10vw,110px); font-weight:900; letter-spacing:4px; margin:0 0 42px;
-    color:var(--text); text-shadow:0 0 34px rgba(193,80,46,.55); line-height:1.05; }
+    color:var(--text); text-shadow:0 0 28px rgba(193,80,46,.46); line-height:1.05; }
   .megaTitle span{ color:var(--accent); }
   .modeBtn{ font:inherit; font-weight:800; font-size:clamp(20px,3.4vw,28px); letter-spacing:2px;
     border:2px solid #d9c3a1; border-radius:18px; padding:22px 0; width:min(340px,84vw);
     background:var(--panel); color:var(--text); cursor:pointer; display:block; margin:0 auto 18px;
     transition:transform .12s, border-color .12s, box-shadow .12s; }
-  .modeBtn:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 0 22px rgba(193,80,46,.25); }
+  .modeBtn:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 0 18px rgba(193,80,46,.21); }
   .modeBtn.online{ border-color:var(--accent); color:var(--accent); }
   .modeBtn small{ display:block; font-weight:600; font-size:13px; letter-spacing:.5px; color:var(--muted); margin-top:6px; }
   .modeFootnote{ color:var(--muted); font-size:12px; margin-top:26px; }
@@ -203,40 +194,42 @@
   #canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
   #hud{ position:absolute; inset:0; pointer-events:none; }
   .hudTop{ position:absolute; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-start; }
-  .hudPanel{ background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:12px; padding:10px 16px; backdrop-filter:blur(4px); }
-  .hudBig{ font-size:22px; font-weight:800; }
+  .leaderboardPanel{ position:absolute; top:78px; left:14px; width:172px; padding:10px 12px; }
+  .leaderboardTitle{ font-size:11px; font-weight:800; letter-spacing:1px; color:var(--text); margin-bottom:6px; }
+  .lbRow{ display:flex; align-items:center; gap:7px; padding:3px 0; font-size:13px; color:var(--muted); }
+  .lbRow .lbPos{ width:16px; font-weight:800; color:var(--text); flex:none; }
+  .lbRow .lbDot{ width:9px; height:9px; border-radius:50%; flex:none; border:1px solid rgba(59,36,21,.25); }
+  .lbRow .lbName{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbRow.you{ color:var(--text); font-weight:800; }
+  .lbRow.you .lbPos{ color:var(--accent); }
+  .hudPanel{ background:rgba(251,241,228,.94); border:1px solid #d9c3a1; border-radius:12px; padding:10px 16px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(59,36,21,.15); }
+  .hudBig{ font-size:22px; font-weight:800; color:var(--text); }
   .hudSmall{ font-size:13px; color:var(--muted); }
   .speedo{ position:absolute; bottom:18px; right:18px; text-align:right; }
-  .speedNum{ font-size:44px; font-weight:800; line-height:1; color:#ffcba4; text-shadow:0 0 18px rgba(193,80,46,.6); }
+  .speedNum{ font-size:44px; font-weight:800; line-height:1; color:#ffcba4; text-shadow:0 0 15px rgba(193,80,46,.51); }
   .minimapWrap{ position:absolute; bottom:18px; left:18px; }
   #minimap{ background:rgba(255,255,255,.95); border:1px solid rgba(193,80,46,.25); border-radius:12px; pointer-events:all; }
-  #minimap.ownerTeleportable{ cursor:crosshair; }
-  #minimap.ownerTeleportable:hover{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(193,80,46,.3); }
   .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:all; }
-  .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:rgba(10,14,20,.72);
-    border:1px solid rgba(193,80,46,.25); overflow:hidden; }
-  .boostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #c1502e, #d98c3d); }
-  .boostBtn{ background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:999px;
+  .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:rgba(251,241,228,.94);
+    border:1px solid #d9c3a1; overflow:hidden; }
+  .boostBarFill{ height:100%; width:0%; background:linear-gradient(90deg, #f3cd8e, #e8a86c); }
+  .boostBtn{ background:rgba(251,241,228,.94); border:1px solid #d9c3a1; border-radius:999px;
     color:var(--muted); font:inherit; font-size:14px; font-weight:800; padding:9px 22px; cursor:not-allowed;
     display:flex; align-items:center; gap:8px; letter-spacing:.5px; transition:transform .15s, box-shadow .15s, color .15s, background .15s, border-color .15s; }
-  .boostBtn.ready{ color:#fff8ef; background:linear-gradient(135deg,#d98c3d,#c1502e); border-color:#d98c3d;
-    cursor:pointer; box-shadow:0 0 18px rgba(217,140,61,.7); animation:boostPulse 1s ease-in-out infinite; }
-  .boostBtn.active{ color:#fff8ef; background:linear-gradient(135deg,#f3cd8e,#c1502e); border-color:#f3cd8e;
-    cursor:default; animation:none; box-shadow:0 0 24px rgba(217,140,61,.85); }
+  .boostBtn.ready{ color:var(--text); background:linear-gradient(135deg,#fbe0b8,#f0b878); border-color:#e8a86c;
+    cursor:pointer; box-shadow:0 0 15px rgba(240,184,120,.6); animation:boostPulse 1s ease-in-out infinite; }
+  .boostBtn.active{ color:var(--text); background:linear-gradient(135deg,#fceed2,#f3cd8e); border-color:#fceed2;
+    cursor:default; animation:none; box-shadow:0 0 20px rgba(243,205,142,.72); }
   .boostBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
-  .teleportBtn{ position:fixed; top:78px; right:16px; z-index:20; background:linear-gradient(135deg,#a83a2a,#7a2418);
-    color:#fff3e6; border:none; border-radius:999px; padding:10px 16px; font-weight:800; font-size:13px; cursor:pointer; }
-  .teleportBtn:hover{ filter:brightness(1.08); }
-  .teleportBtn:focus-visible{ outline:3px solid #fff; outline-offset:2px; }
   @keyframes boostPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
-  .controlsHint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); background:rgba(10,14,20,.72);
-    border:1px solid rgba(193,80,46,.25); border-radius:10px; padding:6px 14px; font-size:13px; color:var(--muted); }
+  .controlsHint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); background:rgba(251,241,228,.94);
+    border:1px solid #d9c3a1; border-radius:10px; padding:6px 14px; font-size:13px; color:var(--muted); box-shadow:0 2px 10px rgba(59,36,21,.15); }
   .soundBtn{ position:absolute; top:14px; right:14px; margin-top:64px; pointer-events:all;
-    background:rgba(10,14,20,.72); border:1px solid rgba(193,80,46,.25); border-radius:10px;
+    background:rgba(251,241,228,.94); border:1px solid #d9c3a1; border-radius:10px;
     color:var(--muted); font:inherit; font-size:13px; font-weight:700; padding:7px 12px; cursor:pointer;
-    display:flex; align-items:center; gap:7px; }
-  .soundBtn:hover{ color:var(--text); border-color:rgba(193,80,46,.6); }
+    display:flex; align-items:center; gap:7px; box-shadow:0 2px 10px rgba(59,36,21,.15); }
+  .soundBtn:hover{ color:var(--text); border-color:var(--accent); }
   .soundBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   .soundBtn.off{ color:var(--danger); border-color:rgba(168,58,42,.45); }
   .soundBtn.warn{ color:var(--accent2); border-color:rgba(217,140,61,.6); }
@@ -244,9 +237,11 @@
     border:1px solid var(--good); color:var(--good); font-weight:700; padding:8px 18px; border-radius:999px;
     font-size:15px; opacity:0; transition:opacity .25s, transform .25s; }
   .toast.show{ opacity:1; }
+  .toast.toastLap{ background:rgba(251,241,228,.96); border:1px solid #d9c3a1; color:var(--text);
+    border-radius:6px; box-shadow:0 2px 10px rgba(59,36,21,.18); }
   .countdownWrap{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
   .countdownWrap[hidden]{ display:none !important; }
-  .countdownNum{ font-size:clamp(60px,14vw,140px); font-weight:900; color:var(--accent); text-shadow:0 0 40px rgba(193,80,46,.7); }
+  .countdownNum{ font-size:clamp(60px,14vw,140px); font-weight:900; color:#ffcba4; text-shadow:0 0 33px rgba(193,80,46,.6); }
 
   .overlay{ position:absolute; inset:0; background:rgba(59,36,21,.55); display:flex; align-items:center; justify-content:center; pointer-events:all; }
   .overlay[hidden]{ display:none !important; }
@@ -294,9 +289,8 @@
   <!-- MODE SELECT (new home) -->
   <section id="modeScreen" class="screen" hidden>
     <div class="profileBar" aria-label="Logged in profile">
-      <span aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><span class="adminBadge" id="modeAdminBadge" hidden>ADMIN</span><span class="ownerBadge" id="modeOwnerBadge" hidden>OWNER</span><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
+      <span aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><span class="ownerBadge" id="modeOwnerBadge" hidden>OWNER</span><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
     </div>
-    <button class="btn secondary managePlayersBtn" id="modeManagePlayersBtn" type="button" hidden>Manage Players</button>
     <h1 class="megaTitle">VELOCITY<br><span>CIRCUIT</span></h1>
     <button class="modeBtn online" id="chooseOnlineBtn" type="button">ONLINE<small>Race other people playing right now</small></button>
     <button class="modeBtn" id="choosePrivateBtn" type="button">PRIVATE<small>Race CPU rivals · tracks · garage · upgrades</small></button>
@@ -326,9 +320,8 @@
     </div>
 
     <div class="profileBar" aria-label="Logged in profile">
-      <span aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="adminBadge" id="adminBadge" hidden>ADMIN</span><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
+      <span aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
     </div>
-    <button class="btn secondary managePlayersBtn" id="managePlayersBtn" type="button" hidden>Manage Players</button>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
 
@@ -384,23 +377,26 @@
         </div>
       </div>
       <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc to pause &middot; M to mute</div>
-      <button class="teleportBtn" id="teleportBtn" type="button" aria-label="Teleport forward (T)" hidden>🌀 Teleport (T)</button>
       <button class="soundBtn" id="soundBtn" type="button" aria-pressed="true">
         <span id="soundIcon" aria-hidden="true">🔊</span><span id="soundLabel">Sound on</span>
       </button>
       <div class="toast" id="toast"></div>
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
-      <div class="hudPanel" id="fpsCounter" hidden style="position:absolute;top:78px;left:14px;padding:4px 10px;">
+      <div class="hudPanel leaderboardPanel" id="leaderboardPanel">
+        <div class="leaderboardTitle">LEADERBOARD</div>
+        <div id="leaderboardList"></div>
+      </div>
+      <div class="hudPanel" id="fpsCounter" hidden style="position:absolute;top:118px;right:14px;padding:4px 10px;">
         <span class="hudSmall" id="fpsText">60 fps</span>
       </div>
-      <div class="hudPanel" id="pingCounter" hidden style="position:absolute;top:118px;left:14px;padding:4px 10px;">
+      <div class="hudPanel" id="pingCounter" hidden style="position:absolute;top:158px;right:14px;padding:4px 10px;">
         <span class="hudSmall" id="pingText">-- ms</span>
       </div>
       <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
       <div class="boostWrap">
         <button class="boostBtn" id="boostBtn" type="button" aria-label="Activate boost (Space)" disabled>
-          <span id="boostIcon" aria-hidden="true">🔥</span><span id="boostLabel">BOOST</span>
+          <span id="boostLabel">BOOST</span>
         </button>
         <div class="boostBarTrack"><div class="boostBarFill" id="boostBarFill"></div></div>
       </div>
@@ -510,15 +506,6 @@
       </div>
     </div>
   </section>
-
-  <div class="overlay" id="managePlayersOverlay" hidden>
-    <div class="overlayCard" style="width:min(480px,90vw);">
-      <h2>Manage Players</h2>
-      <p style="color:var(--muted);margin:0 0 4px;font-size:13px;">Local profiles saved in this browser. Banning a profile blocks it from logging back in on this device.</p>
-      <div class="playerListWrap" id="playerListWrap"></div>
-      <button class="btn ghost" id="managePlayersCloseBtn" style="width:100%;">Close</button>
-    </div>
-  </div>
 
   <div class="liveRegion" id="liveRegion" aria-live="assertive" aria-atomic="true"></div>
 </div>
@@ -646,44 +633,30 @@ window.addEventListener('beforeunload', ()=>{
    hash before being stored in localStorage, which stops a save file from casually
    showing a plaintext password but is NOT cryptographic security. Never reuse a
    real password here. */
-const USERS_KEY   = 'velocityCircuit_users';    // { [lowercaseName]: { hash, display, isAdmin, isOwner, banned } }
+const USERS_KEY   = 'velocityCircuit_users';    // { [lowercaseName]: { hash, display, isOwner } }
 const SESSION_KEY = 'velocityCircuit_session';  // lowercaseName of the "stay logged in" profile
 let currentUser = null;
-let isAdmin = false;
 let isOwner = false;
 
-// One hardcoded admin account, granted the moment this exact username/password
+// One hardcoded owner account, granted the moment this exact username/password
 // combo is used to sign in successfully (new signup or existing profile).
-// Admin unlocks every track and buys cars/upgrades for free — see
+// Owner unlocks every track and buys cars/upgrades for free — see
 // isStageUnlocked() and the garage purchase handlers below.
-const ADMIN_USERNAME = 'velocityadmin';
-const ADMIN_PASSWORD = 'trollsaretroll';
-function checkAdmin(nameKey, rawPassword){ return nameKey === ADMIN_USERNAME && rawPassword === ADMIN_PASSWORD; }
-
-// A second credential for the SAME username that grants an "owner" tier on
-// top of admin: everything admin gets, plus banning/unbanning local profiles
-// and teleporting during a race. It's a second password rather than a second
-// username so the login screen only shows one "velocityadmin" identity — the
-// extra password just unlocks a higher tier on that account. Still purely a
-// local, client-side cheat/dev feature: with no server, "banning" a profile
-// just flags that browser-local save so it can't log back in on this device.
-const OWNER_USERNAME = 'velocityadmin';
+const OWNER_USERNAME = 'velocity owner';
 const OWNER_PASSWORD = 'trollsarereallytroll123';
-function checkOwner(nameKey, rawPassword){ return nameKey === OWNER_USERNAME && rawPassword === OWNER_PASSWORD; }
+// Spaces in the username shouldn't matter for recognizing the owner slot —
+// "velocity owner" and "velocityowner" are clearly the same intended login,
+// and treating them as different accounts is exactly what let someone
+// typo the space, land on the ordinary signup path instead, and get an
+// unrelated regular account stuck under the name they meant to use.
+function ownerNameMatches(nameKey){ return nameKey.replace(/\s+/g,'') === OWNER_USERNAME.replace(/\s+/g,''); }
+function checkOwner(nameKey, rawPassword){ return ownerNameMatches(nameKey) && rawPassword === OWNER_PASSWORD; }
 
-function updateAdminBadge(){
-  const badge = $('adminBadge');
-  if(badge) badge.hidden = !isAdmin || isOwner;
-  const modeBadge = $('modeAdminBadge');
-  if(modeBadge) modeBadge.hidden = !isAdmin || isOwner;
-  const oBadge = $('ownerBadge');
-  if(oBadge) oBadge.hidden = !isOwner;
-  const modeOBadge = $('modeOwnerBadge');
-  if(modeOBadge) modeOBadge.hidden = !isOwner;
-  const manageBtn = $('managePlayersBtn');
-  if(manageBtn) manageBtn.hidden = !isOwner;
-  const modeManageBtn = $('modeManagePlayersBtn');
-  if(modeManageBtn) modeManageBtn.hidden = !isOwner;
+function updateOwnerBadge(){
+  const badge = $('ownerBadge');
+  if(badge) badge.hidden = !isOwner;
+  const modeBadge = $('modeOwnerBadge');
+  if(modeBadge) modeBadge.hidden = !isOwner;
 }
 
 function saveKeyFor(nameKey){ return 'velocityCircuit_save_' + nameKey; }
@@ -696,24 +669,7 @@ function simpleHash(str){
 }
 
 function readUsers(){
-  let db;
-  try{ db = JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }catch(e){ return {}; }
-  // Only the single 'velocityadmin' identity (nameKey, not display casing) may
-  // ever carry isAdmin/isOwner — those flags are only ever set by checkAdmin()/
-  // checkOwner() matching the hardcoded credentials. If any other account has
-  // them (corrupted save, manual localStorage edit, old bug, etc.) strip them
-  // here so privilege can never leak onto the wrong username, and persist the
-  // fix so it stays clean going forward.
-  let dirty = false;
-  Object.keys(db).forEach(key=>{
-    if(key !== ADMIN_USERNAME && (db[key].isAdmin || db[key].isOwner)){
-      db[key].isAdmin = false;
-      db[key].isOwner = false;
-      dirty = true;
-    }
-  });
-  if(dirty){ try{ localStorage.setItem(USERS_KEY, JSON.stringify(db)); }catch(e){} }
-  return db;
+  try{ return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }catch(e){ return {}; }
 }
 function writeUsers(db){
   try{ localStorage.setItem(USERS_KEY, JSON.stringify(db)); }catch(e){}
@@ -732,9 +688,8 @@ function showLoginScreen(){
 // Enters a logged-in session for nameKey/display, points saves at that
 // profile's own slot, and loads whatever progress it already has (or starts
 // fresh if it's brand new).
-function beginSession(nameKey, display, remember, admin, owner){
+function beginSession(nameKey, display, remember, owner){
   currentUser = nameKey;
-  isAdmin = !!admin || !!owner;
   isOwner = !!owner;
   SAVE_KEY = saveKeyFor(nameKey);
   ROLLBACK_KEY = rollbackKeyFor(nameKey);
@@ -745,11 +700,11 @@ function beginSession(nameKey, display, remember, admin, owner){
   }
   $('profileNameText').textContent = display;
   $('modeProfileName').textContent = display;
-  updateAdminBadge();
+  updateOwnerBadge();
   loadState();
   appState = 'home';
   showScreen('mode');
-  announce('Logged in as ' + display + (isOwner ? ', owner mode on.' : (isAdmin ? ', admin mode on.' : '.')));
+  announce('Logged in as ' + display + (isOwner ? ', owner mode on.' : '.'));
 }
 
 function attemptLogin(rawUsername, rawPassword){
@@ -765,44 +720,46 @@ function attemptLogin(rawUsername, rawPassword){
   const users = readUsers();
   const nameKey = username.toLowerCase();
   const hash = simpleHash(password);
-  const grantsAdmin = checkAdmin(nameKey, password);
   const grantsOwner = checkOwner(nameKey, password);
 
-  if(users[nameKey] && users[nameKey].banned){
-    errEl.textContent = 'This profile has been banned on this device.';
+  if(ownerNameMatches(nameKey)){
+    // The owner slot is special: it must never be created or overwritten by
+    // a mistyped password. Only the exact hardcoded owner password can
+    // create or log into this account — anything else is just rejected,
+    // leaving whatever's already saved under this name untouched. Always
+    // store/read it under the one canonical key (OWNER_USERNAME) regardless
+    // of which spacing variant was typed, so "velocityowner" and "velocity
+    // owner" are always the same account rather than two different ones.
+    if(!grantsOwner){
+      errEl.textContent = 'Incorrect password for that username.';
+      return;
+    }
+    const existingDisplay = users[OWNER_USERNAME] ? users[OWNER_USERNAME].display : username;
+    users[OWNER_USERNAME] = { hash, display: existingDisplay, isOwner: true };
+    writeUsers(users);
+    const remember = $('rememberMeToggle').checked;
+    beginSession(OWNER_USERNAME, users[OWNER_USERNAME].display, remember, true);
     return;
   }
 
   if(users[nameKey]){
-    // The two hardcoded credentials both authenticate the velocityadmin
-    // identity regardless of which hash is on file, since either one proves
-    // the account holder — everyone else still needs their matching hash.
-    if(users[nameKey].hash !== hash && !grantsAdmin && !grantsOwner){
+    if(users[nameKey].hash !== hash){
       errEl.textContent = 'Incorrect password for that username.';
       return;
     }
   } else {
-    users[nameKey] = { hash, display: username, isAdmin:false, isOwner:false, banned:false };
-  }
-  if(nameKey === ADMIN_USERNAME){
-    // Privilege is derived fresh from THIS login's password every time,
-    // rather than only ever being upgraded — otherwise, once the owner
-    // password was used once, isOwner stayed true forever afterward even
-    // when logging back in with the plain admin password.
-    users[nameKey].isAdmin = grantsAdmin || grantsOwner;
-    users[nameKey].isOwner = grantsOwner;
+    users[nameKey] = { hash, display: username };
   }
   writeUsers(users);
 
   const remember = $('rememberMeToggle').checked;
-  beginSession(nameKey, users[nameKey].display, remember, !!users[nameKey].isAdmin, !!users[nameKey].isOwner);
+  beginSession(nameKey, users[nameKey].display, remember, !!users[nameKey].isOwner);
 }
 
 function logout(){
   saveState(); // persist anything pending under the current profile before leaving it
   try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
   currentUser = null;
-  isAdmin = false;
   isOwner = false;
   Sound.stop();
   $('loginPassword').value = '';
@@ -810,72 +767,9 @@ function logout(){
   showLoginScreen();
 }
 
-/* ---------- Owner tools: manage local players (ban/unban) ---------- */
-function renderPlayerList(){
-  const wrap = $('playerListWrap');
-  if(!wrap) return;
-  const users = readUsers();
-  const rows = Object.keys(users).map(key=>{
-    const u = users[key];
-    const tag = u.isOwner ? ' · owner' : (u.isAdmin ? ' · admin' : '');
-    const isSelf = key === currentUser;
-    return `<div class="playerRow ${u.banned?'banned':''}">
-        <div class="who"><strong>${u.display}${isSelf ? ' (you)' : ''}</strong><small>${u.banned ? 'Banned' : 'Active'}${tag}</small></div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn ghost" data-rename-key="${key}" style="min-height:34px;padding:8px 14px;">Rename</button>
-          ${u.isOwner ? '' : `<button class="btn ${u.banned?'':'ghost'}" data-ban-key="${key}" style="min-height:34px;padding:8px 14px;">${u.banned ? 'Unban' : 'Ban'}</button>`}
-        </div>
-      </div>`;
-  }).join('');
-  wrap.innerHTML = rows || '<p style="color:var(--muted);">No local profiles yet.</p>';
-}
-function openManagePlayers(){
-  renderPlayerList();
-  $('managePlayersOverlay').hidden = false;
-}
-function wireOwnerToolsUI(){
-  ['managePlayersBtn','modeManagePlayersBtn'].forEach(id=>{
-    const btn = $(id);
-    if(btn) btn.addEventListener('click', openManagePlayers);
-  });
-  $('managePlayersCloseBtn').addEventListener('click', ()=>{ $('managePlayersOverlay').hidden = true; });
-  $('playerListWrap').addEventListener('click', (e)=>{
-    const renameBtn = e.target.closest('[data-rename-key]');
-    if(renameBtn){
-      const key = renameBtn.getAttribute('data-rename-key');
-      const users = readUsers();
-      if(!users[key]) return;
-      const proposed = prompt('New display name for this profile:', users[key].display);
-      if(proposed === null) return; // cancelled
-      const trimmed = proposed.trim();
-      if(!trimmed){ return; }
-      // This only relabels how the account is shown — the login key, saved
-      // progress, and admin/owner flags all stay attached to the same
-      // account. Nothing about the account is removed.
-      users[key].display = trimmed.slice(0,24);
-      writeUsers(users);
-      if(key === currentUser){
-        $('profileNameText').textContent = users[key].display;
-        $('modeProfileName').textContent = users[key].display;
-      }
-      renderPlayerList();
-      announce('Renamed to ' + users[key].display + '.');
-      return;
-    }
-    const btn = e.target.closest('[data-ban-key]');
-    if(!btn) return;
-    const key = btn.getAttribute('data-ban-key');
-    const users = readUsers();
-    if(!users[key]) return;
-    users[key].banned = !users[key].banned;
-    writeUsers(users);
-    renderPlayerList();
-    announce(users[key].banned ? (users[key].display + ' banned.') : (users[key].display + ' unbanned.'));
-  });
-}
-
 /* ============================= CONSTANTS ============================= */
-const TOTAL_LAPS = 3;
+const DEFAULT_LAPS = 3;
+let raceLaps = DEFAULT_LAPS;   // set per-race in startRace() from the stage's `laps` field
 const TRACK_WIDTH = 20;
 const CAR_HALF_WIDTH = 1.05;
 const N_POINTS = 200;
@@ -926,26 +820,30 @@ const MAX_UPGRADE_LEVEL = 12;
 function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
 
 const STAGES = [
-  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0 },
-  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:2, width:20, unlockRaces:0 },
-  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:1 },
-  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:3, width:19, unlockRaces:2 },
-  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:4, width:21, unlockRaces:4 },
-  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:4, width:21, unlockRaces:6 },
-  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:5, width:20, unlockRaces:9 },
-  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:6, width:19, unlockRaces:12 },
-  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:6, width:19, unlockRaces:16 },
-  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:20 },
-  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:5, width:20, unlockRaces:24 },
-  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:28 }
+  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0, laps:5 },
+  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:0, laps:5 },
+  { name:'Harbor Sprint', type:'harbor', desc:'A short, tight loop around the docks.', grad:['#2f83c4','#bdeeff'], difficulty:1, width:20, unlockRaces:1, laps:5 },
+  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:2, laps:5 },
+  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:3, laps:4 },
+  { name:'Redwood Straightaway', type:'redwood', desc:'A fast, forgiving loop through tall trees.', grad:['#4a90d9','#c8ecff'], difficulty:2, width:20, unlockRaces:4, laps:5 },
+  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:3, width:21, unlockRaces:6, laps:4 },
+  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:8, laps:4 },
+  { name:'Glacier Circuit', type:'glacier', desc:'A sprawling, wide-open ribbon of ice.', grad:['#7fb8e0','#eaf6ff'], difficulty:4, width:20, unlockRaces:10, laps:3 },
+  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:13, laps:3 },
+  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:5, width:19, unlockRaces:16, laps:3 },
+  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:19, laps:3 },
+  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:22, laps:3 },
+  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:2 },
+  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:2 },
+  { name:'Aurora Marathon', type:'aurora', desc:'A sprawling, epic circuit under shifting lights — bring snacks.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:34, laps:2 }
 ];
 let selectedStage = 0;
-function isStageUnlocked(i){ return isAdmin || gameState.racesCompleted >= STAGES[i].unlockRaces; }
+function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
 
-// Admin-only track renaming. Names are stored separately from STAGES (which
+// Track name overrides. Names are stored separately from STAGES (which
 // stays the source of truth for everything else about a track) and shared
 // globally across all local profiles, since a rename is meant to relabel the
-// track for everyone, not just the admin who set it.
+// track for everyone.
 const TRACK_NAMES_KEY = 'velocityCircuit_trackNames';
 let trackNameOverrides = {};
 function loadTrackNameOverrides(){
@@ -968,7 +866,7 @@ function renameStage(i, newName){
 }
 loadTrackNameOverrides();
 
-// Admin-only car renaming, same pattern as track renaming above: names are
+// Car name overrides, same pattern as track names above: names are
 // stored separately from CARS (still the source of truth for stats/price)
 // and shared globally across all local profiles.
 const CAR_NAMES_KEY = 'velocityCircuit_carNames';
@@ -1058,7 +956,7 @@ function renderStageGrid(){
       <p class="stageName">${unlocked ? displayName : '🔒 ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
-      <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap</p>
+      <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap &middot; 🏁 ${s.laps || DEFAULT_LAPS} laps</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
         : `<p class="lockNote">Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
@@ -1204,7 +1102,7 @@ function renderCarGrid(){
     } else if(owned){
       buttonHtml = `<button class="btn" data-select="${i}">Select</button>`;
     } else {
-      buttonHtml = `<button class="btn" data-buy="${i}" ${(!isAdmin && gameState.coins < c.price) ? 'disabled' : ''}>Buy — ${isAdmin ? 'Free (Admin)' : c.price + ' coins'}</button>`;
+      buttonHtml = `<button class="btn" data-buy="${i}" ${(!isOwner && gameState.coins < c.price) ? 'disabled' : ''}>Buy — ${isOwner ? 'Free (Owner)' : c.price + ' coins'}</button>`;
     }
     card.innerHTML = `
       <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
@@ -1222,8 +1120,8 @@ function renderCarGrid(){
       const i = Number(btn.getAttribute('data-buy'));
       const car = CARS[i];
       if(gameState.ownedCars.includes(i)) return;
-      if(!isAdmin && gameState.coins < car.price) return;
-      if(!isAdmin){ gameState.coins -= car.price; }
+      if(!isOwner && gameState.coins < car.price) return;
+      if(!isOwner){ gameState.coins -= car.price; }
       gameState.ownedCars.push(i);
       gameState.selectedCar = i;
       saveState();
@@ -1334,8 +1232,8 @@ function renderUpgrades(){
         <p class="hudSmall" style="margin-top:6px;">${def.desc}</p>
       </div>
       <div class="upgradeBuy">
-        <span class="costTag">${maxed ? 'MAX LEVEL' : (isAdmin ? 'Free (Admin)' : cost+' coins')}</span>
-        <button class="btn" data-key="${def.key}" ${maxed || (!isAdmin && gameState.coins < cost) ? 'disabled' : ''}>${maxed?'Maxed':'Upgrade'}</button>
+        <span class="costTag">${maxed ? 'MAX LEVEL' : (isOwner ? 'Free (Owner)' : cost+' coins')}</span>
+        <button class="btn" data-key="${def.key}" ${maxed || (!isOwner && gameState.coins < cost) ? 'disabled' : ''}>${maxed?'Maxed':'Upgrade'}</button>
       </div>
     `;
     list.appendChild(card);
@@ -1346,8 +1244,8 @@ function renderUpgrades(){
       const level = gameState.upgrades[key];
       if(level >= MAX_UPGRADE_LEVEL) return;
       const cost = upgradeCost(level);
-      if(!isAdmin && gameState.coins < cost) return;
-      if(!isAdmin){ gameState.coins -= cost; }
+      if(!isOwner && gameState.coins < cost) return;
+      if(!isOwner){ gameState.coins -= cost; }
       gameState.upgrades[key] = level+1;
       saveState();
       refreshCoinDisplays();
@@ -1420,7 +1318,23 @@ function genStadium(N, straight, radius){
   for(let i=0;i<N;i++) pts.push(stadiumPointAtDistance(i/N*totalLen, straight, radius));
   return pts;
 }
-function genIceRibbon(N){ return genStadium(N, 96, 21); }
+// Shared helper for the "rounded rectangle" family (Frost Ribbon, Glacier,
+// Aurora): a superellipse scaled anisotropically by a/b, with an optional
+// small extra radial wobble layered on top so it doesn't read as pure math.
+function superRectPoint(t, a, b, n, wobble){
+  const c = Math.cos(t), s = Math.sin(t);
+  const rho = 1/Math.pow(Math.pow(Math.abs(c),n)+Math.pow(Math.abs(s),n), 1/n);
+  const extra = wobble ? wobble(t) : 0;
+  return new THREE.Vector3((a*rho+extra)*c, 0, (b*rho+extra)*s);
+}
+// Frost Ribbon — long straightaways into tight, square-ish hairpins at each
+// end (a stretched superellipse), rather than Stadium Sprint's smooth
+// semicircle turns at a different scale.
+function genIceRibbon(N){
+  const pts=[];
+  for(let i=0;i<N;i++) pts.push(superRectPoint(i/N*Math.PI*2, 78, 32, 6));
+  return pts;
+}
 function genWavy(N){
   const R=70, pts=[];
   for(let i=0;i<N;i++){
@@ -1444,7 +1358,17 @@ function genSwitchback(N, R, amp1, freq1, amp2, freq2){
   }
   return pts;
 }
-function genCanyon(N){ return genSwitchback(N, 74, 24, 3, 10, 7); }
+// Canyon Run — wide sweeping turns with a couple of sharper cuts, squashed
+// slightly so it reads as a canyon rim rather than a resized Switchback Pass.
+function genCanyon(N){
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const t = i/N*Math.PI*2;
+    const r = 74 + 18*Math.sin(2*t) - 9*Math.sin(5*t) + 6*Math.cos(3*t);
+    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)*0.92));
+  }
+  return pts;
+}
 function genSerpent(N, R, a1, f1, a2, f2, a3, f3){
   R = R===undefined ? 64 : R;
   a1 = a1===undefined ? 16 : a1; f1 = f1===undefined ? 2 : f1;
@@ -1458,7 +1382,17 @@ function genSerpent(N, R, a1, f1, a2, f2, a3, f3){
   }
   return pts;
 }
-function genNeonSerpent(N){ return genSerpent(N, 78, 20, 3, 14, 6, 10, 9); }
+// Neon Serpent — its own tighter, higher-frequency weave, not a resized
+// Serpent Circuit: a phase-shifted harmonic keeps the curves asymmetric.
+function genNeonSerpent(N){
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const t = i/N*Math.PI*2;
+    const r = 54 + 12*Math.sin(3*t) + 8*Math.cos(6*t) - 10*Math.sin(9*t+0.5);
+    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)));
+  }
+  return pts;
+}
 function genVolcano(N){
   // An asymmetric caldera rim: one long sweeping arc into a tighter, jagged
   // near side, squashed slightly on one axis so it doesn't read as a circle.
@@ -1502,6 +1436,43 @@ function genCityGrid(N){
   }
   return pts;
 }
+// Harbor Sprint — a short, tight loop around the docks: small radius plus a
+// couple of gentle inlets, its own shape rather than a shrunk stadium.
+function genHarbor(N){
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const t = i/N*Math.PI*2;
+    const r = 36 + 9*Math.sin(2*t) + 4*Math.sin(5*t+0.4);
+    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)*0.9));
+  }
+  return pts;
+}
+// Redwood Straightaway — fast and forgiving: just two gentle bends from a
+// single low-frequency wave, not a scaled-down Switchback Pass.
+function genRedwood(N){
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const t = i/N*Math.PI*2;
+    const r = 76 + 11*Math.sin(2*t);
+    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)));
+  }
+  return pts;
+}
+// Glacier Circuit — a wide, sprawling rounded rectangle: softer corners and
+// a noticeably bigger footprint than Frost Ribbon, with a light ripple so it
+// isn't a perfectly smooth superellipse.
+function genGlacier(N){
+  const pts=[];
+  for(let i=0;i<N;i++) pts.push(superRectPoint(i/N*Math.PI*2, 118, 74, 3.5, t=>5*Math.sin(5*t)));
+  return pts;
+}
+// Aurora Marathon — the biggest circuit in the game: an even larger, softer
+// rounded rectangle than Glacier, with a slow ripple for "shifting lights."
+function genAurora(N){
+  const pts=[];
+  for(let i=0;i<N;i++) pts.push(superRectPoint(i/N*Math.PI*2, 170, 110, 2.6, t=>10*Math.sin(3*t)));
+  return pts;
+}
 function generateCenterline(type, N){
   if(type==='oval') return genOval(N);
   if(type==='stadium') return genStadium(N);
@@ -1515,6 +1486,10 @@ function generateCenterline(type, N){
   if(type==='cavern') return genCavern(N);
   if(type==='lunar') return genLunar(N);
   if(type==='citygrid') return genCityGrid(N);
+  if(type==='harbor') return genHarbor(N);
+  if(type==='redwood') return genRedwood(N);
+  if(type==='glacier') return genGlacier(N);
+  if(type==='aurora') return genAurora(N);
   return genWavy(N);
 }
 
@@ -1629,6 +1604,13 @@ const SCENERY_THEMES = {
   cavern:      { ground:0x2a2438, sky:['#0a0612','#2c1a44'], deco:'cavern',  skyStyle:'cave',     groundStyle:'stone',    crowd:0.05 },
   lunar:       { ground:0x9a978c, sky:['#000000','#070818'], deco:'lunar',   skyStyle:'space',    groundStyle:'regolith', crowd:0.00 }
 };
+// New tracks reuse an existing decor/sky set rather than needing brand new
+// art — they're differentiated by geometry (see genHarbor/genRedwood/
+// genGlacier/genAurora below), not by scenery.
+SCENERY_THEMES.harbor  = SCENERY_THEMES.wavy;
+SCENERY_THEMES.redwood = SCENERY_THEMES.serpent;
+SCENERY_THEMES.glacier = SCENERY_THEMES.iceRibbon;
+SCENERY_THEMES.aurora  = SCENERY_THEMES.lunar;
 
 /* Painted sky recipes. Stops run zenith (0) -> horizon (1). `sun` is placed in
    normalized dome coords: u wraps around the horizon, v is 0 at the horizon and
@@ -2730,10 +2712,6 @@ function forwardVec(heading){ return new THREE.Vector3(Math.sin(heading), 0, Mat
 function normalizeAngle(a){ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; }
 
 const keys = {};
-// --- Hidden cheat code: hold Shift+E+R together mid-race to warp to the finish ---
-let hyperspeedWarp = false;
-let hyperspeedComboLatched = false;
-const HYPERSPEED_DURATION = 0.5; // seconds to blaze through the remaining laps
 /* Browsers only let audio start from a user gesture — but which gestures count
    varies by browser, and a page opened from disk is stricter than an embedded
    https iframe. So retry on every gesture until the context is actually
@@ -2758,11 +2736,6 @@ window.addEventListener('keydown', e=>{
     Sound.toggle(); refreshSoundBtn();
   }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
-  if(e.code === 'KeyT' && isOwner && appState==='racing'){ ownerTeleport(); }
-  if((keys['ShiftLeft']||keys['ShiftRight']) && keys['KeyE'] && keys['KeyR'] && !hyperspeedComboLatched){
-    hyperspeedComboLatched = true;
-    activateHyperspeedCheat();
-  }
   if(e.code === 'Escape'){
     if(appState === 'racing' || appState === 'racing-countdown'){
       pauseRace();
@@ -2781,10 +2754,7 @@ window.addEventListener('keydown', e=>{
     }
   }
 });
-window.addEventListener('keyup', e=>{
-  keys[e.code] = false;
-  if(['ShiftLeft','ShiftRight','KeyE','KeyR'].includes(e.code)) hyperspeedComboLatched = false;
-});
+window.addEventListener('keyup', e=>{ keys[e.code] = false; });
 
 /* ---------- Race setup ---------- */
 /* Themed scene + lighting, shared by the race itself and the home-screen
@@ -2919,7 +2889,15 @@ const Online = {
         this.broadcast({ type:'lobby', players:this.roster });
         this.renderLobby();
       } else {
-        showToast('A racer disconnected');
+        // If every other racer has left, racing on alone isn't really an
+        // online race anymore — end it for the host too instead of leaving
+        // them stuck racing an empty room.
+        const remaining = 1 + Object.keys(this.conns).length; // host + still-connected clients
+        if(remaining <= 1){
+          kickFromOnlineRace('All other racers left — race ended.');
+        } else {
+          showToast('A racer disconnected');
+        }
       }
     }
   },
@@ -2927,7 +2905,7 @@ const Online = {
     if(this.room || !this.searching) return;
     const room = {
       roomId: this.myId + '-' + Date.now(),
-      stageIndex: Math.floor(Math.random()*3),
+      stageIndex: Math.floor(Math.random()*STAGES.length),
       startInMs: 5000,
       players: this.roster.slice(0,4)
     };
@@ -2959,7 +2937,7 @@ const Online = {
       });
       conn.on('data', m => this.clientOnMsg(m));
       const lost = ()=>{
-        if(this.room){ showToast('Lost connection to the race host'); return; }
+        if(this.room){ kickFromOnlineRace('Lost connection to the race host — race ended.'); return; }
         if(!this.searching) return;
         // Host left — try to take over hosting, otherwise keep searching
         this.status('Host left — reconnecting…');
@@ -3160,18 +3138,13 @@ $('lobbyBackBtn').addEventListener('click', ()=>{ Online.stopSearch(); showScree
 
 function startRace(stageIndex, onlineRoom){
   if(!onlineRoom) Online.leaveRace();
-  const teleBtn = $('teleportBtn');
-  if(teleBtn) teleBtn.hidden = !isOwner;
-  const minimapEl = $('minimap');
-  if(minimapEl) minimapEl.classList.toggle('ownerTeleportable', isOwner);
-  const hint = $('controlsHint');
-  if(hint) hint.textContent = 'W/A/S/D or Arrows to drive · Space to boost · Esc to pause · M to mute' + (isOwner ? ' · T to hop forward · click minimap to teleport anywhere' : '');
   // Snapshot current state before the race modifies coins / racesCompleted.
   // If the player closes the tab before finishing, this snapshot is restored.
   takePreRaceSnapshot();
 
   if(trackGroup){ scene && disposeObject(trackGroup); }
   const stage = STAGES[stageIndex];
+  raceLaps = stage.laps || DEFAULT_LAPS;
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
   currentTrackDim = DIM_SKY_STYLES.has(theme.skyStyle);
 
@@ -3190,6 +3163,8 @@ function startRace(stageIndex, onlineRoom){
 
   playerCarDef = CARS[gameState.selectedCar];
   player = makeCar(true, playerCarDef.color, 1);
+  player.label = 'You';
+  player.colorHex = playerCarDef.color;
   cars.push(player);
 
   // CPU speed is derived purely from the player's skill rating so the pack
@@ -3215,6 +3190,8 @@ function startRace(stageIndex, onlineRoom){
       const rc = makeCar(false, carDef.color, 1);
       rc.remote = true;
       rc.netName = p.name;
+      rc.label = p.name || 'Racer';
+      rc.colorHex = carDef.color;
       rc.maxSpeed = 130;
       rc.laneOffset = cpuLaneOffsets[slot % cpuLaneOffsets.length];
       slot++;
@@ -3230,6 +3207,8 @@ function startRace(stageIndex, onlineRoom){
     cpu.diffBonus = skillFrac * 14 + stage.difficulty * 1.2 + variance;
     cpu.turnBonus = stage.difficulty * 0.035;
     cpu.laneOffset = cpuLaneOffsets[n];   // permanent lane assignment
+    cpu.label = getCarName(ci);
+    cpu.colorHex = CARS[ci].color;
     cars.push(cpu);
   }
   playerCollisions = 0;
@@ -3238,8 +3217,6 @@ function startRace(stageIndex, onlineRoom){
   boostCharge = 0;
   boosting = false;
   boostTimer = 0;
-  hyperspeedWarp = false;
-  hyperspeedComboLatched = false;
   $('boostBarFill').style.width = '0%';
   $('boostBtn').classList.remove('ready','active');
   $('boostBtn').disabled = true;
@@ -3285,119 +3262,6 @@ function findNearestIndex(car){
   }
   return bestIdx;
 }
-
-// Owner perk: drop the player car at an arbitrary point along the track's
-// centreline. Client-side only. Shared by the 'T' hotkey (hop forward) and
-// the minimap click handler (jump to wherever you clicked) below.
-function teleportPlayerToIndex(newIdx, announceMsg){
-  if(!player || !track || !track.N) return;
-  const N = track.N;
-  const oldIdx = player.trackIndex;
-  newIdx = ((newIdx % N) + N) % N;
-  const p = track.points[newIdx];
-  const pNext = track.points[(newIdx+1)%N];
-  player.pos.set(p.x, p.y, p.z);
-  player.trackIndex = newIdx;
-  player.heading = Math.atan2(pNext.x - p.x, pNext.z - p.z);
-  player.speed *= 0.4; // shed some speed so the car doesn't rocket off from momentum
-
-  // A teleport moves the car in one jump rather than the small per-frame
-  // steps normal driving takes, so the usual "crossed the line" check never
-  // sees it happen and the lap silently doesn't count. If the destination
-  // index is lower than where the car was (i.e. the jump went forward past
-  // the wraparound point at index 0), treat that exactly like driving across
-  // the finish line for real.
-  let lapCounted = false;
-  if(newIdx < oldIdx && !player.finished){
-    player.lapArmed = false;
-    completeLap(player);
-    lapCounted = true;
-  }
-  // Resync prevIndex to the new position now, so the very next physics tick
-  // doesn't also see a stale prevIndex and either double-count this same
-  // crossing or miss arming the following lap.
-  player.prevIndex = player.trackIndex;
-  if(!lapCounted) announce(announceMsg || 'Teleported.');
-}
-function ownerTeleport(){
-  if(!player || !track || !track.N) return;
-  const step = Math.round(track.N * 0.12); // jump ~12% of the lap forward
-  teleportPlayerToIndex(player.trackIndex + step, 'Teleported forward.');
-}
-
-// Cheat code: Shift+E+R together mid-race. Kicks off a short warp that
-// blasts the player down the remaining laps so fast it's basically over in
-// a split second — while still routing through the real lap-crossing logic
-// (completeLap / finishRace) so coins, times, and results stay correct.
-function activateHyperspeedCheat(){
-  if(appState !== 'racing' || !player || player.finished || hyperspeedWarp) return;
-  hyperspeedWarp = true;
-  showToast('🌀 HYPERSPEED CHEAT ENGAGED!');
-  announce('Hyperspeed cheat activated — warping to the finish.');
-}
-
-// Called instead of updateCar() for the player while a warp is active.
-// Advances trackIndex in big jumps (but capped under a full lap per frame,
-// so at most one finish-line crossing is ever processed in a single tick)
-// until the remaining laps are used up, then hands control back to normal
-// physics via the finished/lap-count check below.
-function hyperspeedWarpStep(car, dt){
-  if(!track || !track.N || car.finished){ hyperspeedWarp = false; return; }
-  const N = track.N;
-  const remainingLaps = Math.max(0, TOTAL_LAPS - car.lap - 1);
-  const remainingIdx = (N - car.trackIndex) + remainingLaps * N;
-  const idxPerSec = remainingIdx / HYPERSPEED_DURATION;
-  let step = Math.round(idxPerSec * dt);
-  step = Math.max(1, Math.min(step, N - 1));
-
-  const oldIdx = car.trackIndex;
-  let newIdx = oldIdx + step;
-  const wrapped = newIdx >= N;
-  newIdx = ((newIdx % N) + N) % N;
-
-  const p = track.points[newIdx];
-  const pNext = track.points[(newIdx+1)%N];
-  car.pos.set(p.x, p.y, p.z);
-  car.mesh.position.copy(car.pos);
-  car.heading = Math.atan2(pNext.x - p.x, pNext.z - p.z);
-  car.mesh.rotation.y = car.heading;
-  car.speed = BASE_MAX_SPEED; // just for the HUD speedometer while warping
-  car.trackIndex = newIdx;
-
-  if(wrapped && !car.finished){
-    car.lapArmed = false;
-    completeLap(car);
-  }
-  car.prevIndex = car.trackIndex;
-
-  if(car.finished || car.lap >= TOTAL_LAPS) hyperspeedWarp = false;
-}
-// Click anywhere on the minimap to drop the player there instead — this is
-// the "teleport wherever you want" version, only active for owners mid-race.
-function teleportToMinimapPoint(clickX, clickY){
-  const t = minimapTransform();
-  if(!t || !track || !track.N) return;
-  const worldX = t.minX + (clickX - t.ox) / t.s;
-  const worldZ = t.minZ + (clickY - t.oz) / t.s;
-  let bestIdx = 0, bestDist = Infinity;
-  for(let i=0;i<track.N;i++){
-    const p = track.points[i];
-    const dx = p.x - worldX, dz = p.z - worldZ;
-    const dist = dx*dx + dz*dz;
-    if(dist < bestDist){ bestDist = dist; bestIdx = i; }
-  }
-  teleportPlayerToIndex(bestIdx, 'Teleported to selected point.');
-}
-function ownerCanMinimapTeleport(){ return isOwner && appState === 'racing'; }
-$('minimap').addEventListener('click', (e)=>{
-  if(!ownerCanMinimapTeleport()) return;
-  const rect = e.target.getBoundingClientRect();
-  // Scale from displayed CSS size back to the canvas's native 160x160 space,
-  // in case the element is ever rendered at a different size than that.
-  const x = (e.clientX - rect.left) * (160 / rect.width);
-  const y = (e.clientY - rect.top) * (160 / rect.height);
-  teleportToMinimapPoint(x, y);
-});
 
 /* Wall contact: smooth push-off + 90% speed cut + RIVAL BOOST.
    Every wall hit hands all other racers a temporary speed boost — you
@@ -3496,9 +3360,6 @@ function updateBoostFlames(car, dt){
 }
 
 // Awards lap coins/best-lap tracking and, on the final lap, ends the race.
-// Shared by the normal finish-line crossing check in updateCar() and by
-// teleportPlayerToIndex() below, so a teleport that jumps across the line
-// counts the lap exactly the same way driving across it would.
 function completeLap(car){
   car.lap += 1;
   const lapTime = raceClock - car.lapStartClock;
@@ -3510,19 +3371,19 @@ function completeLap(car){
     lapCoinsEarned += lapCoins;
     refreshCoinDisplays();
     saveState();
-    Sound.lap(car.lap >= TOTAL_LAPS);
-    showToast('+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!');
+    Sound.lap(car.lap >= raceLaps);
+    showToast('+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!', 'lap');
     announce('Lap ' + car.lap + ' complete. Plus ' + lapCoins + ' coins.');
     if(!gameState.bestLaps[selectedStage] || lapTime < gameState.bestLaps[selectedStage]){
       gameState.bestLaps[selectedStage] = lapTime;
       saveState();
     }
-    if(car.lap >= TOTAL_LAPS && !car.finished){
+    if(car.lap >= raceLaps && !car.finished){
       car.finished = true;
       car.finishTime = raceClock;
       finishRace();
     }
-  } else if(car.lap >= TOTAL_LAPS && !car.finished){
+  } else if(car.lap >= raceLaps && !car.finished){
     car.finished = true;
     car.finishTime = raceClock;
   }
@@ -3690,10 +3551,6 @@ function resolveCollisions(dt){
             if(loc.isPlayer){
               playerCollisions++;
               if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
-              if(collisionToastCooldown <= 0){
-                showToast('Collision!');
-                collisionToastCooldown = 0.7;
-              }
             }
           }
           continue;
@@ -3731,10 +3588,6 @@ function resolveCollisions(dt){
           if(a.isPlayer || b.isPlayer){
             playerCollisions++;
             if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
-            if(collisionToastCooldown <= 0){
-              showToast('Collision!');
-              collisionToastCooldown = 0.7;
-            }
           }
         }
       }
@@ -3772,9 +3625,10 @@ function currentStandings(){
 }
 
 let toastTimer = null;
-function showToast(text){
+function showToast(text, variant){
   const el = $('toast');
   el.textContent = text;
+  el.classList.toggle('toastLap', variant === 'lap');
   el.classList.add('show');
   if(toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, 1800);
@@ -3802,15 +3656,29 @@ function updateCamera(dt){
 
 /* ---------- HUD ---------- */
 function updateHUD(){
-  const lapShown = Math.min(player.lap+1, TOTAL_LAPS);
-  $('hudLap').textContent = 'Lap ' + lapShown + '/' + TOTAL_LAPS;
+  const lapShown = Math.min(player.lap+1, raceLaps);
+  $('hudLap').textContent = 'Lap ' + lapShown + '/' + raceLaps;
   $('hudTime').textContent = formatTime(raceClock);
   const standings = currentStandings();
   const pos = standings.indexOf(player) + 1;
   $('hudPos').textContent = 'Pos ' + pos + '/' + cars.length;
   const mph = Math.max(0, Math.abs(player.speed)*2.6);
   $('speedNum').textContent = Math.round(gameState.units === 'kph' ? mph*1.60934 : mph);
+  updateLeaderboard(standings);
   drawMinimap(standings);
+}
+function updateLeaderboard(standings){
+  const list = $('leaderboardList');
+  if(!list) return;
+  list.innerHTML = standings.map((c, i)=>{
+    const colorCss = '#' + (c.colorHex != null ? c.colorHex.toString(16).padStart(6,'0') : '888888');
+    const name = c.isPlayer ? 'You' : (c.label || 'Racer');
+    return `<div class="lbRow${c.isPlayer ? ' you' : ''}">
+        <span class="lbPos">${i+1}</span>
+        <span class="lbDot" style="background:${colorCss};"></span>
+        <span class="lbName">${name}</span>
+      </div>`;
+  }).join('');
 }
 
 /* ---------- Boost ---------- */
@@ -3841,7 +3709,6 @@ function triggerBoost(){
   announce('Boost activated!');
 }
 $('boostBtn').addEventListener('click', triggerBoost);
-$('teleportBtn').addEventListener('click', ()=>{ if(isOwner && appState==='racing'){ ownerTeleport(); } });
 
 function formatTime(t){
   if(!isFinite(t)) return '--:--';
@@ -3850,9 +3717,7 @@ function formatTime(t){
 }
 
 /* ---------- Minimap ---------- */
-// Shared world<->minimap mapping so the click-to-teleport handler (owner
-// perk, see below) can invert exactly what drawMinimap projects — otherwise
-// a click could land on a different spot than what's drawn.
+// Shared world<->minimap coordinate mapping used by drawMinimap().
 function minimapTransform(){
   if(!track) return null;
   let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
@@ -4603,7 +4468,7 @@ function finishRace(){
     return `<div class="resultRow" style="border-bottom:1px solid #2a3549;"><span><strong>Online standings</strong></span><span></span></div>` +
       st.map((c,i)=>{
         const nm = c.isPlayer ? 'You' : (c.netName || 'Racer');
-        const status = c.finished ? formatTime(c.finishTime) : 'still racing (lap ' + Math.min(TOTAL_LAPS, c.lap+1) + ')';
+        const status = c.finished ? formatTime(c.finishTime) : 'still racing (lap ' + Math.min(raceLaps, c.lap+1) + ')';
         return `<div class="resultRow"><span>${i+1}. ${nm}</span><strong>${status}</strong></div>`;
       }).join('');
   }
@@ -4628,7 +4493,7 @@ function finishRace(){
     <div class="resultRow"><span>Finish position</span><strong>${pos} of ${cars.length}</strong></div>
     <div class="resultRow"><span>Total time</span><strong>${formatTime(player.finishTime)}</strong></div>
     <div class="resultRow"><span>Best lap</span><strong>${formatTime(player.bestLap)}</strong></div>
-    <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/TOTAL_LAPS)}</strong></div>
+    <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/raceLaps)}</strong></div>
     <div class="resultRow"><span>Top speed</span><strong>${Math.round(gameState.units === 'kph' ? player.topSpeed*1.60934 : player.topSpeed)} ${gameState.units === 'kph' ? 'km/h' : 'mph'}</strong></div>
     <div class="resultRow"><span>Collisions</span><strong>${playerCollisions}</strong></div>
     <div class="resultRow"><span>Difficulty payout</span><strong>×${diffMult.toFixed(1)}</strong></div>
@@ -4646,6 +4511,20 @@ let onlineResultsTimer = null;
 function endOnlineIfNeeded(){
   if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
   if(Online.room) Online.leaveRace();
+}
+// Used when an online race can no longer continue as a real multiplayer
+// race — e.g. every other racer has disconnected. Ends the race and drops
+// the remaining player back at mode select, same as a manual quit.
+function kickFromOnlineRace(reason){
+  if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
+  Online.leaveRace();
+  $('pauseOverlay').hidden = true;
+  $('resultsOverlay').hidden = true;
+  appState = 'home';
+  Sound.stop();
+  showScreen('mode');
+  showToast(reason);
+  announce(reason);
 }
 $('raceAgainBtn').addEventListener('click', ()=>{
   $('resultsOverlay').hidden = true;
@@ -4711,11 +4590,7 @@ function animate(now){
     renderer.render(scene, camera);
   } else if(appState === 'racing'){
     raceClock += dt;
-    cars.forEach(c=>{
-      if(c.remote) return;
-      if(hyperspeedWarp && c.isPlayer){ hyperspeedWarpStep(c, dt); return; }
-      if(!c.finished || c.isPlayer) updateCar(c, dt);
-    });
+    cars.forEach(c=>{ if(c.remote) return; if(!c.finished || c.isPlayer) updateCar(c, dt); });
     if(Online.room){
       Online.tick();
       Online.updateRemoteCars(dt);
@@ -4739,7 +4614,6 @@ $('loginForm').addEventListener('submit', (e)=>{
   attemptLogin($('loginUsername').value, $('loginPassword').value);
 });
 $('logoutBtn').addEventListener('click', logout);
-wireOwnerToolsUI();
 
 /* ============================= INIT ============================= */
 function init(){
@@ -4752,12 +4626,9 @@ function init(){
   let remembered = null;
   try{ remembered = localStorage.getItem(SESSION_KEY); }catch(e){}
   const rememberedUsers = readUsers();
-  if(remembered && rememberedUsers[remembered] && !rememberedUsers[remembered].banned){
-    beginSession(remembered, rememberedUsers[remembered].display, true, !!rememberedUsers[remembered].isAdmin, !!rememberedUsers[remembered].isOwner);
+  if(remembered && rememberedUsers[remembered]){
+    beginSession(remembered, rememberedUsers[remembered].display, true, !!rememberedUsers[remembered].isOwner);
   } else {
-    if(remembered && rememberedUsers[remembered] && rememberedUsers[remembered].banned){
-      try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
-    }
     showLoginScreen();
   }
 
