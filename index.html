@@ -263,6 +263,7 @@
   .joystickKnob{ position:absolute; left:60px; top:60px; width:52px; height:52px; margin-left:-26px; margin-top:-26px;
     border-radius:50%; background:var(--accent); opacity:.88; box-shadow:0 2px 8px rgba(var(--shadow-rgb),.3); }
   .touchKeys{ position:absolute; bottom:100px; right:18px; display:flex; flex-direction:column; gap:10px; pointer-events:all; }
+  .touchKeys[hidden]{ display:none; }
   .keycapBtn{ width:56px; height:56px; border-radius:10px; background:var(--panel-glass); border:1px solid var(--border);
     color:var(--text); font:inherit; font-weight:800; font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center;
     box-shadow:0 3px 0 var(--border-strong), 0 4px 10px rgba(var(--shadow-rgb),.25); user-select:none; -webkit-user-select:none;
@@ -280,6 +281,26 @@
   .soundBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   .soundBtn.off{ color:var(--danger); border-color:rgba(168,58,42,.45); }
   .soundBtn.warn{ color:var(--accent2); border-color:rgba(217,140,61,.6); }
+  #chatToggleBtn{ position:relative; }
+  .chatUnreadDot{ position:absolute; top:3px; right:3px; width:8px; height:8px; border-radius:50%;
+    background:var(--danger); box-shadow:0 0 0 2px var(--panel-glass); }
+  .chatPanel{ position:absolute; top:196px; right:14px; width:236px; max-height:280px; pointer-events:all;
+    display:flex; flex-direction:column; background:var(--panel-glass-strong); border:1px solid var(--border);
+    border-radius:12px; box-shadow:0 2px 10px rgba(var(--shadow-rgb),.18); overflow:hidden; }
+  .chatPanel[hidden]{ display:none !important; }
+  .chatLog{ flex:1; min-height:70px; max-height:190px; overflow-y:auto; padding:10px 12px 4px; }
+  .chatMsg{ font-size:13px; line-height:1.35; margin-bottom:7px; color:var(--text); word-wrap:break-word; }
+  .chatMsg .chatName{ font-weight:800; color:var(--muted); }
+  .chatMsg.me .chatName{ color:var(--accent); }
+  .chatMsg.sys{ color:var(--muted); font-style:italic; }
+  .chatForm{ display:flex; gap:6px; padding:8px; border-top:1px solid var(--border); }
+  .chatInputField{ flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); font:inherit; font-size:13px; }
+  .chatInputField:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+  .chatSendBtn{ padding:8px 14px; font-size:13px; min-height:0; border-radius:8px; }
+  @media (max-width:640px){
+    .chatPanel{ width:min(236px,60vw); top:190px; }
+  }
   .toast{ position:absolute; top:80px; left:50%; transform:translateX(-50%); background:rgba(111,143,70,.15);
     border:1px solid var(--good); color:var(--good); font-weight:700; padding:8px 18px; border-radius:999px;
     font-size:15px; opacity:0; transition:opacity .25s, transform .25s; }
@@ -431,6 +452,9 @@
       </div>
       <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap ⏸ to pause &middot; M to mute</div>
       <div class="hudToolbar">
+        <button class="soundBtn" id="chatToggleBtn" type="button" aria-label="Toggle race chat" aria-pressed="false" hidden>
+          <span aria-hidden="true">💬</span><span>Chat</span><span class="chatUnreadDot" id="chatUnreadDot" hidden></span>
+        </button>
         <button class="soundBtn" id="pauseBtn" type="button" aria-label="Pause and open settings">
           <span aria-hidden="true">⏸</span><span>Pause</span>
         </button>
@@ -452,6 +476,13 @@
         <span class="hudSmall" id="pingText">-- ms</span>
       </div>
       <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
+      <div class="chatPanel" id="chatPanel" hidden>
+        <div class="chatLog" id="chatLog" role="log" aria-live="polite" aria-label="Race chat messages"></div>
+        <form class="chatForm" id="chatForm">
+          <input class="chatInputField" id="chatInput" type="text" maxlength="120" placeholder="Message racers…" autocomplete="off" aria-label="Chat message" />
+          <button class="btn chatSendBtn" type="submit">Send</button>
+        </form>
+      </div>
       <div class="boostWrap">
         <button class="boostBtn" id="boostBtn" type="button" aria-label="Activate boost (Space)" disabled>
           <span id="boostLabel">BOOST</span>
@@ -738,13 +769,20 @@ function saveTheme(t){
 let currentUser = null;
 let isOwner = false;
 
-// A small set of hardcoded owner accounts, each granted the moment its exact
-// username/password combo is used to sign in successfully (new signup or
-// existing profile). Owner unlocks every track and buys cars/upgrades for
-// free — see isStageUnlocked() and the garage purchase handlers below.
-const OWNER_USERNAMES = ['velocityanand', 'velocityvihan', 'velocityarjun'];
-const OWNER_PASSWORD = 'trollsarereallytroll123';
-function checkOwner(nameKey, rawPassword){ return OWNER_USERNAMES.includes(nameKey) && rawPassword === OWNER_PASSWORD; }
+// Owner accounts: logging in with one of these username+password pairs grants
+// owner status (free purchases/upgrades, all stages unlocked). See
+// isStageUnlocked() and the garage purchase handlers below. Both the username
+// AND the password must match — matching the username alone is not enough,
+// since simpleHash() is not real cryptographic security and this list lives
+// in client-side code that anyone can view.
+const OWNER_CREDENTIALS = {
+  'velocityanand': simpleHash('trollsarereallytroll123'),
+  'velocityvihan': simpleHash('trollsarereallytroll123'),
+  'velocityarjun': simpleHash('trollsarereallytroll123'),
+  'velocityowner': simpleHash('velocityowner')
+};
+function isOwnerUsername(nameKey){ return Object.prototype.hasOwnProperty.call(OWNER_CREDENTIALS, nameKey); }
+function checkOwner(nameKey, hash){ return isOwnerUsername(nameKey) && OWNER_CREDENTIALS[nameKey] === hash; }
 
 function updateOwnerBadge(){
   const badge = $('ownerBadge');
@@ -814,26 +852,23 @@ function attemptLogin(rawUsername, rawPassword){
   const users = readUsers();
   const nameKey = username.toLowerCase();
   const hash = simpleHash(password);
-  const grantsOwner = checkOwner(nameKey, password);
 
-  if(OWNER_USERNAMES.includes(nameKey)){
-    // The owner slots are special: they must never be created or overwritten
-    // by a mistyped password. Only the exact hardcoded owner password can
-    // create or log into these accounts — anything else is just rejected,
-    // leaving whatever's already saved under this name untouched.
-    if(!grantsOwner){
-      errEl.textContent = 'Incorrect password for that username.';
-      return;
-    }
-    const existingDisplay = users[nameKey] ? users[nameKey].display : username;
-    users[nameKey] = { hash, display: existingDisplay, isOwner: true };
-    writeUsers(users);
-    const remember = $('rememberMeToggle').checked;
-    beginSession(nameKey, users[nameKey].display, remember, true);
+  // Owner usernames are locked to their fixed password. The username alone
+  // never grants owner status — if it's an owner username, the password
+  // must match too, no matter what (if anything) is already saved locally
+  // under that name.
+  if(isOwnerUsername(nameKey) && hash !== OWNER_CREDENTIALS[nameKey]){
+    errEl.textContent = 'Incorrect password for that username.';
     return;
   }
 
-  if(users[nameKey]){
+  // For owner usernames, the fixed password above is the only thing that
+  // matters — skip comparing against whatever hash might already be saved
+  // locally (e.g. from an earlier login attempt with a different password),
+  // and just overwrite it so the account is back in sync.
+  if(isOwnerUsername(nameKey)){
+    users[nameKey] = { hash, display: username };
+  } else if(users[nameKey]){
     if(users[nameKey].hash !== hash){
       errEl.textContent = 'Incorrect password for that username.';
       return;
@@ -841,10 +876,15 @@ function attemptLogin(rawUsername, rawPassword){
   } else {
     users[nameKey] = { hash, display: username };
   }
+  // Owner status is derived from the fixed username+password pair, not a
+  // stored flag, so it stays correct even for accounts created before this
+  // list existed.
+  const owner = checkOwner(nameKey, hash);
+  if(owner){ users[nameKey].isOwner = true; } else { delete users[nameKey].isOwner; }
   writeUsers(users);
 
   const remember = $('rememberMeToggle').checked;
-  beginSession(nameKey, users[nameKey].display, remember, !!users[nameKey].isOwner);
+  beginSession(nameKey, users[nameKey].display, remember, owner);
 }
 
 function logout(){
@@ -926,7 +966,8 @@ const STAGES = [
   { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:22, laps:3 },
   { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:2 },
   { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:2 },
-  { name:'Aurora Marathon', type:'aurora', desc:'A sprawling, epic circuit under shifting lights — bring snacks.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:34, laps:2 }
+  { name:'Aurora Marathon', type:'aurora', desc:'A sprawling, epic circuit under shifting lights — bring snacks.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:34, laps:5 },
+  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:38, laps:3 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
@@ -1570,6 +1611,19 @@ function genAurora(N){
   for(let i=0;i<N;i++) pts.push(superRectPoint(i/N*Math.PI*2, 170, 110, 2.6, t=>10*Math.sin(3*t)));
   return pts;
 }
+// Foggy Mansion — a boxy, corridor-like weave (rounded-square base so the
+// turns feel like hallway corners, plus extra wobble for room-to-room
+// twists) at a modest size. The track shape barely matters once the thick
+// fog is in — see SCENERY_THEMES.foggyMansion for the fogNear/fogFar and
+// drawMinimap()'s foggyMinimap handling for the visibility gimmick itself.
+function genFoggyMansion(N){
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const t = i/N*Math.PI*2;
+    pts.push(superRectPoint(t, 58, 44, 3.5, u=>7*Math.sin(5*u) + 4*Math.sin(9*u+0.7)));
+  }
+  return pts;
+}
 function generateCenterline(type, N){
   if(type==='oval') return genOval(N);
   if(type==='stadium') return genStadium(N);
@@ -1587,6 +1641,7 @@ function generateCenterline(type, N){
   if(type==='redwood') return genRedwood(N);
   if(type==='glacier') return genGlacier(N);
   if(type==='aurora') return genAurora(N);
+  if(type==='foggyMansion') return genFoggyMansion(N);
   return genWavy(N);
 }
 
@@ -1708,6 +1763,13 @@ SCENERY_THEMES.harbor  = SCENERY_THEMES.wavy;
 SCENERY_THEMES.redwood = SCENERY_THEMES.serpent;
 SCENERY_THEMES.glacier = SCENERY_THEMES.iceRibbon;
 SCENERY_THEMES.aurora  = SCENERY_THEMES.lunar;
+// Foggy Mansion — its own theme (not an alias) so it can carry much tighter
+// fog distances than every other track. fogNear/fogFar are read by
+// createStageScene(); everything else falls back to its usual 90/340.
+SCENERY_THEMES.foggyMansion = {
+  ground:0x241f2c, sky:['#050409','#241f2c'], deco:'cavern', skyStyle:'cave',
+  groundStyle:'stone', crowd:0.00, fogNear:6, fogFar:46, foggyMinimap:true
+};
 
 /* Painted sky recipes. Stops run zenith (0) -> horizon (1). `sun` is placed in
    normalized dome coords: u wraps around the horizon, v is 0 at the horizon and
@@ -2804,6 +2866,7 @@ let boostCharge = 0;
 let boosting = false;
 let boostTimer = 0;
 let currentTrackDim = false;
+let currentTrackFoggedMinimap = false;
 
 function forwardVec(heading){ return new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading)); }
 function normalizeAngle(a){ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; }
@@ -2822,6 +2885,10 @@ document.addEventListener('visibilitychange', ()=>{
   if(!document.hidden && (appState==='racing' || appState==='racing-countdown')) Sound.unlock();
 });
 window.addEventListener('keydown', e=>{
+  if(e.target && e.target.id === 'chatInput'){
+    if(e.code === 'Escape'){ e.preventDefault(); closeChat(); }
+    return; // let the field handle its own typing; Enter submits the chat form
+  }
   const typingInField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
   // Escape is a universal "back" key, so let it through even if focus happens
   // to be sitting on a settings slider/checkbox — only real typing (text
@@ -2831,6 +2898,9 @@ window.addEventListener('keydown', e=>{
   keys[e.code] = true;
   if(e.code === 'KeyM' && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
     Sound.toggle(); refreshSoundBtn();
+  }
+  if(e.code === 'KeyT' && Online.room && !$('chatToggleBtn').hidden && (appState==='racing' || appState==='racing-countdown')){
+    e.preventDefault(); openChat();
   }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
   if(e.code === 'Escape'){
@@ -2926,7 +2996,7 @@ window.addEventListener('keyup', e=>{ keys[e.code] = false; });
 function createStageScene(theme){
   const s = new THREE.Scene();
   s.background = new THREE.Color(theme.sky[0]);
-  s.fog = new THREE.Fog(new THREE.Color(theme.sky[1]).getHex(), 90, 340);
+  s.fog = new THREE.Fog(new THREE.Color(theme.sky[1]).getHex(), theme.fogNear || 90, theme.fogFar || 340);
 
   const preset = SKY_PRESETS[theme.skyStyle] || SKY_PRESETS.clearDay;
   const hemi = new THREE.HemisphereLight(new THREE.Color(theme.sky[1]), new THREE.Color(theme.ground).multiplyScalar(0.45), preset.sun ? 0.75 : 0.5);
@@ -3043,6 +3113,9 @@ const Online = {
       try{ conn.send({ type:'pong', ts:m.ts }); }catch(e){}
     } else if(m.type === 'pong'){
       this.recordPong(conn.logicalId || 'client', m.ts);
+    } else if(m.type === 'chat'){
+      this.relay(m, conn);
+      addChatMessage(m.name, m.text, false);
     }
   },
   hostDrop(conn){
@@ -3134,6 +3207,8 @@ const Online = {
       if(this.hostConn && this.hostConn.open){ try{ this.hostConn.send({ type:'pong', ts:m.ts }); }catch(e){} }
     } else if(m.type === 'pong'){
       this.recordPong('host', m.ts);
+    } else if(m.type === 'chat'){
+      addChatMessage(m.name, m.text, false);
     }
   },
 
@@ -3244,6 +3319,14 @@ const Online = {
     this.send(this.mySnapshot({ s:0, f:true, ft:player.finishTime }));
   },
 
+  sendChat(text){
+    if(!this.room) return;
+    const clean = String(text||'').trim().slice(0,120);
+    if(!clean) return;
+    this.send({ type:'chat', id:this.myId, name:this.displayName(), text:clean });
+    addChatMessage(this.displayName(), clean, true);
+  },
+
   /* Smoothly move network cars toward their latest snapshot, with light
      dead-reckoning so they keep rolling between updates. */
   updateRemoteCars(dt){
@@ -3292,6 +3375,7 @@ const Online = {
     this.pingMs = null;
     this.pingSamples = {};
     this.lastPingSent = 0;
+    clearChat();
   }
 };
 
@@ -3320,6 +3404,7 @@ function startRace(stageIndex, onlineRoom){
   raceLaps = stage.laps || DEFAULT_LAPS;
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
   currentTrackDim = DIM_SKY_STYLES.has(theme.skyStyle);
+  currentTrackFoggedMinimap = !!theme.foggyMinimap;
 
   scene = createStageScene(theme);
 
@@ -3418,6 +3503,11 @@ function startRace(stageIndex, onlineRoom){
   $('countdownNum').textContent = '3';
   $('pauseOverlay').hidden = true;
   $('resultsOverlay').hidden = true;
+  clearChat();
+  $('chatToggleBtn').hidden = !onlineRoom;
+  $('controlsHint').textContent = onlineRoom
+    ? 'W/A/S/D or Arrows to drive · Space to boost · Esc or tap ⏸ to pause · M to mute · T to chat'
+    : 'W/A/S/D or Arrows to drive · Space to boost · Esc or tap ⏸ to pause · M to mute';
   showScreen('game');
   onResize();
   announce('Race starting in 3 seconds');
@@ -3807,6 +3897,63 @@ function showToast(text, variant){
   toastTimer = setTimeout(()=>{ el.classList.remove('show'); }, 1800);
 }
 
+/* ---------- Race chat (online only) ---------- */
+let chatOpen = false;
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function addChatMessage(name, text, isMe){
+  const log = $('chatLog');
+  if(!log) return;
+  const row = document.createElement('div');
+  row.className = 'chatMsg' + (isMe ? ' me' : '');
+  row.innerHTML = '<span class="chatName">' + escapeHtml(isMe ? 'You' : name) + ':</span> ' + escapeHtml(text);
+  log.appendChild(row);
+  // Cap how much history we keep around so the panel can't grow forever.
+  while(log.children.length > 50) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+  announce((isMe ? 'You' : name) + ' said: ' + text);
+  if(!isMe && !chatOpen){
+    const dot = $('chatUnreadDot');
+    if(dot) dot.hidden = false;
+  }
+}
+function clearChat(){
+  const log = $('chatLog');
+  if(log) log.innerHTML = '';
+  const dot = $('chatUnreadDot');
+  if(dot) dot.hidden = true;
+  chatOpen = false;
+  $('chatPanel').hidden = true;
+  $('chatToggleBtn').setAttribute('aria-pressed', 'false');
+}
+function openChat(){
+  if($('chatToggleBtn').hidden) return; // not in an online race
+  chatOpen = true;
+  $('chatPanel').hidden = false;
+  $('chatToggleBtn').setAttribute('aria-pressed', 'true');
+  const dot = $('chatUnreadDot');
+  if(dot) dot.hidden = true;
+  setTimeout(()=>{ const f = $('chatInput'); if(f) f.focus(); }, 0);
+}
+function closeChat(keepFocus){
+  chatOpen = false;
+  $('chatPanel').hidden = true;
+  $('chatToggleBtn').setAttribute('aria-pressed', 'false');
+  const input = $('chatInput');
+  if(input && !keepFocus) input.blur();
+}
+function toggleChat(){ if(chatOpen) closeChat(); else openChat(); }
+$('chatToggleBtn').addEventListener('click', toggleChat);
+$('chatForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const input = $('chatInput');
+  const text = input.value;
+  input.value = '';
+  Online.sendChat(text);
+  input.focus();
+});
+
 /* ---------- Camera ---------- */
 const camTmp = new THREE.Vector3();
 let cameraShakeTime = 0;
@@ -3953,6 +4100,30 @@ function drawMinimap(standings){
     ctx.fill();
     if(car.isPlayer){ ctx.strokeStyle='#241811'; ctx.lineWidth=1.5; ctx.stroke(); }
   });
+
+  // Foggy Mansion: the minimap itself is fogged out — only a small soft
+  // radius around the player's own dot is legible, same spirit as the
+  // track's own tight draw-distance fog.
+  if(currentTrackFoggedMinimap && player){
+    const [px, py] = toXY(player.pos);
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    const clearR = 34;
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, clearR);
+    grad.addColorStop(0, 'rgba(20,16,26,0)');
+    grad.addColorStop(0.55, 'rgba(20,16,26,0.55)');
+    grad.addColorStop(1, 'rgba(20,16,26,0.97)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 160, 160);
+    // Anything outside the gradient's own radius (corners of the canvas)
+    // still needs full coverage since the radial gradient stops at clearR.
+    ctx.fillStyle = 'rgba(20,16,26,0.97)';
+    ctx.beginPath();
+    ctx.rect(0,0,160,160);
+    ctx.arc(px, py, clearR, 0, Math.PI*2, true);
+    ctx.fill('evenodd');
+    ctx.restore();
+  }
 }
 
 /* ============================= AUDIO =============================
@@ -4824,7 +4995,12 @@ function init(){
   try{ remembered = localStorage.getItem(SESSION_KEY); }catch(e){}
   const rememberedUsers = readUsers();
   if(remembered && rememberedUsers[remembered]){
-    beginSession(remembered, rememberedUsers[remembered].display, true, !!rememberedUsers[remembered].isOwner);
+    // Recompute owner status from the username+password each time, so it
+    // stays in sync with OWNER_CREDENTIALS rather than trusting a stored flag.
+    const owner = checkOwner(remembered, rememberedUsers[remembered].hash);
+    if(owner){ rememberedUsers[remembered].isOwner = true; } else { delete rememberedUsers[remembered].isOwner; }
+    writeUsers(rememberedUsers);
+    beginSession(remembered, rememberedUsers[remembered].display, true, owner);
   } else {
     showLoginScreen();
   }
