@@ -317,6 +317,19 @@
   .overlayCard h2{ margin:0 0 6px; font-size:24px; }
   .overlayCard p{ color:var(--muted); margin:4px 0 20px; }
 
+  .statsOverlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius);
+    padding:26px 28px; text-align:left; width:min(680px,92vw); max-height:82vh; display:flex; flex-direction:column; }
+  .statsOverlayCard h2{ margin:0 0 4px; font-size:22px; text-align:center; }
+  .statsOverlayCard p.statsSub{ color:var(--muted); margin:0 0 16px; text-align:center; font-size:13px; }
+  .statsTableWrap{ overflow:auto; border:1px solid var(--border); border-radius:10px; }
+  .statsTable{ width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+  .statsTable th, .statsTable td{ padding:9px 12px; text-align:left; border-bottom:1px solid var(--border); }
+  .statsTable thead th{ background:var(--panel2); color:var(--muted); font-size:11px; letter-spacing:.4px;
+    text-transform:uppercase; position:sticky; top:0; }
+  .statsTable tbody tr:last-child td{ border-bottom:none; }
+  .statsTable tbody tr.statsRowMe{ background:rgba(var(--accent-rgb),.1); }
+  .statsMissingNote{ color:var(--muted); font-size:12px; margin:12px 0 0; }
+
   .resultRow{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-strong); font-size:15px; }
   .resultRow:last-child{ border-bottom:none; }
 
@@ -618,6 +631,33 @@
         </div>
       </div>
     </div>
+
+    <div class="overlay" id="statsOverlay" hidden>
+      <div class="statsOverlayCard">
+        <h2>Race Stats</h2>
+        <p class="statsSub" id="statsSub"></p>
+        <div class="statsTableWrap">
+          <table class="statsTable" id="statsTable">
+            <thead>
+              <tr>
+                <th>Racer</th>
+                <th>Coins</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Playtime</th>
+                <th>Cars</th>
+                <th>Upgrades</th>
+              </tr>
+            </thead>
+            <tbody id="statsTableBody"></tbody>
+          </table>
+        </div>
+        <p class="statsMissingNote" id="statsMissingNote" hidden></p>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="statsCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <div class="liveRegion" id="liveRegion" aria-live="assertive" aria-atomic="true"></div>
@@ -632,6 +672,10 @@
 /* ============================= PERSISTENT STATE ============================= */
 const DEFAULT_STATE = {
   coins: 100,
+  bonusCoinsPerRace: 0,  // owner-granted flat coin bonus added on top of normal race payout
+  wins: 0,
+  losses: 0,
+  totalPlayTimeSec: 0,   // approximate — accumulates while a profile is signed in
   upgrades: { speed:0, accel:0, handling:0, brake:0, grip:0, nitro:0, boostPower:0, armor:0 },
   selectedCar: 0,
   ownedCars: [0],
@@ -3044,10 +3088,14 @@ const Online = {
   roster: [],                      // lobby players [{id,name,car}]
   isHost: false, searching: false, startScheduled: false,
   room: null, netCars: {},
+  pendingRename: null,     // { key, raw, display } while awaiting the new name after /rename(target)
+  lastStatsSent: 0,        // last time we broadcast our own stats snapshot
+  knownStats: {},          // key -> { name, stats, updatedAt }, populated passively from everyone's broadcasts
   lastSend: 0, retryTimer: null,
   pingMs: null, lastPingSent: 0, pingSamples: {},
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
+  nameKey(){ return (currentUser || 'guest').toLowerCase(); },
   status(msg){ $('lobbyStatus').textContent = msg; },
 
   startSearch(){
@@ -3068,7 +3116,7 @@ const Online = {
     p.on('open', ()=>{
       if(decided || !this.searching) return; decided = true;
       this.isHost = true;
-      this.roster = [{ id:this.myId, name:this.displayName(), car:gameState.selectedCar }];
+      this.roster = [{ id:this.myId, name:this.displayName(), key:this.nameKey(), car:gameState.selectedCar }];
       this.renderLobby();
       this.status('Looking for racers… (1 in lobby)');
       p.on('connection', conn => this.hostAccept(conn));
@@ -3097,7 +3145,7 @@ const Online = {
       conn.logicalId = m.id;
       this.conns[m.id] = conn;
       this.roster = this.roster.filter(p=>p.id !== m.id);
-      this.roster.push({ id:m.id, name:String(m.name||'Racer').slice(0,16), car:m.car|0 });
+      this.roster.push({ id:m.id, name:String(m.name||'Racer').slice(0,16), key:String(m.key||'guest').toLowerCase().slice(0,40), car:m.car|0 });
       this.broadcast({ type:'lobby', players:this.roster });
       this.renderLobby();
       this.status('Looking for racers… (' + this.roster.length + ' in lobby)');
@@ -3116,6 +3164,12 @@ const Online = {
     } else if(m.type === 'chat'){
       this.relay(m, conn);
       addChatMessage(m.name, m.text, false);
+    } else if(m.type === 'owner_cmd'){
+      this.relay(m, conn);
+      handleOwnerCmdReceived(m);
+    } else if(m.type === 'stats_broadcast'){
+      this.relay(m, conn);
+      recordStatsBroadcast(m);
     }
   },
   hostDrop(conn){
@@ -3169,7 +3223,7 @@ const Online = {
       const conn = p.connect(this.LOBBY_ID);
       this.hostConn = conn;
       conn.on('open', ()=>{
-        conn.send({ type:'join', id:this.myId, name:this.displayName(), car:gameState.selectedCar });
+        conn.send({ type:'join', id:this.myId, name:this.displayName(), key:this.nameKey(), car:gameState.selectedCar });
         this.status('In lobby — waiting for the race to start…');
       });
       conn.on('data', m => this.clientOnMsg(m));
@@ -3209,6 +3263,10 @@ const Online = {
       this.recordPong('host', m.ts);
     } else if(m.type === 'chat'){
       addChatMessage(m.name, m.text, false);
+    } else if(m.type === 'owner_cmd'){
+      handleOwnerCmdReceived(m);
+    } else if(m.type === 'stats_broadcast'){
+      recordStatsBroadcast(m);
     }
   },
 
@@ -3244,8 +3302,11 @@ const Online = {
     }
     room.startAt = Date.now() + (room.startInMs || 5000);
     this.room = room;
+    this.knownStats = {};
     selectedStage = room.stageIndex;
     startRace(room.stageIndex, room);
+    this.lastStatsSent = Date.now();
+    this.send({ type:'stats_broadcast', key:this.nameKey(), name:this.displayName(), stats:myStatsSnapshot() });
     announce('Online race found with ' + room.players.length + ' racers.');
   },
 
@@ -3293,6 +3354,21 @@ const Online = {
     this.lastSend = now;
     this.send(this.mySnapshot());
     this.tickPing();
+    this.tickStats();
+  },
+
+  /* Every racer broadcasts their own stats snapshot on a timer, unprompted —
+     so /stats reads from an already-known local cache instead of sending a
+     visible request. Note this doesn't change WHO the numbers come from:
+     it's still each client reporting on itself, same as before, just without
+     a request message announcing that someone is looking. A tampered client
+     could still report false numbers either way — there's no server here to
+     verify anything against. */
+  tickStats(){
+    const now = Date.now();
+    if(now - this.lastStatsSent < 4000) return;
+    this.lastStatsSent = now;
+    this.send({ type:'stats_broadcast', key:this.nameKey(), name:this.displayName(), stats:myStatsSnapshot() });
   },
 
   /* Round-trip latency: pings roughly once a second using performance.now(),
@@ -3918,6 +3994,254 @@ function addChatMessage(name, text, isMe){
     if(dot) dot.hidden = false;
   }
 }
+// Italic, unattributed line in the chat log — used for owner-command
+// confirmations, errors, and notices, so they read differently from a
+// message a racer actually typed.
+function addSystemChatMessage(text){
+  const log = $('chatLog');
+  if(!log) return;
+  const row = document.createElement('div');
+  row.className = 'chatMsg sys';
+  row.textContent = text;
+  log.appendChild(row);
+  while(log.children.length > 50) log.removeChild(log.firstChild);
+  log.scrollTop = log.scrollHeight;
+  announce(text);
+  if(!chatOpen){
+    const dot = $('chatUnreadDot');
+    if(dot) dot.hidden = false;
+  }
+}
+
+/* ---------- Owner chat commands (online races only) -----------------------
+   +xxxcoinstotarget    — give xxx coins to target (e.g. +100coinstobob)
+   -xxxcoinstotarget    — take xxx coins from target (e.g. -100coinstobob)
+   +xxxcprtotarget      — give target +xxx bonus coins per finished race (e.g. +50cprtobob)
+   -xxxcprtotarget      — reduce target's bonus coins per finished race (e.g. -50cprtobob)
+   /delete(target)      — deletes target's local account (they're logged out)
+   /rename(target)      — asks for a new display name, then applies it
+   IMPORTANT CAVEAT: like the owner login itself, this has no real server
+   behind it. Everyone's client independently agrees on the same 4 owner
+   usernames (see OWNER_CREDENTIALS above) and trusts whatever username a
+   peer claims for itself when it joins a race — the same trust level the
+   rest of this local, serverless multiplayer already runs on. Someone who
+   edits their own client's code could forge these messages; this stops
+   accidental/casual misuse, not a determined tampering attempt. */
+function findRosterTarget(raw){
+  const q = String(raw||'').trim().toLowerCase();
+  if(!q) return null;
+  const list = (Online.room && Online.room.players) || Online.roster || [];
+  return list.find(p => (p.key && p.key === q) || (p.name && p.name.toLowerCase() === q)) || null;
+}
+function iAmOwnerCmdTarget(targetKey, targetRaw){
+  const myKey = (currentUser||'').toLowerCase();
+  const myName = Online.displayName().toLowerCase();
+  const raw = String(targetRaw||'').trim().toLowerCase();
+  return !!((targetKey && targetKey === myKey) || (raw && (raw === myName || raw === myKey)));
+}
+function sendOwnerCmd(partial){
+  const m = Object.assign({
+    type: 'owner_cmd',
+    senderKey: (currentUser||'').toLowerCase(),
+    senderName: Online.displayName()
+  }, partial);
+  Online.send(m);
+  handleOwnerCmdReceived(m); // covers the case where the owner targets themselves
+}
+function handleOwnerCmdReceived(m){
+  if(!m || !isOwnerUsername(String(m.senderKey||'').toLowerCase())) return; // sender isn't a recognized owner account
+  if(!iAmOwnerCmdTarget(m.targetKey, m.targetRaw)) return; // not addressed to me
+  switch(m.cmd){
+    case 'coins': {
+      const delta = m.amount|0;
+      gameState.coins = Math.max(0, gameState.coins + delta);
+      saveState(); refreshCoinDisplays();
+      addSystemChatMessage('An owner ' + (delta < 0 ? 'took ' + (-delta) : 'added ' + delta) + ' coins ' + (delta < 0 ? 'from' : 'to') + ' your account.');
+      break;
+    }
+    case 'cpr': {
+      const delta = m.amount|0;
+      gameState.bonusCoinsPerRace = Math.max(0, (gameState.bonusCoinsPerRace||0) + delta);
+      saveState();
+      addSystemChatMessage('An owner ' + (delta < 0 ? 'reduced' : 'increased') + ' your bonus coins per race by ' + Math.abs(delta) + '.');
+      break;
+    }
+    case 'rename': {
+      const clean = String(m.newName||'').trim().slice(0,24);
+      if(!clean) break;
+      const users = readUsers();
+      if(currentUser && users[currentUser]){ users[currentUser].display = clean; writeUsers(users); }
+      $('profileNameText').textContent = clean;
+      $('modeProfileName').textContent = clean;
+      addSystemChatMessage('An owner renamed your account to "' + clean + '".');
+      break;
+    }
+    case 'delete': {
+      addSystemChatMessage('An owner deleted your account.');
+      const nameKey = currentUser;
+      endOnlineIfNeeded();
+      try{ localStorage.removeItem(saveKeyFor(nameKey)); }catch(e){}
+      try{ localStorage.removeItem(rollbackKeyFor(nameKey)); }catch(e){}
+      const users = readUsers();
+      delete users[nameKey];
+      writeUsers(users);
+      try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+      currentUser = null;
+      isOwner = false;
+      $('pauseOverlay').hidden = true;
+      $('resultsOverlay').hidden = true;
+      Sound.stop();
+      showLoginScreen();
+      announce('Your account was deleted by an owner.');
+      break;
+    }
+  }
+}
+// Parses chat input for an owner command. Returns true if it consumed the
+// message (owner command or mid-rename step), false to send as normal chat.
+function handleChatSubmission(rawText){
+  if(!isOwner || !Online.room) return false; // commands only apply to owners mid online-race
+  const text = String(rawText||'').trim();
+
+  if(Online.pendingRename){
+    if(!text) return true; // ignore an empty submit while awaiting a name
+    if(text.toLowerCase() === '/cancel'){
+      addSystemChatMessage('Rename cancelled.');
+      Online.pendingRename = null;
+      return true;
+    }
+    if(!/^[a-zA-Z0-9 _-]{2,24}$/.test(text)){
+      addSystemChatMessage('New name must be 2-24 characters: letters, numbers, spaces, - and _. Or /cancel.');
+      return true;
+    }
+    const pending = Online.pendingRename;
+    Online.pendingRename = null;
+    sendOwnerCmd({ cmd:'rename', targetKey:pending.key, targetRaw:pending.raw, newName:text });
+    addSystemChatMessage('Rename sent to ' + pending.display + '.');
+    return true;
+  }
+
+  // +100coinstobob  -50 coins to bob  +20cprtobob  -20 cpr to bob
+  // Spacing around the number/keyword/"to" is optional either way.
+  let match = text.match(/^([+-])\s*(\d+)\s*(coins|cpr)\s*to\s*(.+?)\s*$/i);
+  if(match){
+    const sign = match[1] === '-' ? -1 : 1;
+    const amount = parseInt(match[2],10);
+    const cmd = /^cpr$/i.test(match[3]) ? 'cpr' : 'coins';
+    return runTargetedOwnerCmd(cmd, sign*amount, match[4]);
+  }
+
+  match = text.match(/^\/delete\(([^)]+)\)$/i);
+  if(match) return runTargetedOwnerCmd('delete', null, match[1]);
+
+  match = text.match(/^\/rename\(([^)]+)\)$/i);
+  if(match){
+    const target = findRosterTarget(match[1]);
+    if(!target){ addSystemChatMessage('No racer named "' + match[1] + '" in this race.'); return true; }
+    Online.pendingRename = { key:target.key, raw:match[1], display:target.name };
+    addSystemChatMessage('Type the new name for ' + target.name + ', or /cancel.');
+    return true;
+  }
+
+  if(/^\/commands$/i.test(text)){ printOwnerCommandHelp(); return true; }
+  if(/^\/stats$/i.test(text)){ printKnownStats(); return true; }
+
+  return false;
+}
+function runTargetedOwnerCmd(cmd, signedAmount, targetRaw){
+  const target = findRosterTarget(targetRaw);
+  if(!target){ addSystemChatMessage('No racer named "' + targetRaw + '" in this race.'); return true; }
+  if(cmd !== 'delete' && !(Number.isFinite(signedAmount) && signedAmount !== 0)){
+    addSystemChatMessage('Amount must be a non-zero whole number.');
+    return true;
+  }
+  sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
+  const verb = cmd === 'delete' ? 'Delete command' : (signedAmount < 0 ? 'Deduction' : 'Command');
+  addSystemChatMessage(verb + ' sent to ' + target.name + '.');
+  return true;
+}
+function printOwnerCommandHelp(){
+  addSystemChatMessage('--- Owner commands ---');
+  addSystemChatMessage('+AmountCoinsToTarget / -AmountCoinsToTarget — give or take coins (e.g. +100coinstobob)');
+  addSystemChatMessage('+AmountCprToTarget / -AmountCprToTarget — give or take bonus coins per finished race (e.g. +50cprtobob)');
+  addSystemChatMessage('/delete(target) — delete a racer\u2019s account');
+  addSystemChatMessage('/rename(target) — rename a racer\u2019s account (asks for the new name next)');
+  addSystemChatMessage('/stats — show stats for everyone in this race');
+  addSystemChatMessage('/commands — show this list');
+}
+
+/* ---------- /stats: reads from a cache that's kept up to date passively —
+   every racer's client broadcasts its own stats on a timer whether anyone
+   asked or not, so there's no visible "stats requested" message and no
+   round-trip delay. This does NOT stop someone from running a modified
+   client that reports fake numbers — there's no server to check the numbers
+   against, same limitation as everything else in this offline-first game. */
+function myStatsSnapshot(){
+  return {
+    coins: gameState.coins||0,
+    wins: gameState.wins||0,
+    losses: gameState.losses||0,
+    racesCompleted: gameState.racesCompleted||0,
+    playTimeSec: gameState.totalPlayTimeSec||0,
+    carsUnlocked: (gameState.ownedCars||[]).length,
+    upgrades: gameState.upgrades || {}
+  };
+}
+function recordStatsBroadcast(m){
+  if(!m || !m.key) return;
+  Online.knownStats[m.key] = { name:m.name, stats:m.stats, updatedAt:Date.now() };
+}
+// Escapes text dropped into table cells built via innerHTML below.
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+// Builds and shows the /stats table. Only ever called from the /stats chat
+// command handler above — nothing else populates or opens this overlay, so
+// racers only see it when someone actually asks for it.
+function printKnownStats(){
+  const myKey = (currentUser||'').toLowerCase();
+  const results = [{ key:myKey, name:Online.displayName(), stats:myStatsSnapshot() }];
+  Object.entries(Online.knownStats||{}).forEach(([key,v])=>{
+    if(key === myKey) return; // already have our own live numbers above
+    results.push({ key, name:v.name, stats:v.stats });
+  });
+
+  const body = $('statsTableBody');
+  body.innerHTML = results.map(r=>{
+    const s = r.stats || {};
+    const hrs = Math.floor((s.playTimeSec||0)/3600);
+    const mins = Math.round(((s.playTimeSec||0)%3600)/60);
+    const upgList = Object.entries(s.upgrades||{}).map(([k,v])=> k+' L'+v).filter(x=>!/L0$/.test(x));
+    const upg = upgList.length ? upgList.join(', ') : 'none';
+    const rowClass = r.key === myKey ? ' class="statsRowMe"' : '';
+    return '<tr' + rowClass + '>' +
+      '<td>' + escapeHtml(r.name) + (r.key===myKey ? ' (you)' : '') + '</td>' +
+      '<td>' + escapeHtml(s.coins) + '</td>' +
+      '<td>' + escapeHtml(s.wins) + '</td>' +
+      '<td>' + escapeHtml(s.losses) + '</td>' +
+      '<td>' + hrs + 'h ' + mins + 'm</td>' +
+      '<td>' + escapeHtml(s.carsUnlocked) + '</td>' +
+      '<td>' + escapeHtml(upg) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  $('statsSub').textContent = results.length + ' racer' + (results.length===1?'':'s') + ' reporting';
+
+  const missing = ((Online.room && Online.room.players) || []).filter(p =>
+    p.key !== myKey && !Online.knownStats[p.key]
+  );
+  const missingNote = $('statsMissingNote');
+  if(missing.length){
+    missingNote.textContent = 'Still waiting on: ' + missing.map(p=>p.name).join(', ') + ' — reopen /stats in a few seconds.';
+    missingNote.hidden = false;
+  } else {
+    missingNote.hidden = true;
+  }
+
+  $('statsOverlay').hidden = false;
+  announce('Showing race stats for ' + results.length + ' racer' + (results.length===1?'':'s') + '.');
+}
+$('statsCloseBtn').addEventListener('click', ()=>{ $('statsOverlay').hidden = true; });
 function clearChat(){
   const log = $('chatLog');
   if(log) log.innerHTML = '';
@@ -3950,6 +4274,7 @@ $('chatForm').addEventListener('submit', (e)=>{
   const input = $('chatInput');
   const text = input.value;
   input.value = '';
+  if(handleChatSubmission(text)){ input.focus(); return; }
   Online.sendChat(text);
   input.focus();
 });
@@ -4808,10 +5133,11 @@ function finishRace(){
   const diffMult = stageCoinMult(stage);
   const bonus = Math.round((POSITION_BONUS[pos-1] || 0) * diffMult);
   const finishBonus = Math.round(FINISH_BONUS * diffMult);
-  gameState.coins += bonus + finishBonus;
+  gameState.coins += bonus + finishBonus + (gameState.bonusCoinsPerRace || 0);
 
   const previouslyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   gameState.racesCompleted += 1;
+  if(pos === 1){ gameState.wins = (gameState.wins||0) + 1; } else { gameState.losses = (gameState.losses||0) + 1; }
   const newlyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   const newlyUnlocked = newlyUnlockedCount > previouslyUnlockedCount;
 
@@ -5007,6 +5333,15 @@ function init(){
 
   requestAnimationFrame(animate);
 }
+// Approximate playtime tracker — ticks while a profile is signed in,
+// regardless of which screen is open. Not frame-precise, but good enough
+// for a rough per-profile total shown via the owner /stats command.
+setInterval(function(){
+  if(!currentUser) return;
+  gameState.totalPlayTimeSec = (gameState.totalPlayTimeSec||0) + 30;
+  saveState();
+}, 30000);
+
 init();
 
 })();
