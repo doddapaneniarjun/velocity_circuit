@@ -51,6 +51,7 @@
     --speed-color:#4fd8ff;
   }
   *{box-sizing:border-box;}
+  body.hide-emojis .emoji{ display:none; }
   html,body{
     margin:0; padding:0; width:100%; height:100%;
     background:var(--bg); color:var(--text);
@@ -238,8 +239,10 @@
   .hudPanel{ background:var(--panel-glass); border:1px solid var(--border); border-radius:12px; padding:10px 16px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
   .hudBig{ font-size:22px; font-weight:800; color:var(--text); }
   .hudSmall{ font-size:13px; color:var(--muted); }
-  .speedo{ position:absolute; bottom:18px; right:18px; text-align:right; }
+  .speedo{ position:absolute; top:50%; right:18px; transform:translateY(-50%); text-align:right; }
   .speedNum{ font-size:44px; font-weight:800; line-height:1; color:var(--speed-color); text-shadow:0 0 15px rgba(var(--accent-rgb),.51); }
+  .posWrap{ position:absolute; bottom:18px; right:18px; text-align:right; }
+  .posNum{ font-size:44px; font-weight:800; line-height:1; color:var(--accent); text-shadow:0 0 15px rgba(var(--accent-rgb),.51); }
   .minimapWrap{ position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:calc(18px + env(safe-area-inset-left)); }
   #minimap{ background:var(--minimap-bg); border:1px solid rgba(var(--accent-rgb),.25); border-radius:12px; pointer-events:all; touch-action:none; }
   #minimap.ownerTeleport{ cursor:crosshair; }
@@ -391,7 +394,7 @@
   <!-- MODE SELECT (new home) -->
   <section id="modeScreen" class="screen" hidden>
     <div class="profileBar" aria-label="Logged in profile">
-      <span aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><span class="ownerBadge" id="modeOwnerBadge" hidden>OWNER</span><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
+      <span class="emoji" aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><span class="ownerBadge" id="modeOwnerBadge" hidden>OWNER</span><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
     </div>
     <h1 class="megaTitle">VELOCITY<br><span>CIRCUIT</span></h1>
     <button class="modeBtn online" id="chooseOnlineBtn" type="button">ONLINE<small>Race other people playing right now</small></button>
@@ -422,7 +425,7 @@
     </div>
 
     <div class="profileBar" aria-label="Logged in profile">
-      <span aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
+      <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
     </div>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
@@ -474,25 +477,25 @@
           <div class="hudSmall" id="hudTime">0:00.0</div>
         </div>
         <div class="hudPanel">
-          <div class="hudBig" id="hudPos">Pos 1/4</div>
           <div class="hudSmall"><span class="coinDot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> <span id="hudCoins">0</span> coins</div>
         </div>
       </div>
       <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap ⏸ to pause &middot; M to mute</div>
       <div class="hudToolbar">
         <button class="soundBtn" id="chatToggleBtn" type="button" aria-label="Toggle race chat" aria-pressed="false" hidden>
-          <span aria-hidden="true">💬</span><span>Chat</span><span class="chatUnreadDot" id="chatUnreadDot" hidden></span>
+          <span class="emoji" aria-hidden="true">💬</span><span>Chat</span><span class="chatUnreadDot" id="chatUnreadDot" hidden></span>
         </button>
         <button class="soundBtn" id="pauseBtn" type="button" aria-label="Pause and open settings">
           <span aria-hidden="true">⏸</span><span>Pause</span>
         </button>
         <button class="soundBtn" id="soundBtn" type="button" aria-pressed="true">
-          <span id="soundIcon" aria-hidden="true">🔊</span><span id="soundLabel">Sound on</span>
+          <span id="soundIcon" class="emoji" aria-hidden="true">🔊</span><span id="soundLabel">Sound on</span>
         </button>
       </div>
       <div class="toast" id="toast"></div>
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
+      <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="hudSmall" id="posLabel">of 4</div></div>
       <div class="hudPanel leaderboardPanel" id="leaderboardPanel">
         <div class="leaderboardTitle">LEADERBOARD</div>
         <div id="leaderboardList"></div>
@@ -533,7 +536,7 @@
         <p>Take a breath.</p>
         <div class="btnRow" style="flex-direction:column;">
           <button class="btn" id="resumeBtn">Resume</button>
-          <button class="btn secondary" id="settingsBtn">⚙️ Settings</button>
+          <button class="btn secondary" id="settingsBtn"><span class="emoji" aria-hidden="true">⚙️</span> Settings</button>
           <button class="btn secondary" id="restartBtn">Restart Race</button>
           <button class="btn ghost" id="quitBtn">Quit to Home</button>
         </div>
@@ -572,10 +575,10 @@
             <span id="volumeVal" style="color:var(--accent);margin-left:8px;">70</span>
           </label>
           <div style="display:flex;align-items:center;gap:12px;">
-            <span style="color:var(--muted);font-size:13px;">🔈</span>
+            <span class="emoji" style="color:var(--muted);font-size:13px;">🔈</span>
             <input type="range" id="volumeSlider" min="0" max="100" value="70"
               style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
-            <span style="color:var(--muted);font-size:13px;">🔊</span>
+            <span class="emoji" style="color:var(--muted);font-size:13px;">🔊</span>
           </div>
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
@@ -591,6 +594,13 @@
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Swap left/right controls.</p>
           </div>
           <input type="checkbox" id="invertSteeringToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="emojiToggle" style="display:block;font-weight:700;">Show Emoji Icons</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Toggle emoji icons throughout the interface.</p>
+          </div>
+          <input type="checkbox" id="emojiToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
@@ -705,6 +715,7 @@ const DEFAULT_STATE = {
   sensitivity: 50,  // 0–100; maps to a turn-rate multiplier of 0.4–1.6
   volume: 70,       // 0–100 master volume
   invertSteering: false,
+  showEmojis: true,
   showMinimap: true,
   units: 'mph',        // 'mph' or 'kph'
   cameraShake: true,
@@ -753,6 +764,7 @@ function loadState(){
       gameState.sensitivity    = Number.isFinite(parsed.sensitivity) ? parsed.sensitivity : 50;
       gameState.volume         = Number.isFinite(parsed.volume) ? parsed.volume : 70;
       gameState.invertSteering = parsed.invertSteering === true;
+      gameState.showEmojis     = parsed.showEmojis !== false;
       gameState.showMinimap    = parsed.showMinimap !== false;
       gameState.units          = parsed.units === 'kph' ? 'kph' : 'mph';
       gameState.cameraShake    = parsed.cameraShake !== false;
@@ -768,6 +780,7 @@ function loadState(){
   stateLoaded = true;
   refreshSoundBtn();
   refreshCoinDisplays();
+  applyEmojiVisibility();
   renderGarage();
   renderStageGrid();
   applyMinimapVisibility();
@@ -1029,8 +1042,7 @@ const STAGES = [
   { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:5, width:21, unlockRaces:22, laps:3 },
   { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:2 },
   { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:2 },
-  { name:'Aurora Marathon', type:'aurora', desc:'A sprawling, epic circuit under shifting lights — bring snacks.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:34, laps:5 },
-  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:38, laps:3 }
+  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
@@ -1148,10 +1160,10 @@ function renderStageGrid(){
     const racesLeft = Math.max(1, s.unlockRaces - gameState.racesCompleted);
     card.innerHTML = `
       <canvas class="stageThumb" data-stage="${i}" width="376" height="180" aria-hidden="true"></canvas>
-      <p class="stageName">${unlocked ? displayName : '🔒 ' + displayName}</p>
+      <p class="stageName">${unlocked ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
-      <p class="stageMeta">💰 ${coinsPerLapForStage(s)} coins/lap &middot; 🏁 ${s.laps || DEFAULT_LAPS} laps</p>
+      <p class="stageMeta"><span class="emoji" aria-hidden="true">💰</span> ${coinsPerLapForStage(s)} coins/lap &middot; <span class="emoji" aria-hidden="true">🏁</span> ${s.laps || DEFAULT_LAPS} laps</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
         : `<p class="lockNote">Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
@@ -1307,7 +1319,7 @@ function renderCarGrid(){
     }
     card.innerHTML = `
       <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
-      <p class="carName">${owned ? displayName : '🔒 ' + displayName}</p>
+      <p class="carName">${owned ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
       <div class="carStatsWrap" role="img" aria-label="${statsAria}">${statBars}</div>
       ${buttonHtml}
     `;
@@ -1519,8 +1531,8 @@ function genStadium(N, straight, radius){
   for(let i=0;i<N;i++) pts.push(stadiumPointAtDistance(i/N*totalLen, straight, radius));
   return pts;
 }
-// Shared helper for the "rounded rectangle" family (Frost Ribbon, Glacier,
-// Aurora): a superellipse scaled anisotropically by a/b, with an optional
+// Shared helper for the "rounded rectangle" family (Frost Ribbon, Glacier):
+// a superellipse scaled anisotropically by a/b, with an optional
 // small extra radial wobble layered on top so it doesn't read as pure math.
 function superRectPoint(t, a, b, n, wobble){
   const c = Math.cos(t), s = Math.sin(t);
@@ -1667,13 +1679,6 @@ function genGlacier(N){
   for(let i=0;i<N;i++) pts.push(superRectPoint(i/N*Math.PI*2, 118, 74, 3.5, t=>5*Math.sin(5*t)));
   return pts;
 }
-// Aurora Marathon — the biggest circuit in the game: an even larger, softer
-// rounded rectangle than Glacier, with a slow ripple for "shifting lights."
-function genAurora(N){
-  const pts=[];
-  for(let i=0;i<N;i++) pts.push(superRectPoint(i/N*Math.PI*2, 170, 110, 2.6, t=>10*Math.sin(3*t)));
-  return pts;
-}
 // Foggy Mansion — a boxy, corridor-like weave (rounded-square base so the
 // turns feel like hallway corners, plus extra wobble for room-to-room
 // twists) at a modest size. The track shape barely matters once the thick
@@ -1703,7 +1708,6 @@ function generateCenterline(type, N){
   if(type==='harbor') return genHarbor(N);
   if(type==='redwood') return genRedwood(N);
   if(type==='glacier') return genGlacier(N);
-  if(type==='aurora') return genAurora(N);
   if(type==='foggyMansion') return genFoggyMansion(N);
   return genWavy(N);
 }
@@ -1821,11 +1825,10 @@ const SCENERY_THEMES = {
 };
 // New tracks reuse an existing decor/sky set rather than needing brand new
 // art — they're differentiated by geometry (see genHarbor/genRedwood/
-// genGlacier/genAurora below), not by scenery.
+// genGlacier below), not by scenery.
 SCENERY_THEMES.harbor  = SCENERY_THEMES.wavy;
 SCENERY_THEMES.redwood = SCENERY_THEMES.serpent;
 SCENERY_THEMES.glacier = SCENERY_THEMES.iceRibbon;
-SCENERY_THEMES.aurora  = SCENERY_THEMES.lunar;
 // Foggy Mansion — its own theme (not an alias) so it can carry much tighter
 // fog distances than every other track. fogNear/fogFar are read by
 // createStageScene(); everything else falls back to its usual 90/340.
@@ -2847,11 +2850,35 @@ function buildFinishLine(points, normals, width){
   bctx.textAlign = 'center'; bctx.textBaseline = 'middle';
   bctx.fillText('START / FINISH', 256, 48);
   const bannerTex = new THREE.CanvasTexture(bc);
-  const bannerMat = new THREE.MeshBasicMaterial({ map: bannerTex, side: THREE.DoubleSide });
-  const banner = new THREE.Mesh(new THREE.PlaneGeometry(width+2.4, 1.6), bannerMat);
-  banner.position.copy(p0); banner.position.y = 6.6;
-  banner.rotation.y = Math.atan2(tangent.x, tangent.z);
-  group.add(banner);
+  const bannerY = Math.atan2(tangent.x, tangent.z);
+  const bannerGeo = new THREE.PlaneGeometry(width+2.4, 1.6);
+  // A single double-sided plane shows the exact same (unmirrored) texture on
+  // both faces — which means whichever side faces away from the "front"
+  // reads backwards, the same way text looks mirrored through the back of a
+  // page. Build two single-sided planes instead, one facing each direction.
+  //
+  // rotation.y = bannerY makes a plane's outward normal point along +tangent
+  // (downstream, the direction cars drive toward). Cars approach from the
+  // -tangent side, so the face they actually see is the one whose normal
+  // points back at them — i.e. the plane rotated by bannerY + PI, with
+  // normal along -tangent. That's the one that needs the plain, correctly
+  // readable texture; the other (only visible looking back from downstream)
+  // gets the horizontally-mirrored copy.
+  const bannerTexMirrored = bannerTex.clone();
+  bannerTexMirrored.wrapS = THREE.RepeatWrapping;
+  bannerTexMirrored.repeat.x = -1;
+  bannerTexMirrored.offset.x = 1;
+  bannerTexMirrored.needsUpdate = true;
+
+  const bannerApproach = new THREE.Mesh(bannerGeo, new THREE.MeshBasicMaterial({ map: bannerTex, side: THREE.FrontSide }));
+  bannerApproach.position.copy(p0); bannerApproach.position.y = 6.6;
+  bannerApproach.rotation.y = bannerY + Math.PI;   // normal = -tangent, faces incoming cars
+  group.add(bannerApproach);
+
+  const bannerDownstream = new THREE.Mesh(bannerGeo, new THREE.MeshBasicMaterial({ map: bannerTexMirrored, side: THREE.FrontSide }));
+  bannerDownstream.position.copy(bannerApproach.position);
+  bannerDownstream.rotation.y = bannerY;            // normal = +tangent, faces the other way
+  group.add(bannerDownstream);
 
   return group;
 }
@@ -3536,10 +3563,17 @@ function startRace(stageIndex, onlineRoom){
   const cpuColorPool = CARS.map((c,i)=>i).filter(i=>i!==gameState.selectedCar);
   if(onlineRoom){
     // Online: opponents are real people, driven by network snapshots.
+    // onlineRoom.players is the same array on every client (broadcast once
+    // by the host at race start), so a racer's index in that list is a
+    // stable, shared id everyone agrees on. Lane = that index — including
+    // for "me" — instead of every client assuming it personally gets the
+    // solo-race player's usual -1.35 slot, which used to put every real
+    // racer in the same starting lane and stack them on top of each other.
     Online.netCars = {};
-    let slot = 0;
-    for(const p of onlineRoom.players){
-      if(p.id === Online.myId) continue;
+    const myIdx = onlineRoom.players.findIndex(p => p.id === Online.myId);
+    player.laneOffset = laneOffsets[(myIdx < 0 ? 0 : myIdx) % laneOffsets.length];
+    onlineRoom.players.forEach((p, idx)=>{
+      if(p.id === Online.myId) return;
       const carDef = CARS[p.car] || CARS[0];
       const rc = makeCar(false, carDef.color, 1);
       rc.remote = true;
@@ -3547,18 +3581,17 @@ function startRace(stageIndex, onlineRoom){
       rc.label = p.name || 'Racer';
       rc.colorHex = carDef.color;
       rc.maxSpeed = 130;
-      rc.laneOffset = cpuLaneOffsets[slot % cpuLaneOffsets.length];
-      slot++;
+      rc.laneOffset = laneOffsets[idx % laneOffsets.length];
       Online.netCars[p.id] = rc;
       cars.push(rc);
-    }
+    });
   } else
   for(let n=0;n<3;n++){
     const ci = cpuColorPool[n % cpuColorPool.length];
-    const variance = (Math.random() * 6) - 3;              // ±3
-    const aiSkill = 0.80 + skillFrac * 0.28 + Math.random() * 0.08;  // 0.80–1.16
+    const variance = (Math.random() * 4) - 2;              // ±2 — kept small so skill, not luck, drives the pack
+    const aiSkill = 0.72 + skillFrac * 0.5 + Math.random() * 0.05;  // 0.72–1.27, scales harder with rating than before
     const cpu = makeCar(false, CARS[ci].color, aiSkill);
-    cpu.diffBonus = skillFrac * 14 + stage.difficulty * 1.2 + variance;
+    cpu.diffBonus = skillFrac * 20 + stage.difficulty * 1.2 + variance;
     cpu.turnBonus = stage.difficulty * 0.035;
     cpu.laneOffset = cpuLaneOffsets[n];   // permanent lane assignment
     cpu.label = getCarName(ci);
@@ -3577,8 +3610,10 @@ function startRace(stageIndex, onlineRoom){
   $('boostLabel').textContent = 'BOOST';
 
   cars.forEach((car, i)=>{
-    // Starting grid position: player gets slot index 1 (-1.35), CPUs use their assigned lane offsets
-    const gridOff = car.isPlayer ? -1.35 : (car.laneOffset || laneOffsets[i]);
+    // Starting grid position: everyone with an assigned lane (CPUs, and now
+    // the player too in online races) uses it; the offline solo player falls
+    // back to the -1.35 slot since they have no laneOffset assigned.
+    const gridOff = car.laneOffset != null ? car.laneOffset : (car.isPlayer ? -1.35 : laneOffsets[i]);
     car.pos.copy(track.points[0]).add(startNormal.clone().multiplyScalar(gridOff));
     car.pos.y = 0;
     car.heading = startHeading;
@@ -4326,7 +4361,8 @@ function updateHUD(){
   $('hudTime').textContent = formatTime(raceClock);
   const standings = currentStandings();
   const pos = standings.indexOf(player) + 1;
-  $('hudPos').textContent = 'Pos ' + pos + '/' + cars.length;
+  $('posNum').textContent = pos;
+  $('posLabel').textContent = 'of ' + cars.length;
   const mph = Math.max(0, Math.abs(player.speed)*2.6);
   $('speedNum').textContent = Math.round(gameState.units === 'kph' ? mph*1.60934 : mph);
   updateLeaderboard(standings);
@@ -4386,7 +4422,21 @@ function formatTime(t){
 function minimapTransform(){
   if(!track) return null;
   let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
-  track.points.forEach(p=>{ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.z<minZ)minZ=p.z; if(p.z>maxZ)maxZ=p.z; });
+  // The centreline alone understates the track's real footprint — on tight
+  // corners the outer edge of the track surface can bulge out further than
+  // any centreline point's own bounding box. Expanding each sampled point by
+  // half the track width along its normal (both ways) before taking the
+  // bounding box means the minimap's scale/origin account for the whole
+  // drivable surface, so a car hugging the outside of a corner still maps
+  // inside the drawn loop instead of appearing to run off the track.
+  const halfWidth = (track.width || TRACK_WIDTH) / 2;
+  track.points.forEach((p,i)=>{
+    const n = track.normals && track.normals[i];
+    const ex = n ? n.x*halfWidth : 0, ez = n ? n.z*halfWidth : 0;
+    const x1 = p.x-ex, x2 = p.x+ex, z1 = p.z-ez, z2 = p.z+ez;
+    if(x1<minX)minX=x1; if(x2<minX)minX=x2; if(x1>maxX)maxX=x1; if(x2>maxX)maxX=x2;
+    if(z1<minZ)minZ=z1; if(z2<minZ)minZ=z2; if(z1>maxZ)maxZ=z1; if(z2>maxZ)maxZ=z2;
+  });
   const pad=14, w=160-pad*2, h=160-pad*2;
   const sx = w/(maxX-minX||1), sz = h/(maxZ-minZ||1);
   const s = Math.min(sx,sz);
@@ -4487,9 +4537,9 @@ function nearestTrackIndexFull(x, z){
   return bestIdx;
 }
 // Moves the local player's car to a world (x,z) and resets the bits of car
-// state that assume smooth continuous movement — wall contact, lap arming,
-// and the nearest-track-point index — so the jump doesn't leave the car
-// stuck against a wall or wrongly complete/skip a lap.
+// state that assume smooth continuous movement — wall contact and the
+// nearest-track-point index — so the jump doesn't leave the car stuck
+// against a wall.
 function teleportPlayerTo(worldX, worldZ){
   if(!track || !player) return;
   player.pos.x = worldX;
@@ -4502,8 +4552,17 @@ function teleportPlayerTo(worldX, worldZ){
   player.wallPenaltyCd = 0;
   const idx = nearestTrackIndexFull(worldX, worldZ);
   player.trackIndex = idx;
+  // Snapping prevIndex to match trackIndex here is what stops a teleport from
+  // instantly faking a finish-line crossing by itself: the crossing check
+  // needs prevIndex and trackIndex to straddle the line within one frame, and
+  // right after a teleport they're identical. lapArmed is explicitly set
+  // true (rather than left alone or cleared) so that teleporting anywhere —
+  // including just behind the line — and then driving forward through it for
+  // real always counts as completing the lap. This tool is owner-only, so
+  // trading a little anti-cheat strictness for "it just works when testing"
+  // is the right trade here.
   player.prevIndex = idx;
-  player.lapArmed = false;
+  player.lapArmed = true;
   const p0 = track.points[idx], p1 = track.points[(idx+1) % track.N];
   player.heading = Math.atan2(p1.x - p0.x, p1.z - p0.z);
   player.mesh.position.copy(player.pos);
@@ -5043,6 +5102,9 @@ $('pauseBtn').addEventListener('click', ()=>{
   if(appState === 'racing' || appState === 'racing-countdown') pauseRace();
 });
 $('resumeBtn').addEventListener('click', resumeRace);
+function applyEmojiVisibility(){
+  document.body.classList.toggle('hide-emojis', gameState.showEmojis === false);
+}
 function applyMinimapVisibility(){
   $('minimapWrap').style.display = gameState.showMinimap === false ? 'none' : '';
 }
@@ -5065,6 +5127,7 @@ $('settingsBtn').addEventListener('click', ()=>{
   $('volumeSlider').value = gameState.volume;
   $('volumeVal').textContent = Math.round(gameState.volume);
   $('invertSteeringToggle').checked = !!gameState.invertSteering;
+  $('emojiToggle').checked = gameState.showEmojis !== false;
   $('minimapToggle').checked = gameState.showMinimap !== false;
   $('unitsToggle').value = gameState.units === 'kph' ? 'kph' : 'mph';
   $('cameraShakeToggle').checked = gameState.cameraShake !== false;
@@ -5089,6 +5152,11 @@ $('volumeSlider').addEventListener('input', ()=>{
 });
 $('invertSteeringToggle').addEventListener('change', ()=>{
   gameState.invertSteering = $('invertSteeringToggle').checked;
+  saveState();
+});
+$('emojiToggle').addEventListener('change', ()=>{
+  gameState.showEmojis = $('emojiToggle').checked;
+  applyEmojiVisibility();
   saveState();
 });
 $('minimapToggle').addEventListener('change', ()=>{
@@ -5184,6 +5252,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   if(!confirm('Reset all progress? This clears your coins, upgrades, unlocked tracks, and records. This cannot be undone.')) return;
   const keepSoundOn = gameState.soundOn, keepSensitivity = gameState.sensitivity,
         keepVolume = gameState.volume, keepInvert = gameState.invertSteering,
+        keepEmojis = gameState.showEmojis,
         keepMinimap = gameState.showMinimap, keepUnits = gameState.units,
         keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps,
         keepShowPing = gameState.showPing, keepTouchControls = gameState.touchControls;
@@ -5192,6 +5261,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   // aren't "progress", they're how the player likes to play.
   gameState.soundOn = keepSoundOn; gameState.sensitivity = keepSensitivity;
   gameState.volume = keepVolume; gameState.invertSteering = keepInvert;
+  gameState.showEmojis = keepEmojis;
   gameState.showMinimap = keepMinimap; gameState.units = keepUnits;
   gameState.cameraShake = keepCameraShake; gameState.showFps = keepShowFps;
   gameState.showPing = keepShowPing; gameState.touchControls = keepTouchControls;
@@ -5202,6 +5272,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   applySpeedUnitLabel();
   applyFpsVisibility();
   applyPingVisibility();
+  applyEmojiVisibility();
   announce('Progress reset.');
   showToast('Progress reset');
 });
@@ -5229,7 +5300,7 @@ function finishRace(){
   // Nudge the persistent skill rating toward how the player actually finished,
   // so next race's CPUs start out matched to their real ability.
   const posNorm = cars.length > 1 ? (cars.length - pos) / (cars.length - 1) : 0.5; // 1=won, 0=last
-  const ratingDelta = Math.round((posNorm - 0.5) * 14);
+  const ratingDelta = Math.round((posNorm - 0.5) * 18);
   gameState.skillRating = Math.max(0, gameState.skillRating + ratingDelta);
 
   refreshCoinDisplays();
@@ -5280,7 +5351,7 @@ function finishRace(){
     <div class="resultRow"><span>Position bonus</span><strong>+${bonus}</strong></div>
     <div class="resultRow"><span>Total coins</span><strong>${gameState.coins}</strong></div>
     <div class="resultRow"><span>CPU skill match</span><strong>${gameState.skillRating} (${ratingDelta>=0?'+':''}${ratingDelta})</strong></div>
-    ${newlyUnlocked ? `<div class="resultRow"><span>🔓 New track</span><strong>Unlocked!</strong></div>` : ''}
+    ${newlyUnlocked ? `<div class="resultRow"><span><span class="emoji" aria-hidden="true">🔓</span> New track</span><strong>Unlocked!</strong></div>` : ''}
   `;
   $('resultsOverlay').hidden = false;
   announce('Race complete. You finished in position ' + pos + ' of ' + cars.length + '. You earned ' + (bonus+finishBonus) + ' bonus coins.' + (newlyUnlocked ? ' A new track has been unlocked.' : ''));
