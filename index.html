@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Velocity Circuit — 3D Racing</title>
 <style>
   :root{
@@ -60,7 +60,7 @@
   @media (prefers-reduced-motion: reduce){
     *{animation:none!important; transition:none!important;}
   }
-  #app{ position:relative; width:100vw; height:100vh; }
+  #app{ position:relative; width:100vw; height:100vh; height:100dvh; }
 
   .screen{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
   .screen[hidden]{ display:none !important; }
@@ -240,8 +240,9 @@
   .hudSmall{ font-size:13px; color:var(--muted); }
   .speedo{ position:absolute; bottom:18px; right:18px; text-align:right; }
   .speedNum{ font-size:44px; font-weight:800; line-height:1; color:var(--speed-color); text-shadow:0 0 15px rgba(var(--accent-rgb),.51); }
-  .minimapWrap{ position:absolute; bottom:18px; left:18px; }
-  #minimap{ background:var(--minimap-bg); border:1px solid rgba(var(--accent-rgb),.25); border-radius:12px; pointer-events:all; }
+  .minimapWrap{ position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:calc(18px + env(safe-area-inset-left)); }
+  #minimap{ background:var(--minimap-bg); border:1px solid rgba(var(--accent-rgb),.25); border-radius:12px; pointer-events:all; touch-action:none; }
+  #minimap.ownerTeleport{ cursor:crosshair; }
   .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:all; }
   .boostBarTrack{ width:150px; height:10px; border-radius:999px; background:var(--panel-glass);
@@ -316,6 +317,20 @@
   .overlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius); padding:30px 34px; text-align:center; width:min(420px,88vw); }
   .overlayCard h2{ margin:0 0 6px; font-size:24px; }
   .overlayCard p{ color:var(--muted); margin:4px 0 20px; }
+
+  /* Settings can have more rows than a short/landscape tablet viewport has
+     room for. Cap the card to the viewport, let the row list scroll, and
+     keep Reset/Back pinned below it so they're never off-screen. */
+  #settingsCard{ display:flex; flex-direction:column; max-height:90vh; max-height:90dvh; padding-bottom:18px; }
+  #settingsCard[hidden]{ display:none !important; }
+  #settingsCard > h2, #settingsCard > p{ flex:none; }
+  .settingsScrollArea{ overflow-y:auto; -webkit-overflow-scrolling:touch; min-height:0; padding-right:6px; margin:0 -6px 14px 0; }
+  .settingsFooter{ flex:none; }
+  @media (max-height:820px){
+    #settingsCard{ padding-top:22px; padding-bottom:14px; }
+    #settingsCard > p{ margin-bottom:12px; }
+    .settingsScrollArea > div{ margin-bottom:16px !important; }
+  }
 
   .statsOverlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius);
     padding:26px 28px; text-align:left; width:min(680px,92vw); max-height:82vh; display:flex; flex-direction:column; }
@@ -527,6 +542,7 @@
       <div class="overlayCard" id="settingsCard" hidden>
         <h2>Settings</h2>
         <p style="color:var(--muted);margin:0 0 22px;">Adjust controls and preferences.</p>
+        <div class="settingsScrollArea">
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
             <label for="themeToggle" style="display:block;font-weight:700;">Theme</label>
@@ -614,8 +630,11 @@
           </div>
           <input type="checkbox" id="pingCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
-        <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
-        <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
+        </div>
+        <div class="settingsFooter">
+          <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
+          <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
+        </div>
       </div>
     </div>
 
@@ -3474,6 +3493,7 @@ function startRace(stageIndex, onlineRoom){
   // Snapshot current state before the race modifies coins / racesCompleted.
   // If the player closes the tab before finishing, this snapshot is restored.
   takePreRaceSnapshot();
+  $('minimap').classList.toggle('ownerTeleport', isOwner); // hints the click-to-teleport trick below
 
   if(trackGroup){ scene && disposeObject(trackGroup); }
   const stage = STAGES[stageIndex];
@@ -4450,6 +4470,71 @@ function drawMinimap(standings){
     ctx.restore();
   }
 }
+
+/* ---------- Owner trick: click the minimap to teleport ----------
+   Full-track scan (unlike the ±20-window search updateCar() runs every
+   frame) so a jump lands on the correct track index immediately instead of
+   the windowed search hunting from wherever the car used to be. */
+function nearestTrackIndexFull(x, z){
+  const N = track.N;
+  let bestIdx = 0, bestDist = Infinity;
+  for(let i=0;i<N;i++){
+    const p = track.points[i];
+    const dx = p.x - x, dz = p.z - z;
+    const d = dx*dx + dz*dz;
+    if(d < bestDist){ bestDist = d; bestIdx = i; }
+  }
+  return bestIdx;
+}
+// Moves the local player's car to a world (x,z) and resets the bits of car
+// state that assume smooth continuous movement — wall contact, lap arming,
+// and the nearest-track-point index — so the jump doesn't leave the car
+// stuck against a wall or wrongly complete/skip a lap.
+function teleportPlayerTo(worldX, worldZ){
+  if(!track || !player) return;
+  player.pos.x = worldX;
+  player.pos.z = worldZ;
+  player.pos.y = 0;
+  player.speed = 0;
+  player.crashBoost = 0;
+  player.touchingWall = false;
+  player.wallOffTime = 0;
+  player.wallPenaltyCd = 0;
+  const idx = nearestTrackIndexFull(worldX, worldZ);
+  player.trackIndex = idx;
+  player.prevIndex = idx;
+  player.lapArmed = false;
+  const p0 = track.points[idx], p1 = track.points[(idx+1) % track.N];
+  player.heading = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+  player.mesh.position.copy(player.pos);
+  player.mesh.rotation.y = player.heading;
+  // Snap the camera straight to the new spot instead of letting it sweep
+  // across the map as it lerps in the main loop.
+  const fwd = forwardVec(player.heading);
+  camera.position.copy(player.pos).addScaledVector(fwd, -10);
+  camera.position.y = player.pos.y + 4.6;
+  const lookAt = new THREE.Vector3().copy(player.pos).addScaledVector(fwd, 6);
+  lookAt.y = 1.2;
+  camera.lookAt(lookAt);
+  showToast('Teleported.');
+  announce('Teleported to the tapped location.');
+}
+$('minimap').addEventListener('click', (e)=>{
+  if(!isOwner) return; // teleport trick is an owner-only tool
+  if(appState !== 'racing' && appState !== 'racing-countdown') return;
+  if(!track || !player) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  if(!rect.width || !rect.height) return;
+  // The canvas is drawn at a fixed 160x160 logical size but may be scaled
+  // by CSS, so map the click through the element's actual rendered size.
+  const cx = (e.clientX - rect.left) * (160 / rect.width);
+  const cy = (e.clientY - rect.top) * (160 / rect.height);
+  const t = minimapTransform();
+  if(!t) return;
+  const worldX = t.minX + (cx - t.ox) / t.s;
+  const worldZ = t.minZ + (cy - t.oz) / t.s;
+  teleportPlayerTo(worldX, worldZ);
+});
 
 /* ============================= AUDIO =============================
    Every sound here is synthesised at runtime with Web Audio — no sample files,
