@@ -165,6 +165,27 @@
     border:3px solid #d9c3a1; border-top-color:var(--accent); animation:spin 0.9s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
+  .chatPanel{ background:var(--panel2); border:1px solid #d9c3a1; border-radius:12px;
+    padding:10px; margin-bottom:16px; text-align:left; }
+  .chatLog{ height:120px; overflow-y:auto; font-size:13px; margin-bottom:8px; display:flex; flex-direction:column; gap:4px; }
+  .chatLine{ line-height:1.4; word-break:break-word; }
+  .chatLine .chatName{ font-weight:700; color:var(--accent); }
+  .chatLine.chatPrivate .chatName{ color:var(--accent2); }
+  .chatLine.chatSystem{ color:var(--muted); font-style:italic; }
+  .chatLine.chatSelf .chatName{ color:var(--good); }
+  .chatInputRow{ display:flex; gap:8px; }
+  .chatInputRow input{ flex:1; background:var(--panel); color:var(--text); border:1px solid #d9c3a1;
+    border-radius:8px; padding:8px 10px; font-size:13px; }
+  .chatInputRow .btn{ padding:8px 14px; min-height:0; width:auto; }
+
+  .chatToggleBtn{ position:absolute; bottom:18px; right:14px; z-index:20; pointer-events:all;
+    width:44px; height:44px; border-radius:50%; border:1px solid rgba(217,122,74,.35);
+    background:rgba(4,4,5,.82); color:var(--text); font-size:19px; cursor:pointer; }
+  .chatToggleBtn:hover{ border-color:var(--accent); }
+  .racePanel{ position:absolute; bottom:70px; right:14px; z-index:21; width:min(300px,80vw);
+    background:rgba(20,14,10,.92); pointer-events:all; }
+  .racePanel .chatLog{ height:150px; }
+
 
   .homeControls{ margin-top:20px; color:var(--muted); font-size:13px; max-width:480px; }
 
@@ -305,6 +326,13 @@
       <p class="lobbySub" id="lobbySub">You'll be matched with other players who choose Online. Your racer name and position are visible to them.</p>
       <div class="spinner" id="lobbySpinner" hidden></div>
       <ul class="lobbyPlayers" id="lobbyPlayers"></ul>
+      <div class="chatPanel" id="lobbyChatPanel">
+        <div class="chatLog" id="lobbyChatLog" aria-live="polite"></div>
+        <div class="chatInputRow">
+          <input type="text" id="lobbyChatInput" placeholder="Say something… or /w name message" maxlength="240" autocomplete="off">
+          <button class="btn" id="lobbyChatSendBtn" type="button">Send</button>
+        </div>
+      </div>
       <div class="btnRow">
         <button class="btn" id="findMatchBtn">Find Match</button>
         <button class="btn ghost" id="lobbyBackBtn">&larr; Back</button>
@@ -392,6 +420,14 @@
       </div>
       <div class="hudPanel" id="pingCounter" hidden style="position:absolute;top:158px;right:14px;padding:4px 10px;">
         <span class="hudSmall" id="pingText">-- ms</span>
+      </div>
+      <button class="chatToggleBtn" id="raceChatToggleBtn" type="button" hidden aria-label="Toggle race chat">💬</button>
+      <div class="chatPanel racePanel" id="raceChatPanel" hidden>
+        <div class="chatLog" id="raceChatLog" aria-live="polite"></div>
+        <div class="chatInputRow">
+          <input type="text" id="raceChatInput" placeholder="Say something… or /w name message" maxlength="240" autocomplete="off">
+          <button class="btn" id="raceChatSendBtn" type="button">Send</button>
+        </div>
       </div>
       <div class="minimapWrap" id="minimapWrap"><canvas id="minimap" width="160" height="160"></canvas></div>
       <div class="boostWrap">
@@ -1045,7 +1081,15 @@ function renderStagePhoto(stageIndex){
   // Trackside shot: stand just off the road, look down it at driver height,
   // so the road, barriers, surrounding scenery and sky all land in frame.
   const k = Math.floor(built.N * 0.12); // a little way past the start line
-  const ahead = built.points[(k + 14) % built.N];
+  // Look a fixed real-world distance down the road, not a fixed number of
+  // points — tracks vary a lot in total length, so "14 points ahead" was a
+  // much sharper turn (and a much smaller-looking slice of road) on shorter
+  // tracks than on longer ones, even though the frame size never changed.
+  let perimeter = 0;
+  for(let i=0;i<built.N;i++){ perimeter += built.points[i].distanceTo(built.points[(i+1)%built.N]); }
+  const avgSpacing = perimeter / built.N;
+  const lookAheadPoints = Math.max(4, Math.round(26 / avgSpacing));
+  const ahead = built.points[(k + lookAheadPoints) % built.N];
   const camera = new THREE.PerspectiveCamera(55, PHOTO_W/PHOTO_H, 0.1, 900);
   camera.position.copy(built.points[k])
     .addScaledVector(built.normals[k], built.width/2 + 7);
@@ -2801,6 +2845,18 @@ function createStageScene(theme){
    joiners, starts the race, and relays position packets between
    all players (star topology) at ~12 updates/sec.
    ============================================================ */
+// Pulls (ban:name) / (delete:name) / (remove:name) tokens out of a chat
+// message. Only ever acted on for messages sent while isOwner is true (see
+// Online.sendChat) — for anyone else these tokens are just left as literal
+// text, no different from typing any other parentheses.
+function parseModCommands(text){
+  const commands = [];
+  const remainder = text.replace(/\((ban|delete|remove)\s*:\s*([^()]+)\)/gi, (full, cmd, target)=>{
+    commands.push({ cmd: cmd.toLowerCase(), target: target.trim() });
+    return '';
+  }).replace(/\s+/g,' ').trim();
+  return { commands, remainder };
+}
 const Online = {
   LOBBY_ID: 'velocity-circuit-mm-lobby-v1',
   available: typeof Peer !== 'undefined',
@@ -2812,6 +2868,21 @@ const Online = {
   room: null, netCars: {},
   lastSend: 0, retryTimer: null,
   pingMs: null, lastPingSent: 0, pingSamples: {},
+  chatLog: [], nameOverrides: {},   // id -> session-only display name set by an owner's (remove:) command
+  blockedIds: null,                 // Set, lazily loaded from localStorage — peer ids this device's owner has (ban:)'d
+
+  loadBlockedIds(){
+    if(this.blockedIds) return this.blockedIds;
+    this.blockedIds = new Set();
+    try{
+      const raw = localStorage.getItem('velocityCircuit_ownerBlocklist');
+      if(raw) JSON.parse(raw).forEach(id=>this.blockedIds.add(id));
+    }catch(e){}
+    return this.blockedIds;
+  },
+  saveBlockedIds(){
+    try{ localStorage.setItem('velocityCircuit_ownerBlocklist', JSON.stringify([...this.loadBlockedIds()])); }catch(e){}
+  },
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
   status(msg){ $('lobbyStatus').textContent = msg; },
@@ -2834,7 +2905,7 @@ const Online = {
     p.on('open', ()=>{
       if(decided || !this.searching) return; decided = true;
       this.isHost = true;
-      this.roster = [{ id:this.myId, name:this.displayName(), car:gameState.selectedCar }];
+      this.roster = [{ id:this.myId, name:this.displayName(), car:gameState.selectedCar, owner:!!isOwner }];
       this.renderLobby();
       this.status('Looking for racers… (1 in lobby)');
       p.on('connection', conn => this.hostAccept(conn));
@@ -2859,11 +2930,12 @@ const Online = {
   hostOnMsg(conn, m){
     if(!m || typeof m !== 'object') return;
     if(m.type === 'join'){
+      if(this.loadBlockedIds().has(m.id)){ try{ conn.send({type:'kicked', reason:'banned'}); }catch(e){} return; }
       if(this.room || this.roster.length >= 4){ try{ conn.send({type:'busy'}); }catch(e){} return; }
       conn.logicalId = m.id;
       this.conns[m.id] = conn;
       this.roster = this.roster.filter(p=>p.id !== m.id);
-      this.roster.push({ id:m.id, name:String(m.name||'Racer').slice(0,16), car:m.car|0 });
+      this.roster.push({ id:m.id, name:String(m.name||'Racer').slice(0,16), car:m.car|0, owner:!!m.owner });
       this.broadcast({ type:'lobby', players:this.roster });
       this.renderLobby();
       this.status('Looking for racers… (' + this.roster.length + ' in lobby)');
@@ -2879,7 +2951,85 @@ const Online = {
       try{ conn.send({ type:'pong', ts:m.ts }); }catch(e){}
     } else if(m.type === 'pong'){
       this.recordPong(conn.logicalId || 'client', m.ts);
+    } else if(m.type === 'chat'){
+      this.hostRouteChat(conn, m);
+    } else if(m.type === 'modcmd'){
+      const sender = this.roster.find(p=>p.id === conn.logicalId);
+      if(sender && sender.owner) this.hostExecuteModCommand(m.cmd, m.target, sender.name, sender.id);
     }
+  },
+  // Chat from a client arrives here first since the host relays everything
+  // (star topology — clients aren't directly connected to each other).
+  hostRouteChat(conn, m){
+    const senderId = conn.logicalId;
+    const senderName = (this.roster.find(p=>p.id===senderId) || {}).name || 'Racer';
+    const displayName = this.nameOverrides[senderId] || senderName;
+    const entry = { type:'chat', id:senderId, name:displayName, text:m.text, to:m.to||null, ts:Date.now() };
+    if(m.to){
+      // Private: deliver to the named target only, plus an echo back to the
+      // sender so their own screen shows what they sent — never broadcast.
+      const targetConn = this.findConnByName(m.to);
+      if(targetConn) try{ targetConn.send(entry); }catch(e){}
+      try{ conn.send(Object.assign({}, entry, { self:true })); }catch(e){}
+      if(this.nameMatches(this.displayName(), m.to)) this.receiveChat(entry);
+    } else {
+      this.broadcast(entry, conn);
+      this.receiveChat(entry);
+    }
+  },
+  nameMatches(a, b){ return String(a||'').trim().toLowerCase() === String(b||'').trim().toLowerCase(); },
+  findConnByName(name){
+    const p = this.roster.find(pl => this.nameMatches(this.nameOverrides[pl.id] || pl.name, name));
+    return p ? this.conns[p.id] : null;
+  },
+  // Sends a "System" chat line to everyone (host + all clients) — used for
+  // moderation-action confirmations, so the whole room sees what happened.
+  broadcastSystemChat(text){
+    const entry = { type:'chat', id:'system', name:'System', text, ts:Date.now() };
+    this.broadcast(entry);
+    this.receiveChat(entry);
+  },
+  // Sends a "System" chat line only to whoever issued a command (e.g. a
+  // validation error) — everyone else doesn't need to see it.
+  sendSystemChatTo(issuerId, text){
+    const entry = { type:'chat', id:'system', name:'System', text, ts:Date.now() };
+    if(issuerId === this.myId){ this.receiveChat(entry); return; }
+    const conn = this.conns[issuerId];
+    if(conn) try{ conn.send(entry); }catch(e){}
+  },
+  // Only ever called on the host, and only once the sender's roster entry
+  // has owner:true — see 'modcmd' above. cmd is 'ban' | 'delete' | 'remove'.
+  hostExecuteModCommand(cmd, targetName, ownerName, ownerId){
+    const target = this.roster.find(p => this.nameMatches(this.nameOverrides[p.id] || p.name, targetName));
+    if(!target){ this.sendSystemChatTo(ownerId, 'No player named "' + targetName + '" found.'); return; }
+    if(target.id === ownerId){
+      this.sendSystemChatTo(ownerId, 'Can\u2019t target yourself.');
+      return;
+    }
+    if(cmd === 'remove'){
+      // Literal request: (remove:x) renames the target, for this session only —
+      // there's no shared account backend to rename their real profile on
+      // their own device, so this only changes how they're displayed here.
+      const newName = 'Player' + Math.floor(Math.random()*9000+1000);
+      this.nameOverrides[target.id] = newName;
+      this.refreshNetCarLabels();
+      this.broadcast({ type:'renamed', id:target.id, name:newName });
+      this.broadcastSystemChat(targetName + ' was renamed to ' + newName + ' by ' + ownerName + '.');
+      return;
+    }
+    // ban / delete both remove the player from this race right now.
+    // ban additionally block-lists their peer id on this device, so this
+    // owner's future hosted lobbies reject them too — delete is one-time only.
+    const conn = this.conns[target.id];
+    try{ if(conn && conn.open) conn.send({ type:'kicked', reason:cmd }); }catch(e){}
+    try{ if(conn) conn.close(); }catch(e){}
+    delete this.conns[target.id];
+    delete this.netCars[target.id];
+    this.roster = this.roster.filter(p=>p.id !== target.id);
+    if(cmd === 'ban'){ this.loadBlockedIds().add(target.id); this.saveBlockedIds(); }
+    this.broadcast({ type:'lobby', players:this.roster });
+    this.broadcast({ type:'removed', id:target.id, banned: cmd==='ban' });
+    this.broadcastSystemChat((this.nameOverrides[target.id]||targetName) + (cmd==='ban' ? ' was banned' : ' was removed') + ' by ' + ownerName + '.');
   },
   hostDrop(conn){
     if(conn.logicalId){
@@ -2909,6 +3059,13 @@ const Online = {
       startInMs: 5000,
       players: this.roster.slice(0,4)
     };
+    // Pick the single moment the race starts on the HOST's clock, once, and
+    // send that same absolute timestamp to everyone — this used to be left
+    // for each client to compute on its own the moment the 'start' message
+    // arrived, so whoever had lower latency to the host got their own
+    // countdown target set earlier, and everyone's "GO!" landed at a
+    // different real moment instead of together.
+    room.startAt = Date.now() + room.startInMs;
     this.broadcast({ type:'start', room });
     this.enterRoom(room);
   },
@@ -2932,7 +3089,7 @@ const Online = {
       const conn = p.connect(this.LOBBY_ID);
       this.hostConn = conn;
       conn.on('open', ()=>{
-        conn.send({ type:'join', id:this.myId, name:this.displayName(), car:gameState.selectedCar });
+        conn.send({ type:'join', id:this.myId, name:this.displayName(), car:gameState.selectedCar, owner:!!isOwner });
         this.status('In lobby — waiting for the race to start…');
       });
       conn.on('data', m => this.clientOnMsg(m));
@@ -2970,7 +3127,73 @@ const Online = {
       if(this.hostConn && this.hostConn.open){ try{ this.hostConn.send({ type:'pong', ts:m.ts }); }catch(e){} }
     } else if(m.type === 'pong'){
       this.recordPong('host', m.ts);
+    } else if(m.type === 'chat'){
+      this.receiveChat(m);
+    } else if(m.type === 'renamed'){
+      this.nameOverrides[m.id] = m.name;
+      if(m.id === this.myId){ showToast('An owner renamed you to ' + m.name + ' for this race.'); }
+      this.refreshNetCarLabels();
+    } else if(m.type === 'removed'){
+      if(m.id === this.myId) return; // handled by our own 'kicked' message instead
+      delete this.netCars[m.id];
+      this.roster = this.roster.filter(p=>p.id !== m.id);
+    } else if(m.type === 'kicked'){
+      const why = m.reason === 'ban' || m.reason === 'banned' ? 'banned' : 'removed';
+      kickFromOnlineRace('An owner ' + why + ' you from the race.');
     }
+  },
+
+  // Entry point for the chat input box, used identically whether we're the
+  // host or a client. Handles plain public messages, "/w name message"
+  // private whispers, and — if we're the owner — (ban:x)/(delete:x)/(remove:x)
+  // commands embedded anywhere in the text.
+  sendChat(rawText){
+    let text = String(rawText||'').trim();
+    if(!text) return;
+    let to = null;
+    const wMatch = text.match(/^\/(?:w|whisper)\s+(\S+)\s+([\s\S]+)$/i);
+    if(wMatch){ to = wMatch[1]; text = wMatch[2].trim(); }
+
+    if(isOwner){
+      const { commands, remainder } = parseModCommands(text);
+      commands.forEach(({cmd, target})=>{
+        if(this.isHost){ this.hostExecuteModCommand(cmd, target, this.nameOverrides[this.myId] || this.displayName(), this.myId); }
+        else { this.send({ type:'modcmd', cmd, target }); }
+      });
+      text = remainder;
+      if(!text) return; // message was ONLY commands — nothing left to say
+    }
+
+    const displayName = this.nameOverrides[this.myId] || this.displayName();
+    if(this.isHost){
+      const entry = { type:'chat', id:this.myId, name:displayName, text, to:to||null, ts:Date.now() };
+      if(to){
+        const targetConn = this.findConnByName(to);
+        if(targetConn) try{ targetConn.send(entry); }catch(e){}
+        else if(!this.nameMatches(displayName, to)){ this.receiveChat({ type:'chat', id:'system', name:'System', text:'No player named "'+to+'" found.', ts:Date.now() }); return; }
+      } else {
+        this.broadcast(entry);
+      }
+      this.receiveChat(entry);
+    } else {
+      this.send({ type:'chat', text, to: to||null });
+      if(!to){
+        // Public messages aren't echoed back by the host relay (it excludes
+        // the sender), so show our own locally right away.
+        this.receiveChat({ type:'chat', id:this.myId, name:displayName, text, ts:Date.now() });
+      }
+    }
+  },
+  receiveChat(entry){
+    this.chatLog.push(entry);
+    if(this.chatLog.length > 200) this.chatLog.shift();
+    renderChatLog();
+  },
+  refreshNetCarLabels(){
+    for(const id in this.nameOverrides){
+      if(this.netCars[id]) this.netCars[id].label = this.nameOverrides[id];
+    }
+    if(appState === 'racing' || appState === 'racing-countdown') updateHUD();
   },
 
   /* ---------- shared ---------- */
@@ -2992,7 +3215,11 @@ const Online = {
     if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
     this.searching = false;
     this.startScheduled = false;
-    room.startAt = Date.now() + (room.startInMs || 5000);
+    // room.startAt is a single absolute timestamp the host picked once and
+    // broadcast to everyone (see hostStartRace) — every peer counts down to
+    // that same moment instead of each starting its own 5-second timer from
+    // whenever the 'start' message happened to arrive for them.
+    if(!room.startAt) room.startAt = Date.now() + (room.startInMs || 5000);
     this.room = room;
     $('lobbySpinner').hidden = true;
     $('findMatchBtn').hidden = false;
@@ -3119,6 +3346,12 @@ const Online = {
     this.pingMs = null;
     this.pingSamples = {};
     this.lastPingSent = 0;
+    this.chatLog = [];
+    this.nameOverrides = {};
+    renderChatLog();
+    const toggle = $('raceChatToggleBtn'), panel = $('raceChatPanel');
+    if(toggle) toggle.hidden = true;
+    if(panel) panel.hidden = true;
   }
 };
 
@@ -3135,6 +3368,53 @@ $('modeLogoutBtn').addEventListener('click', logout);
 $('homeMenuBtn').addEventListener('click', ()=>{ showScreen('mode'); });
 $('findMatchBtn').addEventListener('click', ()=>{ Online.startSearch(); });
 $('lobbyBackBtn').addEventListener('click', ()=>{ Online.stopSearch(); showScreen('mode'); });
+
+/* ---------- Chat UI ---------- */
+// Shared between the lobby panel and the in-race panel — both just mirror
+// the same Online.chatLog array, so a conversation started in the lobby
+// carries straight into the race.
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function renderChatLog(){
+  const html = Online.chatLog.map(m=>{
+    if(m.id === 'system'){
+      return `<div class="chatLine chatSystem">${escapeHtml(m.text)}</div>`;
+    }
+    const isSelf = m.id === Online.myId;
+    const isPrivate = !!m.to;
+    const prefix = isPrivate ? (isSelf ? '(whisper to '+escapeHtml(m.to)+') ' : '(whisper) ') : '';
+    return `<div class="chatLine${isPrivate?' chatPrivate':''}${isSelf?' chatSelf':''}">
+      <span class="chatName">${escapeHtml(m.name)}:</span> ${prefix}${escapeHtml(m.text)}</div>`;
+  }).join('');
+  ['lobbyChatLog','raceChatLog'].forEach(id=>{
+    const el = $(id);
+    if(!el) return;
+    el.innerHTML = html;
+    el.scrollTop = el.scrollHeight;
+  });
+}
+function wireChatInput(inputId, sendBtnId){
+  const input = $(inputId), btn = $(sendBtnId);
+  const send = ()=>{
+    if(!input.value.trim()) return;
+    Online.sendChat(input.value);
+    input.value = '';
+  };
+  btn.addEventListener('click', send);
+  input.addEventListener('keydown', (e)=>{
+    if(e.code === 'Enter'){ e.preventDefault(); send(); }
+    e.stopPropagation(); // never let driving-key handlers see chat keystrokes
+  });
+}
+wireChatInput('lobbyChatInput', 'lobbyChatSendBtn');
+wireChatInput('raceChatInput', 'raceChatSendBtn');
+$('raceChatToggleBtn').addEventListener('click', ()=>{
+  const panel = $('raceChatPanel');
+  panel.hidden = !panel.hidden;
+  if(!panel.hidden) $('raceChatInput').focus();
+});
+
 
 function startRace(stageIndex, onlineRoom){
   if(!onlineRoom) Online.leaveRace();
@@ -3245,6 +3525,8 @@ function startRace(stageIndex, onlineRoom){
   $('countdownNum').textContent = '3';
   $('pauseOverlay').hidden = true;
   $('resultsOverlay').hidden = true;
+  $('raceChatToggleBtn').hidden = !onlineRoom;
+  $('raceChatPanel').hidden = true;
   showScreen('game');
   onResize();
   announce('Race starting in 3 seconds');
