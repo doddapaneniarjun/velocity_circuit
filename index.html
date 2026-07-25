@@ -50,9 +50,9 @@
     --blob2:#1c1330;
     --accent-rgb:79,216,255;
     --shadow-rgb:0,0,0;
-    --speed-color:#4fd8ff;
-    --peach:#ffcba4;
-    --peach-rgb:255,203,164;
+    --speed-color:#0a0e1a;
+    --peach:#0a0e1a;
+    --peach-rgb:10,14,26;
   }
   *{box-sizing:border-box;}
   body.hide-emojis .emoji{ display:none; }
@@ -85,6 +85,7 @@
   .coinBar{ position:fixed; top:16px; right:16px; background:var(--panel); border:1px solid var(--border);
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:16px; display:flex; align-items:center; gap:8px; z-index:20; }
   .coinDot{ width:16px; height:16px; border-radius:50%; background:var(--accent2); box-shadow:0 0 8px var(--accent2); flex:none; }
+  [data-theme="dark"] .coinDot{ background:#1b2f52; box-shadow:0 0 8px #1b2f52; }
   .ratingBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid var(--border);
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .ratingBar strong{ color:var(--text); }
@@ -94,9 +95,11 @@
   .profileBar strong{ color:var(--text); }
   .ownerBadge{ background:linear-gradient(135deg,#d98c3d,#c1502e); color:#fff8ef; font-weight:800;
     font-size:11px; padding:3px 8px; border-radius:999px; letter-spacing:.5px; }
+  [data-theme="dark"] .ownerBadge{ background:linear-gradient(135deg, var(--accent2), var(--accent)); color:#0a0e1a; }
   .logoutLink{ background:none; border:none; color:var(--accent); font:inherit; font-weight:700; font-size:13px; cursor:pointer; padding:0; }
   .logoutLink:hover{ text-decoration:underline; }
   .logoutLink:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
+  .managePlayersBtn{ position:fixed; top:108px; right:16px; z-index:20; font-size:13px; padding:8px 16px; min-height:auto; letter-spacing:.2px; }
 
   /* ---------- Login ---------- */
   #loginScreen{ background:
@@ -168,6 +171,7 @@
   .btn.secondary{ background:var(--panel2); color:var(--text); border:1px solid var(--border); }
   .btn.ghost{ background:transparent; color:var(--text); border:1px solid var(--border-strong); }
   .btn.garage{ background:#ead9bd; color:#3b2415; border:1px solid #d9c3a1; }
+  [data-theme="dark"] .btn.garage{ background:#0a0e1a; color:#eef2f7; border:1px solid #263349; }
   .btn:disabled{ opacity:.45; cursor:not-allowed; filter:none; transform:none; }
   .btnRow{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
 
@@ -233,16 +237,23 @@
   #canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
   #hud{ position:absolute; inset:0; pointer-events:none; }
   .hudTop{ position:absolute; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-start; }
-  .leaderboardPanel{ position:absolute; top:14px; left:14px; width:238px; padding:14px 16px; }
-  .leaderboardTitle{ font-size:13px; font-weight:800; letter-spacing:1px; color:var(--text); margin-bottom:8px; }
-  .lbRow{ display:flex; align-items:center; gap:9px; padding:6px 0; font-size:16px; color:var(--muted); }
-  .lbRow .lbPos{ width:20px; font-weight:800; color:var(--text); flex:none; }
+  .leaderboardPanel{ position:absolute; top:14px; left:14px; width:238px; padding:14px 16px; background:rgba(251,241,228,.94) !important; }
+  .leaderboardTitle{ font-size:13px; font-weight:800; letter-spacing:1px; color:#000; margin-bottom:8px; }
+  .lbRow{ display:flex; align-items:center; gap:9px; padding:6px 0; font-size:16px; color:#000; }
+  .lbRow .lbPos{ width:20px; font-weight:800; color:#000; flex:none; }
   .lbRow .lbDot{ width:11px; height:11px; border-radius:50%; flex:none; border:1px solid rgba(var(--shadow-rgb),.25); }
   .lbRow .lbNames{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
   .lbRow .lbName{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .lbRow .lbCar{ font-size:12px; color:var(--muted); opacity:.75; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .lbRow.you{ color:var(--text); font-weight:800; }
-  .lbRow.you .lbPos{ color:var(--accent); }
+  .lbRow .lbCar{ font-size:12px; color:#000; opacity:.75; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbRow.you{ color:#000; font-weight:800; }
+  .lbRow.you .lbPos{ color:#000; }
+  [data-theme="dark"] .leaderboardPanel{ background:rgba(10,14,26,.94) !important; }
+  [data-theme="dark"] .leaderboardTitle,
+  [data-theme="dark"] .lbRow,
+  [data-theme="dark"] .lbRow .lbPos,
+  [data-theme="dark"] .lbRow .lbCar,
+  [data-theme="dark"] .lbRow.you,
+  [data-theme="dark"] .lbRow.you .lbPos{ color:#4d8dff; }
   .hudPanel{ background:var(--panel-glass); border:1px solid var(--border); border-radius:12px; padding:10px 16px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
   .hudBig{ font-size:22px; font-weight:800; color:var(--text); }
   .hudSmall{ font-size:13px; color:var(--muted); }
@@ -445,6 +456,7 @@
     <div class="profileBar" aria-label="Logged in profile">
       <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
     </div>
+    <button class="btn secondary managePlayersBtn" id="managePlayersBtn" type="button" hidden>Manage Players</button>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
 
@@ -457,6 +469,30 @@
     </div>
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
+
+    <div class="overlay" id="managePlayersOverlay" hidden>
+      <div class="statsOverlayCard">
+        <h2>Manage Players</h2>
+        <p class="statsSub">Every local account on this device, with current coins and driver rating.</p>
+        <input class="loginInput" type="text" id="managePlayersSearch" placeholder="Search players…" style="width:100%;margin-bottom:12px;" autocomplete="off">
+        <div class="statsTableWrap">
+          <table class="statsTable" id="managePlayersTable">
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Coins</th>
+                <th>Driver Rating</th>
+                <th>Owner</th>
+              </tr>
+            </thead>
+            <tbody id="managePlayersTableBody"></tbody>
+          </table>
+        </div>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="managePlayersCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- GARAGE SCREEN -->
@@ -897,6 +933,8 @@ function updateOwnerBadge(){
   if(badge) badge.hidden = !isOwner;
   const modeBadge = $('modeOwnerBadge');
   if(modeBadge) modeBadge.hidden = !isOwner;
+  const manageBtn = $('managePlayersBtn');
+  if(manageBtn) manageBtn.hidden = !isOwner;
 }
 
 function saveKeyFor(nameKey){ return 'velocityCircuit_save_' + nameKey; }
@@ -1000,6 +1038,7 @@ function logout(){
   try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
   currentUser = null;
   isOwner = false;
+  updateOwnerBadge();
   Sound.stop();
   $('loginPassword').value = '';
   $('loginError').textContent = '';
@@ -5850,6 +5889,59 @@ $('loginForm').addEventListener('submit', (e)=>{
   attemptLogin($('loginUsername').value, $('loginPassword').value);
 });
 $('logoutBtn').addEventListener('click', logout);
+
+/* ---------- Manage Players (owner-only) ----------
+   Reads every local profile from USERS_KEY, then looks up each one's own
+   save slot (saveKeyFor) to report their current coins and driver rating.
+   Local-only, same as the rest of the profile system — there's no server
+   to query, so this is simply reading the other save slots in this browser. */
+let managePlayersRows = [];
+function loadManagePlayersRows(){
+  const users = readUsers();
+  managePlayersRows = Object.keys(users).map(nameKey=>{
+    let coins = DEFAULT_STATE.coins, rating = DEFAULT_STATE.skillRating;
+    try{
+      const raw = localStorage.getItem(saveKeyFor(nameKey));
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(Number.isFinite(parsed.coins)) coins = parsed.coins;
+        if(Number.isFinite(parsed.skillRating)) rating = parsed.skillRating;
+      }
+    }catch(e){}
+    return {
+      nameKey,
+      display: users[nameKey].display || nameKey,
+      coins,
+      rating: Math.round(rating),
+      owner: !!users[nameKey].isOwner
+    };
+  }).sort((a,b)=> a.display.localeCompare(b.display));
+}
+function renderManagePlayers(){
+  const body = $('managePlayersTableBody');
+  if(!body) return;
+  const query = ($('managePlayersSearch').value || '').trim().toLowerCase();
+  const rows = query
+    ? managePlayersRows.filter(r=> r.display.toLowerCase().includes(query))
+    : managePlayersRows;
+
+  body.innerHTML = rows.length ? rows.map(r=>
+    '<tr class="' + (r.nameKey === currentUser ? 'statsRowMe' : '') + '">' +
+      '<td>' + escapeHtml(r.display) + (r.nameKey === currentUser ? ' (you)' : '') + '</td>' +
+      '<td>' + escapeHtml(r.coins) + '</td>' +
+      '<td>' + escapeHtml(r.rating) + '</td>' +
+      '<td>' + (r.owner ? 'Owner' : '') + '</td>' +
+    '</tr>'
+  ).join('') : '<tr><td colspan="4">' + (query ? 'No players match that search.' : 'No local accounts found yet.') + '</td></tr>';
+}
+$('managePlayersBtn').addEventListener('click', ()=>{
+  loadManagePlayersRows();
+  $('managePlayersSearch').value = '';
+  renderManagePlayers();
+  $('managePlayersOverlay').hidden = false;
+});
+$('managePlayersSearch').addEventListener('input', renderManagePlayers);
+$('managePlayersCloseBtn').addEventListener('click', ()=>{ $('managePlayersOverlay').hidden = true; });
 
 /* ============================= INIT ============================= */
 function init(){
