@@ -233,12 +233,14 @@
   #canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
   #hud{ position:absolute; inset:0; pointer-events:none; }
   .hudTop{ position:absolute; top:14px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:flex-start; }
-  .leaderboardPanel{ position:absolute; top:78px; left:14px; width:172px; padding:10px 12px; }
-  .leaderboardTitle{ font-size:11px; font-weight:800; letter-spacing:1px; color:var(--text); margin-bottom:6px; }
-  .lbRow{ display:flex; align-items:center; gap:7px; padding:3px 0; font-size:13px; color:var(--muted); }
-  .lbRow .lbPos{ width:16px; font-weight:800; color:var(--text); flex:none; }
-  .lbRow .lbDot{ width:9px; height:9px; border-radius:50%; flex:none; border:1px solid rgba(var(--shadow-rgb),.25); }
-  .lbRow .lbName{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .leaderboardPanel{ position:absolute; top:14px; left:14px; width:238px; padding:14px 16px; }
+  .leaderboardTitle{ font-size:13px; font-weight:800; letter-spacing:1px; color:var(--text); margin-bottom:8px; }
+  .lbRow{ display:flex; align-items:center; gap:9px; padding:6px 0; font-size:16px; color:var(--muted); }
+  .lbRow .lbPos{ width:20px; font-weight:800; color:var(--text); flex:none; }
+  .lbRow .lbDot{ width:11px; height:11px; border-radius:50%; flex:none; border:1px solid rgba(var(--shadow-rgb),.25); }
+  .lbRow .lbNames{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .lbRow .lbName{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbRow .lbCar{ font-size:12px; color:var(--muted); opacity:.75; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .lbRow.you{ color:var(--text); font-weight:800; }
   .lbRow.you .lbPos{ color:var(--accent); }
   .hudPanel{ background:var(--panel-glass); border:1px solid var(--border); border-radius:12px; padding:10px 16px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
@@ -248,7 +250,11 @@
   .speedNum{ font-size:44px; font-weight:800; line-height:1; color:var(--speed-color); text-shadow:0 0 15px rgba(var(--accent-rgb),.51); }
   .posWrap{ position:absolute; bottom:18px; right:18px; text-align:right; }
   .posNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
-  .minimapWrap{ position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:calc(18px + env(safe-area-inset-left)); }
+  .posLabel{ position:absolute; top:6px; right:-4px; font-size:28px; font-weight:800; color:var(--peach); }
+  .minimapWrap{ position:absolute; top:50%; left:calc(14px + env(safe-area-inset-left)); transform:translateY(-50%); }
+  .lapLeftWrap{ position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:calc(18px + env(safe-area-inset-left)); text-align:left; }
+  .lapLeftLabel{ font-size:13px; font-weight:800; letter-spacing:1px; color:var(--peach); }
+  .lapLeftNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
   #minimap{ background:var(--minimap-bg); border:1px solid rgba(var(--accent-rgb),.25); border-radius:12px; pointer-events:all; touch-action:none; }
   #minimap.ownerTeleport{ cursor:crosshair; }
   .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
@@ -483,14 +489,14 @@
   <section id="gameScreen" class="screen" hidden>
     <canvas id="canvas"></canvas>
     <div id="hud">
-      <div class="hudTop">
-        <div class="hudPanel">
-          <div class="hudBig" id="hudLap">Lap 1/3</div>
-          <div class="hudSmall" id="hudTime">0:00.0</div>
-        </div>
+      <div class="hudTop" style="justify-content:flex-end;">
         <div class="hudPanel">
           <div class="hudSmall"><span class="coinDot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> <span id="hudCoins">0</span> coins</div>
         </div>
+      </div>
+      <div class="lapLeftWrap">
+        <div class="lapLeftLabel">LAPS LEFT</div>
+        <div class="lapLeftNum" id="lapLeftNum">0</div>
       </div>
       <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute</div>
       <div class="hudToolbar">
@@ -507,7 +513,7 @@
       <div class="toast" id="toast"></div>
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
-      <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="hudSmall" id="posLabel">of 4</div></div>
+      <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="posLabel" id="posLabel">st</div></div>
       <div class="hudPanel leaderboardPanel" id="leaderboardPanel">
         <div class="leaderboardTitle">LEADERBOARD</div>
         <div id="leaderboardList"></div>
@@ -657,6 +663,13 @@
           </div>
           <input type="checkbox" id="pingCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
+        <div id="noclipWallsRow" hidden style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="noclipWallsToggle" style="display:block;font-weight:700;">Drive Through Walls <span class="ownerBadge">OWNER</span></label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Barriers no longer stop or slow your car.</p>
+          </div>
+          <input type="checkbox" id="noclipWallsToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
         </div>
         <div class="settingsFooter">
           <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
@@ -738,7 +751,8 @@ const DEFAULT_STATE = {
   cameraShake: true,
   showFps: false,
   showPing: false,
-  touchControls: false
+  touchControls: false,
+  noclipWalls: false   // owner-only: drive straight through track barriers
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -788,6 +802,7 @@ function loadState(){
       gameState.showFps        = parsed.showFps === true;
       gameState.showPing       = parsed.showPing === true;
       gameState.touchControls  = parsed.touchControls === true;
+      gameState.noclipWalls    = parsed.noclipWalls === true;
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -1489,6 +1504,24 @@ function def_name_for(key){ const d = UPGRADE_DEFS.find(d=>d.key===key); return 
 /* ============================= THREE.JS SETUP ============================= */
 let renderer, scene, camera;
 let trackGroup = null;
+// The current track's ocean mesh (Harbor Sprint / Coastal Curves only),
+// null everywhere else — see updateOceanProximity().
+let currentOceanMesh = null;
+// Tuned to the shoreline geometry: the sand (ground plane) now ends at
+// radius 450 (see groundSize in buildTrack), so that's the closest the
+// water is ever actually visible from; the ocean plane itself ends at 850.
+const OCEAN_NEAR_DIST = 470;  // camera near the shoreline = fully "close" water
+const OCEAN_FAR_DIST = 820;   // camera out near the ocean's horizon edge = fully "far" water
+// The current track's sky dome — recentered on the camera every frame (see
+// updateSkyDome()) so it can never be outrun, since it used to sit fixed at
+// the world origin and the camera could fly past its edge when driving out
+// of bounds, producing a torn/glitchy seam where the dome's backside ended.
+let currentSkyDome = null;
+// Every solid decoration placed outside the track (piers, trees, mesas,
+// buildings, boulders, etc.) as simple {x,z,r} circles in world space, so
+// cars can collide with scenery instead of driving straight through it —
+// see applyPropCollisions(). Rebuilt whenever the track is (re)built.
+let propColliders = [];
 let cars = [];
 let player = null;
 let track = null; // {points, normals, N, width}
@@ -1756,7 +1789,11 @@ function circumradius2D(p0, p1, p2){
 function relaxCenterlineForWidth(points, width){
   const N = points.length;
   const half = width/2;
-  const minRadius = half*1.1 + 0.4; // small safety margin beyond the raw half-width
+  // Margin covers the track edge *and* the barrier ring beyond it (barrier
+  // sits at half+0.9, its outer face half+1.45) — using only the track's
+  // own half-width here left just enough tight corners where the track
+  // surface was fine but the barrier ribbon still folded over itself.
+  const minRadius = half*1.1 + 2.0;
   const window = 3, strength = 0.6;
   const maxIterations = 500;
   let pts = points.map(p=>p.clone());
@@ -1830,7 +1867,7 @@ const SCENERY_THEMES = {
   oval:        { ground:0xc9a66b, sky:['#1b2a52','#ff9a5c'], deco:'desert',  skyStyle:'sunset',   groundStyle:'sand', crowd:0.30 },
   stadium:     { ground:0x4a7c3a, sky:['#2f7fd9','#bfe3ff'], deco:'stadium', skyStyle:'clearDay', groundStyle:'grass', crowd:1.00 },
   iceRibbon:   { ground:0xe3eef5, sky:['#7fb8e0','#eaf6ff'], deco:'ice',     skyStyle:'polar',    groundStyle:'snow', crowd:0.00 },
-  wavy:        { ground:0xe0c88f, sky:['#2f83c4','#bdeeff'], deco:'coastal', skyStyle:'clearDay', groundStyle:'sand', crowd:0.18 },
+  wavy:        { ground:0xe0c88f, sky:['#2f83c4','#bdeeff'], deco:'coastal', skyStyle:'clearDay', groundStyle:'sand', crowd:0.18, fogNear:220, fogFar:820 },
   canyon:      { ground:0x9a4a2a, sky:['#3f7fd0','#bfe6ff'], deco:'canyon',  skyStyle:'highSun',  groundStyle:'rock', crowd:0.00 },
   switchback:  { ground:0x5a7a4a, sky:['#4a86c9','#d7ecff'], deco:'mountain',skyStyle:'overcast', groundStyle:'grass', crowd:0.00 },
   serpent:     { ground:0x3f7a3f, sky:['#4a90d9','#c8ecff'], deco:'forest',  skyStyle:'clearDay', groundStyle:'grass', crowd:0.10 },
@@ -1846,7 +1883,11 @@ const SCENERY_THEMES = {
 // Harbor Sprint gets its own working-dockyard look — piers, moored boats,
 // and stacked shipping crates — instead of reusing Coastal Curves' resort
 // beach so the two tracks don't render pixel-for-pixel identical.
-SCENERY_THEMES.harbor  = { ground:0x9a8a68, sky:['#4a7fa0','#cfe3ee'], deco:'harbor', skyStyle:'hazyDay', groundStyle:'sand', crowd:0.06 };
+// ground color matches Coastal Curves' sand (0xe0c88f) so the two beach
+// tracks share the same shoreline tone instead of Harbor's own tan. Fog
+// range widened for the same reason as Coastal Curves — see fogNear/fogFar
+// there.
+SCENERY_THEMES.harbor  = { ground:0xe0c88f, sky:['#4a7fa0','#cfe3ee'], deco:'harbor', skyStyle:'hazyDay', groundStyle:'sand', crowd:0.06, fogNear:220, fogFar:820 };
 SCENERY_THEMES.redwood = SCENERY_THEMES.serpent;
 SCENERY_THEMES.glacier = SCENERY_THEMES.iceRibbon;
 // Foggy Mansion — its own theme (not an alias) so it can carry much tighter
@@ -2153,6 +2194,7 @@ function addDesertDecor(group){
     const mesa = new THREE.Mesh(new THREE.CylinderGeometry(w*0.7,w,h,6), i%2? mesaMat: mesaMat2);
     mesa.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     group.add(mesa);
+    addCollider(group, mesa.position.x, mesa.position.z, w*0.75);
   }
 }
 
@@ -2173,6 +2215,7 @@ function addStadiumDecor(group){
     light.position.y = 50; pylon.add(light);
     pylon.position.set(Math.cos(ang)*162, 0, Math.sin(ang)*162);
     group.add(pylon);
+    addCollider(group, pylon.position.x, pylon.position.z, 1.6);
   }
 }
 
@@ -2181,7 +2224,15 @@ function addCoastalDecor(group){
   const ocean = new THREE.Mesh(new THREE.PlaneGeometry(1700,1700), oceanMat);
   ocean.rotation.x = -Math.PI/2;
   ocean.position.y = -0.25;
+  // Near/far reference colors + opacity so the water can shift toward a
+  // richer, more opaque blue as the camera actually gets closer to it,
+  // and toward a paler, hazier tone as it pulls away — see updateOceanProximity().
+  ocean.userData.oceanNearColor = new THREE.Color(0x1f7fc4);
+  ocean.userData.oceanFarColor = new THREE.Color(0xbdeeff);
+  ocean.userData.oceanNearOpacity = 0.92;
+  ocean.userData.oceanFarOpacity = 0.4;
   group.add(ocean);
+  group.userData.ocean = ocean;
   for(let i=0;i<22;i++){
     const ang = Math.random()*Math.PI*2;
     const r = 135 + Math.random()*75;
@@ -2189,6 +2240,7 @@ function addCoastalDecor(group){
     palm.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
     palm.rotation.y = Math.random()*Math.PI*2;
     group.add(palm);
+    addCollider(group, palm.position.x, palm.position.z, 2.2);
   }
 }
 
@@ -2230,18 +2282,27 @@ function addHarborDecor(group){
   const ocean = new THREE.Mesh(new THREE.PlaneGeometry(1700,1700), oceanMat);
   ocean.rotation.x = -Math.PI/2;
   ocean.position.y = -0.25;
+  // Same near/far treatment as Coastal Curves — see updateOceanProximity().
+  ocean.userData.oceanNearColor = new THREE.Color(0x2a6f96);
+  ocean.userData.oceanFarColor = new THREE.Color(0xcfe3ee);
+  ocean.userData.oceanNearOpacity = 0.92;
+  ocean.userData.oceanFarOpacity = 0.4;
   group.add(ocean);
+  group.userData.ocean = ocean;
   for(let i=0;i<5;i++){
     const ang = (i/5)*Math.PI*2 + Math.random()*0.3;
     const r = 100 + Math.random()*20;
-    const pier = buildDockPier(24 + Math.random()*16);
+    const pierLen = 24 + Math.random()*16;
+    const pier = buildDockPier(pierLen);
     pier.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
     pier.rotation.y = ang + Math.PI/2;
     group.add(pier);
+    addCollider(group, pier.position.x, pier.position.z, pierLen/2 + 2);
     const boat = buildBoat();
     boat.position.set(Math.cos(ang)*(r+9), -0.4, Math.sin(ang)*(r+9));
     boat.rotation.y = ang + Math.random()*0.6 - 0.3;
     group.add(boat);
+    addCollider(group, boat.position.x, boat.position.z, 5);
   }
   const crateColors = [0xb5432f, 0x2f6b8a, 0xd9a72f, 0x3f7a4a];
   for(let i=0;i<14;i++){
@@ -2251,6 +2312,7 @@ function addHarborDecor(group){
     crate.position.set(Math.cos(ang)*r, 2, Math.sin(ang)*r);
     crate.rotation.y = Math.random()*Math.PI*2;
     group.add(crate);
+    addCollider(group, crate.position.x, crate.position.z, 2.8);
   }
 }
 
@@ -2266,6 +2328,7 @@ function addMountainDecor(group){
     const mtn = new THREE.Mesh(new THREE.ConeGeometry(w,h,6), i%3? rock1: rock2);
     mtn.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     group.add(mtn);
+    addCollider(group, mtn.position.x, mtn.position.z, w*0.7);
     if(h>78){
       const cap = new THREE.Mesh(new THREE.ConeGeometry(w*0.42,h*0.22,6), snowMat);
       cap.position.set(mtn.position.x, h - h*0.1, mtn.position.z);
@@ -2280,6 +2343,7 @@ function addMountainDecor(group){
     tree.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
     tree.rotation.y = Math.random()*Math.PI*2;
     group.add(tree);
+    addCollider(group, tree.position.x, tree.position.z, 1.8*tree.scale.x);
   }
   const lakeMat = new THREE.MeshStandardMaterial({ color:0x3f8fd9, roughness:0.25, transparent:true, opacity:0.9 });
   const lake = new THREE.Mesh(new THREE.CircleGeometry(55, 36), lakeMat);
@@ -2302,6 +2366,7 @@ function addForestDecor(group){
     tree.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
     tree.rotation.y = Math.random()*Math.PI*2;
     group.add(tree);
+    addCollider(group, tree.position.x, tree.position.z, 1.8*tree.scale.x);
   }
   const hillMat = new THREE.MeshStandardMaterial({ color:0x4a7a4a, roughness:1 });
   for(let i=0;i<6;i++){
@@ -2323,6 +2388,7 @@ function addCityDecor(group){
     const bld = new THREE.Mesh(new THREE.BoxGeometry(w,h,w), i%2? bldMat: bldMat2);
     bld.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     group.add(bld);
+    addCollider(group, bld.position.x, bld.position.z, w*0.7);
   }
 }
 
@@ -2337,6 +2403,7 @@ function addIceDecor(group){
     const peak = new THREE.Mesh(new THREE.ConeGeometry(w,h,6), rock1);
     peak.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     group.add(peak);
+    addCollider(group, peak.position.x, peak.position.z, w*0.7);
     const cap = new THREE.Mesh(new THREE.ConeGeometry(w*0.5,h*0.3,6), snowMat);
     cap.position.set(peak.position.x, h - h*0.14, peak.position.z);
     group.add(cap);
@@ -2361,6 +2428,7 @@ function addCanyonDecor(group){
     const hoodoo = new THREE.Mesh(new THREE.CylinderGeometry(w*0.8,w,h,7), i%2? rock1: rock2);
     hoodoo.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     group.add(hoodoo);
+    addCollider(group, hoodoo.position.x, hoodoo.position.z, w*0.9);
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(w*1.3,w*1.1,h*0.12,7), rock2);
     cap.position.set(hoodoo.position.x, h + h*0.06, hoodoo.position.z);
     group.add(cap);
@@ -2379,6 +2447,7 @@ function addNeonDecor(group){
     const bld = new THREE.Mesh(new THREE.BoxGeometry(w,h,w), bldMat);
     bld.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     group.add(bld);
+    addCollider(group, bld.position.x, bld.position.z, w*0.7);
     const strip = new THREE.Mesh(new THREE.BoxGeometry(w*1.02,1.2,w*1.02), i%2? stripMat: stripMat2);
     strip.position.set(bld.position.x, h*0.75, bld.position.z);
     group.add(strip);
@@ -2407,6 +2476,7 @@ function addVolcanoDecor(group){
     spire.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     spire.rotation.y = Math.random()*Math.PI*2;
     group.add(spire);
+    addCollider(group, spire.position.x, spire.position.z, w*0.8);
   }
   // Glowing lava fissures cracking the ground, plus a couple of open pools
   for(let i=0;i<10;i++){
@@ -2449,6 +2519,7 @@ function addCavernDecor(group){
     const stalagmite = new THREE.Mesh(new THREE.ConeGeometry(w,h,6), rockMat);
     stalagmite.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
     group.add(stalagmite);
+    addCollider(group, stalagmite.position.x, stalagmite.position.z, w*1.3);
     const stalactite = new THREE.Mesh(new THREE.ConeGeometry(w*0.8,h*0.7,6), rockMat);
     stalactite.rotation.x = Math.PI;
     stalactite.position.set(stalagmite.position.x + (Math.random()-0.5)*8, 95+Math.random()*20, stalagmite.position.z + (Math.random()-0.5)*8);
@@ -2472,6 +2543,7 @@ function addCavernDecor(group){
     }
     cluster.position.set(Math.cos(ang)*r, 0, Math.sin(ang)*r);
     group.add(cluster);
+    addCollider(group, cluster.position.x, cluster.position.z, 2.5);
   }
   // Still, glowing underground pools
   const poolMat = new THREE.MeshStandardMaterial({ color:0x2a1e40, emissive:0x4a2f7a, emissiveIntensity:0.4, roughness:0.2, transparent:true, opacity:0.85 });
@@ -2497,6 +2569,7 @@ function addLunarDecor(group){
     boulder.position.set(Math.cos(ang)*r, s*0.4, Math.sin(ang)*r);
     boulder.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
     group.add(boulder);
+    addCollider(group, boulder.position.x, boulder.position.z, s*0.9);
   }
   // Crater rims, flattened rings pressed into the ground
   const craterMat = new THREE.MeshStandardMaterial({ color:0x817f75, roughness:1 });
@@ -2524,6 +2597,14 @@ function addLunarDecor(group){
   flag.position.set(1.2, 5, 0); flagGroup.add(flag);
   flagGroup.position.set(175, 0, -110);
   group.add(flagGroup);
+}
+
+// Registers a simple circular collider (world x/z + radius) for a solid
+// decoration so cars can't drive straight through it — see
+// applyPropCollisions(). Stored on the scenery group's userData and
+// collected by buildTrack().
+function addCollider(group, x, z, r){
+  (group.userData.colliders || (group.userData.colliders = [])).push({x, z, r});
 }
 
 function buildScenery(theme){
@@ -2683,11 +2764,20 @@ function buildTrack(stageIndex){
   const group = new THREE.Group();
 
   // Sky and background scenery, unique per track theme
-  group.add(buildSkyDome(theme));
-  group.add(buildScenery(theme));
+  const skyDome = buildSkyDome(theme);
+  group.add(skyDome);
+  const sceneryGroup = buildScenery(theme);
+  group.add(sceneryGroup);
+  const ocean = sceneryGroup.userData.ocean || null;
+  const colliders = sceneryGroup.userData.colliders || [];
 
-  // Ground
-  const groundGeo = new THREE.PlaneGeometry(2000,2000);
+  // Ground — on ocean tracks (Harbor Sprint / Coastal Curves) the ground
+  // plane is kept smaller than the ocean plane beneath it so the water is
+  // actually visible past the sand instead of being fully covered by the
+  // ground (which previously sat both higher and wider than the ocean,
+  // hiding it completely no matter how close the camera got).
+  const groundSize = ocean ? 900 : 2000;
+  const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize);
   const groundMat = new THREE.MeshStandardMaterial({
     map: makeGroundTexture(theme.ground, theme.groundStyle),
     roughness: theme.groundStyle==='snow' ? 0.75 : 1
@@ -2871,7 +2961,7 @@ function buildTrack(stageIndex){
 
   group.add(buildFinishLine(points, normals, trackWidth));
 
-  return { group, points, normals, width: trackWidth, N };
+  return { group, points, normals, width: trackWidth, N, ocean, skyDome, colliders };
 }
 
 /* ---------- Finish line ---------- */
@@ -3026,7 +3116,7 @@ function makeCar(isPlayer, colorHex, aiSkill){
     lap: 0, trackIndex: 0, prevIndex: 0, aiTarget: 0,
     finished: false, finishTime: null,
     lapStartClock: 0, bestLap: Infinity,
-    aiSkill: aiSkill || 1, diffBonus: 0, turnBonus: 0,
+    aiSkill: aiSkill || 1, diffBonus: 0, accelBonus: 0, turnBonus: 0,
     rubberBand: 1, topSpeed: 0, lapArmed: false
   };
 }
@@ -3631,6 +3721,9 @@ function startRace(stageIndex, onlineRoom){
   $('minimap').classList.toggle('ownerTeleport', isOwner); // hints the click-to-teleport trick below
 
   if(trackGroup){ scene && disposeObject(trackGroup); }
+  currentOceanMesh = null;
+  currentSkyDome = null;
+  propColliders = [];
   const stage = STAGES[stageIndex];
   raceLaps = stage.laps || DEFAULT_LAPS;
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
@@ -3643,6 +3736,9 @@ function startRace(stageIndex, onlineRoom){
   trackGroup = built.group;
   scene.add(trackGroup);
   track = built;
+  currentOceanMesh = built.ocean || null;
+  currentSkyDome = built.skyDome || null;
+  propColliders = built.colliders || [];
 
   cars = [];
   const laneOffsets = [-4.0,-1.35,1.35,4.0];
@@ -3653,6 +3749,7 @@ function startRace(stageIndex, onlineRoom){
   playerCarDef = CARS[gameState.selectedCar];
   player = makeCar(true, playerCarDef.color, 1);
   player.label = 'You';
+  player.carName = playerCarDef.name;
   player.colorHex = playerCarDef.color;
   cars.push(player);
 
@@ -3687,24 +3784,38 @@ function startRace(stageIndex, onlineRoom){
       rc.remote = true;
       rc.netName = p.name;
       rc.label = p.name || 'Racer';
+      rc.carName = carDef.name;
       rc.colorHex = carDef.color;
       rc.maxSpeed = 130;
       rc.laneOffset = laneOffsets[idx % laneOffsets.length];
       Online.netCars[p.id] = rc;
       cars.push(rc);
     });
-  } else
+  } else {
+  // CPU speed/accel now scale primarily off the player's OWN car + upgrades
+  // (the same numbers used in updateCar for the player), not off skillRating
+  // alone. Previously a brand-new player on a stock car with zero upgrades
+  // still got hit with a flat rating-based bonus (~+10-13 speed) on every
+  // CPU, which made even the first track feel unbeatable before you'd
+  // earned anything. Now the pack tracks your actual equipment, with
+  // skillRating only nudging things up/down a little as you win or lose,
+  // and track difficulty adding a small amount on top.
+  const playerSpeedBonus = gameState.upgrades.speed*2.7 + playerCarDef.speed*4;
+  const playerAccelBonus = gameState.upgrades.accel*2.3 + playerCarDef.accel*3;
   for(let n=0;n<3;n++){
     const ci = cpuColorPool[n % cpuColorPool.length];
     const variance = (Math.random() * 4) - 2;              // ±2 — kept small so skill, not luck, drives the pack
-    const aiSkill = 0.72 + skillFrac * 0.5 + Math.random() * 0.05;  // 0.72–1.27, scales harder with rating than before
+    const aiSkill = 0.9 + skillFrac * 0.2 + Math.random() * 0.05;  // 0.9–1.15, a small ambient wobble, not the main driver anymore
     const cpu = makeCar(false, CARS[ci].color, aiSkill);
-    cpu.diffBonus = skillFrac * 20 + stage.difficulty * 1.2 + variance;
+    cpu.diffBonus = playerSpeedBonus * 0.82 + stage.difficulty * 1.1 + (skillFrac - 0.5) * 8 + variance;
+    cpu.accelBonus = playerAccelBonus * 0.82 + stage.difficulty * 0.9 + (skillFrac - 0.5) * 6 + variance * 0.5;
     cpu.turnBonus = stage.difficulty * 0.035;
     cpu.laneOffset = cpuLaneOffsets[n];   // permanent lane assignment
-    cpu.label = getCarName(ci);
+    cpu.label = 'Rival ' + (n+1);
+    cpu.carName = getCarName(ci);
     cpu.colorHex = CARS[ci].color;
     cars.push(cpu);
+  }
   }
   playerCollisions = 0;
   lapCoinsEarned = 0;
@@ -3781,8 +3892,62 @@ function giveCrashBoost(crasher){
     showToast('Rival crashed — speed boost!');
   }
 }
+// Keeps the sky dome centered on the camera every frame instead of fixed
+// at the world origin, so the camera can never fly past its edge (which
+// produced a torn/glitchy seam in the sky when driving far out of bounds).
+function updateSkyDome(){
+  if(!currentSkyDome || !camera) return;
+  currentSkyDome.position.copy(camera.position);
+}
+
+// Harbor Sprint / Coastal Curves only: the ocean plane shifts toward a
+// richer, more opaque blue as the camera's real distance to it shrinks,
+// and toward a paler, hazier tone as that distance grows — so the water
+// actually looks closer when the camera is actually closer, instead of
+// staying a flat, fixed color regardless of distance.
+function updateOceanProximity(){
+  if(!currentOceanMesh || !camera) return;
+  const d = Math.hypot(camera.position.x, camera.position.z);
+  const t = THREE.MathUtils.clamp((d - OCEAN_NEAR_DIST) / (OCEAN_FAR_DIST - OCEAN_NEAR_DIST), 0, 1);
+  const mat = currentOceanMesh.material;
+  const ud = currentOceanMesh.userData;
+  mat.color.copy(ud.oceanNearColor).lerp(ud.oceanFarColor, t);
+  mat.opacity = THREE.MathUtils.lerp(ud.oceanNearOpacity, ud.oceanFarOpacity, t);
+}
+
+// Pushes a car back out of any solid scenery prop it's overlapping — piers,
+// trees, mesas, buildings, boulders, etc. — the same way a track barrier
+// does, so decoration outside the track (reachable via noclip, or just off
+// a wide shoulder) is no longer drive-through. Runs for every car, not just
+// the player, and is independent of the owner noclip-walls setting, which
+// only bypasses track barriers, not scenery.
+function applyPropCollisions(car){
+  if(!propColliders.length) return;
+  for(let i=0;i<propColliders.length;i++){
+    const p = propColliders[i];
+    const dx = car.pos.x - p.x, dz = car.pos.z - p.z;
+    const distSq = dx*dx + dz*dz;
+    const minDist = p.r + CAR_HALF_WIDTH;
+    if(distSq >= minDist*minDist) continue;
+    const dist = Math.sqrt(distSq) || 0.0001;
+    const push = minDist - dist;
+    const nx = dx/dist, nz = dz/dist;
+    car.pos.x += nx*push;
+    car.pos.z += nz*push;
+    car.speed *= 0.5; // same kind of scrub a wall hit gives
+    if(car.isPlayer) car.touchingWall = true;
+  }
+}
+
 function applyBoundary(car, dt){
   dt = dt || 1/60;
+  // Owner-only noclip: skip wall collision entirely so the car can drive
+  // straight through barriers instead of being stopped/penalized by them.
+  if(car.isPlayer && isOwner && gameState.noclipWalls){
+    car.wallOffTime = (car.wallOffTime || 0) + dt;
+    car.touchingWall = false;
+    return;
+  }
   const idx = car.trackIndex;
   const center = track.points[idx], normal = track.normals[idx];
   const rel = new THREE.Vector3().subVectors(car.pos, center);
@@ -3895,7 +4060,7 @@ function updateCar(car, dt){
   let maxSpeed = (BASE_MAX_SPEED
     + (car.isPlayer ? gameState.upgrades.speed*2.7 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
   let accel = (BASE_ACCEL
-    + (car.isPlayer ? gameState.upgrades.accel*2.3 + playerCarDef.accel*3 : car.diffBonus*0.4)) * rb;
+    + (car.isPlayer ? gameState.upgrades.accel*2.3 + playerCarDef.accel*3 : car.accelBonus)) * rb;
   // Crash boost: a rival hit a wall recently, so this car runs hotter.
   if(car.crashBoost > 0){
     car.crashBoost -= dt;
@@ -3960,6 +4125,7 @@ function updateCar(car, dt){
 
   car.trackIndex = findNearestIndex(car);
   applyBoundary(car, dt);
+  applyPropCollisions(car);
 
   // Lap detection. A crossing only counts once the car has genuinely been
   // out around the track (past the midpoint) since the last time it counted —
@@ -4119,10 +4285,19 @@ function updateRubberBand(dt){
   if(!track || !player) return;
   const N = track.N;
   const playerProgress = progressMetric(player);
+  // Live speed coupling: on top of the position-gap catch-up above, if the
+  // player's CURRENT speed is low relative to their own top speed — easing
+  // off, exploring off-road, whatever — CPUs ease off right now too, rather
+  // than waiting for the gap to actually open up. 1 = player at/near full
+  // speed (no extra effect); down to 0.5 when the player is nearly stopped.
+  const playerSpeedFrac = player.maxSpeed > 0
+    ? Math.max(0, Math.min(1, Math.abs(player.speed) / player.maxSpeed))
+    : 1;
+  const speedEase = 1 - (1 - playerSpeedFrac) * 0.5;
   cars.forEach(car=>{
     if(car.isPlayer || car.remote) return;
     const gap = (playerProgress - progressMetric(car)) / N; // >0: player ahead
-    const target = 1 + Math.max(-0.35, Math.min(0.35, gap*0.55));
+    const target = (1 + Math.max(-0.35, Math.min(0.35, gap*0.55))) * speedEase;
     // Fast-converging (dt*1.6) so the catch-up/ease-off is felt within a
     // second or two of the gap opening up, not gradually over a full lap.
     car.rubberBand += (target - car.rubberBand) * Math.min(1, dt*1.6);
@@ -4504,14 +4679,23 @@ function updateCamera(dt){
 }
 
 /* ---------- HUD ---------- */
+function ordinalSuffix(n){
+  const n100 = n % 100;
+  if(n100 >= 11 && n100 <= 13) return 'th';
+  switch(n % 10){
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
 function updateHUD(){
-  const lapShown = Math.min(player.lap+1, raceLaps);
-  $('hudLap').textContent = 'Lap ' + lapShown + '/' + raceLaps;
-  $('hudTime').textContent = formatTime(raceClock);
+  const lapsLeft = Math.max(0, raceLaps - player.lap);
+  $('lapLeftNum').textContent = lapsLeft;
   const standings = currentStandings();
   const pos = standings.indexOf(player) + 1;
   $('posNum').textContent = pos;
-  $('posLabel').textContent = 'of ' + cars.length;
+  $('posLabel').textContent = ordinalSuffix(pos);
   const mph = Math.max(0, Math.abs(player.speed)*2.6);
   $('speedNum').textContent = Math.round(gameState.units === 'kph' ? mph*1.60934 : mph);
   updateLeaderboard(standings);
@@ -4523,10 +4707,14 @@ function updateLeaderboard(standings){
   list.innerHTML = standings.map((c, i)=>{
     const colorCss = '#' + (c.colorHex != null ? c.colorHex.toString(16).padStart(6,'0') : '888888');
     const name = c.isPlayer ? 'You' : (c.label || 'Racer');
+    const carName = c.carName || '';
     return `<div class="lbRow${c.isPlayer ? ' you' : ''}">
         <span class="lbPos">${i+1}</span>
         <span class="lbDot" style="background:${colorCss};"></span>
-        <span class="lbName">${name}</span>
+        <span class="lbNames">
+          <span class="lbName">${name}</span>
+          <span class="lbCar">${carName}</span>
+        </span>
       </div>`;
   }).join('');
 }
@@ -4600,40 +4788,24 @@ function drawMinimap(standings){
   const t = minimapTransform();
   const { minX, minZ, s, ox, oz } = t;
   function toXY(p){ return [ox + (p.x-minX)*s, oz + (p.z-minZ)*s]; }
-
-  // Draw the track as a filled band spanning its real width (inner edge to
-  // outer edge), not just a thin centerline stroke. A car legitimately held
-  // against a wall by applyBoundary() sits close to these edges, so drawing
-  // the true width here keeps its dot visibly inside the drawn track instead
-  // of appearing to float outside a line that only ever traced the centre.
+  // Draw the actual left/right track edges (not just the centerline) so the
+  // drivable corridor is visible on the minimap — otherwise there was
+  // nothing to actually check the car dot against for "inside" vs "outside"
+  // the track. Off the track is only reachable at all with noclipWalls on.
   const halfWidth = (track.width || TRACK_WIDTH) / 2;
-  if(track.normals){
+  const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+  ctx.strokeStyle = isDarkTheme ? 'rgba(210,214,220,0.9)' : 'rgba(255,180,140,0.9)';
+  ctx.lineWidth = 2;
+  [1,-1].forEach(sign=>{
     ctx.beginPath();
     track.points.forEach((p,i)=>{
-      const n = track.normals[i];
-      const ix = p.x - (n? n.x*halfWidth:0), iz = p.z - (n? n.z*halfWidth:0);
-      const [x,y] = toXY({x:ix, z:iz});
+      const n = track.normals && track.normals[i];
+      const ex = n ? n.x*halfWidth*sign : 0, ez = n ? n.z*halfWidth*sign : 0;
+      const [x,y] = toXY({x: p.x+ex, z: p.z+ez});
       if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
     });
-    for(let i=track.points.length-1; i>=0; i--){
-      const p = track.points[i], n = track.normals[i];
-      const ox2 = p.x + (n? n.x*halfWidth:0), oz2 = p.z + (n? n.z*halfWidth:0);
-      const [x,y] = toXY({x:ox2, z:oz2});
-      ctx.lineTo(x,y);
-    }
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(255,180,140,0.35)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,180,140,0.9)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  } else {
-    ctx.strokeStyle = 'rgba(255,180,140,0.9)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    track.points.forEach((p,i)=>{ const [x,y]=toXY(p); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
     ctx.closePath(); ctx.stroke();
-  }
+  });
 
   // Start/finish marker: a checkered bar laid across the track at points[0],
   // drawn under the car dots so cars stay readable as they cross it.
@@ -5312,6 +5484,8 @@ $('settingsBtn').addEventListener('click', ()=>{
   $('fpsCounterToggle').checked = gameState.showFps === true;
   $('pingCounterToggle').checked = gameState.showPing === true;
   $('touchControlsToggle').checked = gameState.touchControls === true;
+  $('noclipWallsRow').hidden = !isOwner;
+  $('noclipWallsToggle').checked = isOwner && gameState.noclipWalls === true;
 });
 $('settingsBackBtn').addEventListener('click', ()=>{
   $('settingsCard').hidden = true;
@@ -5426,6 +5600,11 @@ $('touchControlsToggle').addEventListener('change', ()=>{
   applyTouchControlsVisibility();
   saveState();
 });
+$('noclipWallsToggle').addEventListener('change', ()=>{
+  if(!isOwner) return; // owner-only, regardless of what the checkbox shows
+  gameState.noclipWalls = $('noclipWallsToggle').checked;
+  saveState();
+});
 $('resetProgressBtn').addEventListener('click', ()=>{
   if(!confirm('Reset all progress? This clears your coins, upgrades, unlocked tracks, and records. This cannot be undone.')) return;
   const keepSoundOn = gameState.soundOn, keepSensitivity = gameState.sensitivity,
@@ -5433,7 +5612,8 @@ $('resetProgressBtn').addEventListener('click', ()=>{
         keepEmojis = gameState.showEmojis,
         keepMinimap = gameState.showMinimap, keepUnits = gameState.units,
         keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps,
-        keepShowPing = gameState.showPing, keepTouchControls = gameState.touchControls;
+        keepShowPing = gameState.showPing, keepTouchControls = gameState.touchControls,
+        keepNoclipWalls = gameState.noclipWalls;
   gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
   // Preserve control/audio preferences through a progress reset — those
   // aren't "progress", they're how the player likes to play.
@@ -5443,6 +5623,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   gameState.showMinimap = keepMinimap; gameState.units = keepUnits;
   gameState.cameraShake = keepCameraShake; gameState.showFps = keepShowFps;
   gameState.showPing = keepShowPing; gameState.touchControls = keepTouchControls;
+  gameState.noclipWalls = keepNoclipWalls;
   saveState();
   refreshCoinDisplays();
   renderStageGrid();
@@ -5598,6 +5779,9 @@ function animate(now){
   requestAnimationFrame(animate);
   const dt = Math.min((now - lastTime)/1000, 0.05);
   lastTime = now;
+
+  updateOceanProximity();
+  updateSkyDome();
 
   if(gameState.showFps === true){
     fpsFrameCount++;
