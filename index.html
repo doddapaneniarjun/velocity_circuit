@@ -4600,11 +4600,40 @@ function drawMinimap(standings){
   const t = minimapTransform();
   const { minX, minZ, s, ox, oz } = t;
   function toXY(p){ return [ox + (p.x-minX)*s, oz + (p.z-minZ)*s]; }
-  ctx.strokeStyle = 'rgba(255,180,140,0.9)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  track.points.forEach((p,i)=>{ const [x,y]=toXY(p); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
-  ctx.closePath(); ctx.stroke();
+
+  // Draw the track as a filled band spanning its real width (inner edge to
+  // outer edge), not just a thin centerline stroke. A car legitimately held
+  // against a wall by applyBoundary() sits close to these edges, so drawing
+  // the true width here keeps its dot visibly inside the drawn track instead
+  // of appearing to float outside a line that only ever traced the centre.
+  const halfWidth = (track.width || TRACK_WIDTH) / 2;
+  if(track.normals){
+    ctx.beginPath();
+    track.points.forEach((p,i)=>{
+      const n = track.normals[i];
+      const ix = p.x - (n? n.x*halfWidth:0), iz = p.z - (n? n.z*halfWidth:0);
+      const [x,y] = toXY({x:ix, z:iz});
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    for(let i=track.points.length-1; i>=0; i--){
+      const p = track.points[i], n = track.normals[i];
+      const ox2 = p.x + (n? n.x*halfWidth:0), oz2 = p.z + (n? n.z*halfWidth:0);
+      const [x,y] = toXY({x:ox2, z:oz2});
+      ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,180,140,0.35)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,180,140,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = 'rgba(255,180,140,0.9)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    track.points.forEach((p,i)=>{ const [x,y]=toXY(p); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+    ctx.closePath(); ctx.stroke();
+  }
 
   // Start/finish marker: a checkered bar laid across the track at points[0],
   // drawn under the car dots so cars stay readable as they cross it.
