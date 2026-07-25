@@ -1130,6 +1130,17 @@ function loadTrackNameOverrides(){
     const parsed = raw ? JSON.parse(raw) : {};
     trackNameOverrides = (parsed && typeof parsed === 'object') ? parsed : {};
   }catch(e){ trackNameOverrides = {}; }
+  // Guard against a stray override relabeling a track with another track's
+  // real name (that's what made "Lunar Basin" show up twice on the home
+  // screen) — drop any override that collides with a different stage's name.
+  let changed = false;
+  Object.keys(trackNameOverrides).forEach(key=>{
+    const idx = Number(key);
+    const val = typeof trackNameOverrides[key] === 'string' ? trackNameOverrides[key].trim() : '';
+    const collides = STAGES.some((s, j)=> j !== idx && s.name === val);
+    if(!val || collides){ delete trackNameOverrides[key]; changed = true; }
+  });
+  if(changed) saveTrackNameOverrides();
 }
 function saveTrackNameOverrides(){
   try{ localStorage.setItem(TRACK_NAMES_KEY, JSON.stringify(trackNameOverrides)); }catch(e){}
@@ -3201,7 +3212,7 @@ window.addEventListener('keydown', e=>{
   if(e.code === 'KeyM' && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
     Sound.toggle(); refreshSoundBtn();
   }
-  if(e.code === 'KeyT' && Online.room && !$('chatToggleBtn').hidden && (appState==='racing' || appState==='racing-countdown')){
+  if(e.code === 'KeyC' && Online.room && !$('chatToggleBtn').hidden && (appState==='racing' || appState==='racing-countdown')){
     e.preventDefault(); openChat();
   }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
@@ -3895,7 +3906,7 @@ function startRace(stageIndex, onlineRoom){
   clearChat();
   $('chatToggleBtn').hidden = !onlineRoom;
   $('controlsHint').innerHTML = onlineRoom
-    ? 'W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute &middot; T to chat'
+    ? 'W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute &middot; C to chat'
     : 'W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute';
   showScreen('game');
   onResize();
@@ -5894,11 +5905,13 @@ $('logoutBtn').addEventListener('click', logout);
    Reads every local profile from USERS_KEY, then looks up each one's own
    save slot (saveKeyFor) to report their current coins and driver rating.
    Local-only, same as the rest of the profile system — there's no server
-   to query, so this is simply reading the other save slots in this browser. */
-let managePlayersRows = [];
+   to query, so this is simply reading the other save slots in this browser.
+   The full roster is re-read from storage on every render (not cached),
+   so the list and its search always reflect every account that currently
+   exists — including ones created after the modal was first opened. */
 function loadManagePlayersRows(){
   const users = readUsers();
-  managePlayersRows = Object.keys(users).map(nameKey=>{
+  return Object.keys(users).map(nameKey=>{
     let coins = DEFAULT_STATE.coins, rating = DEFAULT_STATE.skillRating;
     try{
       const raw = localStorage.getItem(saveKeyFor(nameKey));
@@ -5920,10 +5933,11 @@ function loadManagePlayersRows(){
 function renderManagePlayers(){
   const body = $('managePlayersTableBody');
   if(!body) return;
+  const allRows = loadManagePlayersRows();
   const query = ($('managePlayersSearch').value || '').trim().toLowerCase();
   const rows = query
-    ? managePlayersRows.filter(r=> r.display.toLowerCase().includes(query))
-    : managePlayersRows;
+    ? allRows.filter(r=> r.display.toLowerCase().includes(query))
+    : allRows;
 
   body.innerHTML = rows.length ? rows.map(r=>
     '<tr class="' + (r.nameKey === currentUser ? 'statsRowMe' : '') + '">' +
@@ -5935,7 +5949,6 @@ function renderManagePlayers(){
   ).join('') : '<tr><td colspan="4">' + (query ? 'No players match that search.' : 'No local accounts found yet.') + '</td></tr>';
 }
 $('managePlayersBtn').addEventListener('click', ()=>{
-  loadManagePlayersRows();
   $('managePlayersSearch').value = '';
   renderManagePlayers();
   $('managePlayersOverlay').hidden = false;
