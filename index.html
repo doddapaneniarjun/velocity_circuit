@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -100,7 +99,9 @@
   .logoutLink{ background:none; border:none; color:var(--accent); font:inherit; font-weight:700; font-size:13px; cursor:pointer; padding:0; }
   .logoutLink:hover{ text-decoration:underline; }
   .logoutLink:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:3px; }
-  .managePlayersBtn{ position:fixed; top:108px; right:16px; z-index:20; font-size:13px; padding:8px 16px; min-height:auto; letter-spacing:.2px; }
+  .accountActionsBar{ position:fixed; top:108px; right:16px; z-index:20; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+  .accountActionsBar .btn{ font-size:13px; padding:8px 16px; min-height:auto; letter-spacing:.2px; }
+  .globalChatBtn{ position:relative; }
 
   /* ---------- Login ---------- */
   #loginScreen{ background:
@@ -263,7 +264,7 @@
   .posWrap{ position:absolute; bottom:18px; right:18px; text-align:right; }
   .posNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
   .posLabel{ position:absolute; top:6px; right:-4px; font-size:28px; font-weight:800; color:var(--peach); }
-  .minimapWrap{ position:absolute; top:50%; left:calc(14px + env(safe-area-inset-left)); transform:translateY(-50%); }
+  .minimapWrap{ position:absolute; top:50%; left:calc(14px + env(safe-area-inset-left)); transform:translateY(-50%); z-index:6; }
   .lapLeftWrap{ position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:calc(18px + env(safe-area-inset-left)); text-align:left; }
   .lapLeftLabel{ font-size:13px; font-weight:800; letter-spacing:1px; color:var(--peach); }
   .lapLeftNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
@@ -347,9 +348,16 @@
 
   .overlay{ position:absolute; inset:0; background:rgba(var(--shadow-rgb),.55); display:flex; align-items:center; justify-content:center; pointer-events:all; }
   .overlay[hidden]{ display:none !important; }
-  .overlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius); padding:30px 34px; text-align:center; width:min(420px,88vw); }
-  .overlayCard h2{ margin:0 0 6px; font-size:24px; }
+  .overlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius); padding:30px 34px; text-align:center; width:min(420px,88vw);
+    display:flex; flex-direction:column; max-height:90vh; max-height:90dvh; position:relative; z-index:10; }
+  .overlayCard h2{ margin:0 0 6px; font-size:24px; flex:none; }
   .overlayCard p{ color:var(--muted); margin:4px 0 20px; }
+  /* #resultBody can grow tall (opponent times + every stat row), so let it
+     scroll internally rather than pushing the action buttons off-screen or
+     having content clipped by the page's overflow:hidden with no way to
+     reach it. */
+  #resultBody{ overflow-y:auto; -webkit-overflow-scrolling:touch; min-height:0; flex:1; }
+  .overlayCard .btnRow{ flex:none; }
 
   /* Settings can have more rows than a short/landscape tablet viewport has
      room for. Cap the card to the viewport, let the row list scroll, and
@@ -366,7 +374,7 @@
   }
 
   .statsOverlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius);
-    padding:26px 28px; text-align:left; width:min(680px,92vw); max-height:82vh; display:flex; flex-direction:column; }
+    padding:26px 28px; text-align:left; width:min(680px,92vw); max-height:82vh; display:flex; flex-direction:column; position:relative; z-index:10; }
   .statsOverlayCard h2{ margin:0 0 4px; font-size:22px; text-align:center; }
   .statsOverlayCard p.statsSub{ color:var(--muted); margin:0 0 16px; text-align:center; font-size:13px; }
   .statsTableWrap{ overflow:auto; border:1px solid var(--border); border-radius:10px; }
@@ -376,6 +384,7 @@
     text-transform:uppercase; position:sticky; top:0; }
   .statsTable tbody tr:last-child td{ border-bottom:none; }
   .statsTable tbody tr.statsRowMe{ background:rgba(var(--accent-rgb),.1); }
+  .statsTable tbody tr.deletedRow{ opacity:.6; font-style:italic; }
   .statsMissingNote{ color:var(--muted); font-size:12px; margin:12px 0 0; }
 
   .resultRow{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-strong); font-size:15px; }
@@ -457,7 +466,12 @@
     <div class="profileBar" aria-label="Logged in profile">
       <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
     </div>
-    <button class="btn secondary managePlayersBtn" id="managePlayersBtn" type="button" hidden>Manage Players</button>
+    <div class="accountActionsBar">
+      <button class="btn secondary managePlayersBtn" id="managePlayersBtn" type="button" hidden>Manage Players</button>
+      <button class="btn secondary globalChatBtn" id="globalChatBtn" type="button">
+        <span class="emoji" aria-hidden="true">💬</span> Chat<span class="chatUnreadDot" id="globalChatUnreadDot" hidden></span>
+      </button>
+    </div>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
 
@@ -469,13 +483,33 @@
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
     </div>
 
-    <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
+    <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
 
     <div class="overlay" id="managePlayersOverlay" hidden>
       <div class="statsOverlayCard">
         <h2>Manage Players</h2>
-        <p class="statsSub">Every local account on this device, with current coins and driver rating.</p>
+        <p class="statsSub">Every account ever created on this device — including deleted ones — with coins and driver rating.</p>
         <input class="loginInput" type="text" id="managePlayersSearch" placeholder="Search players…" style="width:100%;margin-bottom:12px;" autocomplete="off">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+          <label for="managePlayersSort" style="font-size:13px;color:var(--muted);white-space:nowrap;">Sort by</label>
+          <select id="managePlayersSort" style="flex:1;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;">
+            <option value="name">Name</option>
+            <option value="coins">Coins</option>
+            <option value="rating">Driver Rating</option>
+          </select>
+          <button class="btn secondary" id="managePlayersSortDirBtn" type="button" title="Toggle sort direction: best to worst" aria-label="Toggle sort direction" style="min-width:44px;flex:none;">↓</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <label style="font-size:13px;color:var(--muted);white-space:nowrap;">Coins</label>
+          <input type="number" id="managePlayersMinCoins" placeholder="Min" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
+          <input type="number" id="managePlayersMaxCoins" placeholder="Max" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
+          <label style="font-size:13px;color:var(--muted);white-space:nowrap;margin-left:6px;">Rating</label>
+          <input type="number" id="managePlayersMinRating" placeholder="Min" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
+          <input type="number" id="managePlayersMaxRating" placeholder="Max" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <button class="btn secondary" id="managePlayersClearFiltersBtn" type="button" style="font-size:12px;padding:6px 12px;min-height:auto;">Clear filters</button>
+        </div>
         <div class="statsTableWrap">
           <table class="statsTable" id="managePlayersTable">
             <thead>
@@ -483,7 +517,7 @@
                 <th>Player</th>
                 <th>Coins</th>
                 <th>Driver Rating</th>
-                <th>Owner</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody id="managePlayersTableBody"></tbody>
@@ -491,6 +525,21 @@
         </div>
         <div class="btnRow" style="margin-top:16px;">
           <button class="btn" id="managePlayersCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="globalChatOverlay" hidden>
+      <div class="statsOverlayCard">
+        <h2>Chat</h2>
+        <p class="statsSub">Message any player on this device — they'll see it whether they're online or not.</p>
+        <div class="chatLog" id="globalChatLog" role="log" aria-live="polite" aria-label="Chat messages" style="max-height:280px;min-height:160px;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:12px;"></div>
+        <form class="chatForm" id="globalChatForm" style="padding:0;border-top:none;">
+          <input class="chatInputField" id="globalChatInput" type="text" maxlength="200" placeholder="Message everyone…" autocomplete="off" aria-label="Chat message" />
+          <button class="btn chatSendBtn" type="submit">Send</button>
+        </form>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="globalChatCloseBtn">Close</button>
         </div>
       </div>
     </div>
@@ -954,6 +1003,30 @@ function writeUsers(db){
   try{ localStorage.setItem(USERS_KEY, JSON.stringify(db)); }catch(e){}
 }
 
+// Permanent roster of every account ever created on this device — separate
+// from USERS_KEY (which only holds currently-active accounts) so that Manage
+// Players can keep showing an account after it's deleted. Entries are only
+// ever added or updated here, never removed.
+const ALL_ACCOUNTS_KEY = 'velocityCircuit_allAccountsEver';
+function readAllAccountsEver(){
+  try{ return JSON.parse(localStorage.getItem(ALL_ACCOUNTS_KEY)) || {}; }catch(e){ return {}; }
+}
+function writeAllAccountsEver(db){
+  try{ localStorage.setItem(ALL_ACCOUNTS_KEY, JSON.stringify(db)); }catch(e){}
+}
+function recordAccountSeen(nameKey, display){
+  const all = readAllAccountsEver();
+  const existing = all[nameKey] || {};
+  all[nameKey] = {
+    display: display || existing.display || nameKey,
+    firstSeen: existing.firstSeen || Date.now(),
+    deleted: false,
+    lastCoins: existing.lastCoins,
+    lastRating: existing.lastRating
+  };
+  writeAllAccountsEver(all);
+}
+
 function focusLoginUsername(){
   setTimeout(()=>{ const f = $('loginUsername'); if(f) f.focus(); }, 0);
 }
@@ -1029,6 +1102,7 @@ function attemptLogin(rawUsername, rawPassword){
   const owner = checkOwner(nameKey, hash);
   if(owner){ users[nameKey].isOwner = true; } else { delete users[nameKey].isOwner; }
   writeUsers(users);
+  recordAccountSeen(nameKey, users[nameKey].display);
 
   const remember = $('rememberMeToggle').checked;
   beginSession(nameKey, users[nameKey].display, remember, owner);
@@ -1320,6 +1394,29 @@ function ensureStagePhotos(){
   stagePhotoJob = requestAnimationFrame(step);
 }
 
+// Walks forward from startIdx along the track's sampled points, point by
+// point, summing actual world-space distance until it reaches targetDist,
+// and returns the index it stopped at. Used for the trackside stage photo
+// below: a fixed number of *points* ahead (e.g. "14 points") covers wildly
+// different real distances depending on how tightly a track's shape packs
+// its points (a small-radius oval covers far less ground per point than a
+// sprawling canyon), which is why Sunset Circle / Stadium Sprint / Coastal
+// Curves used to show a noticeably shorter stretch of road in their card
+// photo than everything else. Walking by actual distance instead makes
+// every track's photo look down the same length of road.
+function pointIndexAtArcDistance(points, startIdx, targetDist){
+  const n = points.length;
+  let total = 0, idx = startIdx;
+  for(let step = 0; step < n; step++){
+    const next = (idx + 1) % n;
+    total += points[idx].distanceTo(points[next]);
+    idx = next;
+    if(total >= targetDist) return idx;
+  }
+  return idx; // track shorter than targetDist (shouldn't happen) — go all the way around
+}
+const STAGE_PHOTO_LOOKAHEAD_DIST = 36; // world units of road shown ahead of the camera
+
 function renderStagePhoto(stageIndex){
   if(!stagePhotoRenderer){
     stagePhotoRenderer = new THREE.WebGLRenderer({ antialias:true });
@@ -1341,7 +1438,8 @@ function renderStagePhoto(stageIndex){
   const TIGHT_PHOTO_TYPES = { oval:true, stadium:true, wavy:true };
   const photoOffset = TIGHT_PHOTO_TYPES[stage.type] ? 4 : 7;
   const k = Math.floor(built.N * 0.12); // a little way past the start line
-  const ahead = built.points[(k + 14) % built.N];
+  const aheadIdx = pointIndexAtArcDistance(built.points, k, STAGE_PHOTO_LOOKAHEAD_DIST);
+  const ahead = built.points[aheadIdx];
   const camera = new THREE.PerspectiveCamera(55, PHOTO_W/PHOTO_H, 0.1, 900);
   camera.position.copy(built.points[k])
     .addScaledVector(built.normals[k], built.width/2 + photoOffset);
@@ -3216,6 +3314,9 @@ window.addEventListener('keydown', e=>{
   if(e.code === 'KeyC' && Online.room && !$('chatToggleBtn').hidden && (appState==='racing' || appState==='racing-countdown')){
     e.preventDefault(); openChat();
   }
+  if(e.code === 'KeyC' && appState==='home' && $('homeScreen') && !$('homeScreen').hidden){
+    e.preventDefault(); openGlobalChat();
+  }
   if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
   if(e.code === 'Escape'){
     if(appState === 'racing' || appState === 'racing-countdown'){
@@ -3230,7 +3331,9 @@ window.addEventListener('keydown', e=>{
     } else if(appState === 'home'){
       // On Home itself Escape has nowhere further to go; from Garage or
       // Upgrades it steps back to Home, just like their Back buttons.
-      if(!garageScreen.hidden){ showScreen('home'); }
+      if(!$('globalChatOverlay').hidden){ closeGlobalChat(); }
+      else if(!$('managePlayersOverlay').hidden){ $('managePlayersOverlay').hidden = true; }
+      else if(!garageScreen.hidden){ showScreen('home'); }
       else if(!upgradesScreen.hidden){ showScreen('home'); }
     }
   }
@@ -3765,6 +3868,7 @@ $('findMatchBtn').addEventListener('click', ()=>{ Online.startSearch(); });
 $('lobbyBackBtn').addEventListener('click', ()=>{ Online.stopSearch(); showScreen('mode'); });
 
 function startRace(stageIndex, onlineRoom){
+  if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
   if(!onlineRoom) Online.leaveRace();
   // Snapshot current state before the race modifies coins / racesCompleted.
   // If the player closes the tab before finishing, this snapshot is restored.
@@ -4489,6 +4593,24 @@ function handleOwnerCmdReceived(m){
       addSystemChatMessage('An owner deleted your account.');
       const nameKey = currentUser;
       endOnlineIfNeeded();
+      // Snapshot final coins/rating into the permanent roster before wiping
+      // the save — Manage Players shows every account ever created, so a
+      // deleted account still needs a display name and last-known stats.
+      try{
+        const all = readAllAccountsEver();
+        const existing = all[nameKey] || {};
+        const raw = localStorage.getItem(saveKeyFor(nameKey));
+        const parsed = raw ? JSON.parse(raw) : null;
+        const usersNow = readUsers();
+        all[nameKey] = {
+          display: (usersNow[nameKey] && usersNow[nameKey].display) || existing.display || nameKey,
+          firstSeen: existing.firstSeen || Date.now(),
+          deleted: true,
+          lastCoins: (parsed && Number.isFinite(parsed.coins)) ? parsed.coins : existing.lastCoins,
+          lastRating: (parsed && Number.isFinite(parsed.skillRating)) ? parsed.skillRating : existing.lastRating
+        };
+        writeAllAccountsEver(all);
+      }catch(e){}
       try{ localStorage.removeItem(saveKeyFor(nameKey)); }catch(e){}
       try{ localStorage.removeItem(rollbackKeyFor(nameKey)); }catch(e){}
       const users = readUsers();
@@ -5746,36 +5868,41 @@ function finishRace(){
   try{ localStorage.removeItem(ROLLBACK_KEY); }catch(e){}
 
   $('resultTitle').textContent = pos===1 ? 'Victory!' : 'Race Complete!';
-  let onlineRows = '';
-  function buildOnlineRows(){
-    const st = currentStandings();
-    return `<div class="resultRow" style="border-bottom:1px solid var(--border);"><span><strong>Online standings</strong></span><span></span></div>` +
-      st.map((c,i)=>{
-        const nm = c.isPlayer ? 'You' : (c.netName || 'Racer');
-        const status = c.finished ? formatTime(c.finishTime) : 'still racing (lap ' + Math.min(raceLaps, c.lap+1) + ')';
-        return `<div class="resultRow"><span>${i+1}. ${nm}</span><strong>${status}</strong></div>`;
-      }).join('');
+  // List every other racer's time (or their live progress if they haven't
+  // finished yet) underneath the player's own result. This refreshes on an
+  // interval below rather than being built once, because CPU racers (and any
+  // remote players) keep racing in the background after you cross the line —
+  // see the 'results' branch in animate() — so their times/status here
+  // update live instead of freezing at whatever they were the instant you
+  // finished.
+  function buildOpponentRows(){
+    const others = currentStandings().filter(c => !c.isPlayer);
+    if(!others.length) return '';
+    return others.map(c=>{
+      const nm = c.netName || c.label || 'Racer';
+      const status = c.finished ? formatTime(c.finishTime) : 'still racing (lap ' + Math.min(raceLaps, c.lap+1) + ')';
+      return `<div class="resultRow"><span>${escapeHtml(nm)}</span><strong>${status}</strong></div>`;
+    }).join('');
   }
   if(Online.room){
     // Tell opponents I finished, right away
     Online.sendFinish();
-    onlineRows = `<div id="onlineStandings">${buildOnlineRows()}</div>`;
-    // Opponent finishes arrive over the peer connection — just re-render for a while
-    if(onlineResultsTimer) clearInterval(onlineResultsTimer);
-    let polls = 0;
-    onlineResultsTimer = setInterval(()=>{
-      polls++;
-      if(!Online.room || appState !== 'results' || polls > 60){
-        clearInterval(onlineResultsTimer); onlineResultsTimer = null; return;
-      }
-      Online.sendFinish();      // keep my result flowing in case a packet dropped
-      const el = document.getElementById('onlineStandings');
-      if(el) el.innerHTML = buildOnlineRows();
-    }, 2000);
   }
-  $('resultBody').innerHTML = onlineRows + `
+  if(onlineResultsTimer) clearInterval(onlineResultsTimer);
+  let polls = 0;
+  onlineResultsTimer = setInterval(()=>{
+    polls++;
+    if(appState !== 'results' || polls > 300){
+      clearInterval(onlineResultsTimer); onlineResultsTimer = null; return;
+    }
+    if(Online.room) Online.sendFinish();      // keep my result flowing in case a packet dropped
+    const el = document.getElementById('opponentStandings');
+    if(el) el.innerHTML = buildOpponentRows();
+  }, 1000);
+  $('resultBody').innerHTML = `
     <div class="resultRow"><span>Finish position</span><strong>${pos} of ${cars.length}</strong></div>
     <div class="resultRow"><span>Total time</span><strong>${formatTime(player.finishTime)}</strong></div>
+    <div id="opponentStandings">${buildOpponentRows()}</div>
     <div class="resultRow"><span>Best lap</span><strong>${formatTime(player.bestLap)}</strong></div>
     <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/raceLaps)}</strong></div>
     <div class="resultRow"><span>Top speed</span><strong>${Math.round(gameState.units === 'kph' ? player.topSpeed*1.60934 : player.topSpeed)} ${gameState.units === 'kph' ? 'km/h' : 'mph'}</strong></div>
@@ -5889,7 +6016,20 @@ function animate(now){
     Sound.update(dt);
     updateCamera(dt);
     renderer.render(scene, camera);
-  } else if(appState === 'paused' || appState === 'results'){
+  } else if(appState === 'paused'){
+    renderer.render(scene, camera);
+  } else if(appState === 'results'){
+    // The player is done, but everyone else who hasn't crossed the line yet
+    // should keep racing in the background — otherwise the minimap (and the
+    // opponent times list on the results screen) would freeze the instant
+    // you finish instead of showing the rest of the field actually finish.
+    raceClock += dt;
+    cars.forEach(c=>{ if(c.remote || c.isPlayer) return; if(!c.finished) updateCar(c, dt); });
+    if(Online.room){
+      Online.tick();
+      Online.updateRemoteCars(dt);
+    }
+    updateHUD();
     renderer.render(scene, camera);
   }
 }
@@ -5912,50 +6052,191 @@ $('logoutBtn').addEventListener('click', logout);
    exists — including ones created after the modal was first opened. */
 function loadManagePlayersRows(){
   const users = readUsers();
-  return Object.keys(users).map(nameKey=>{
+  const everSeen = readAllAccountsEver();
+  const keys = new Set([...Object.keys(everSeen), ...Object.keys(users)]);
+  return Array.from(keys).map(nameKey=>{
+    const isActive = !!users[nameKey];
     let coins = DEFAULT_STATE.coins, rating = DEFAULT_STATE.skillRating;
-    try{
-      const raw = localStorage.getItem(saveKeyFor(nameKey));
-      if(raw){
-        const parsed = JSON.parse(raw);
-        if(Number.isFinite(parsed.coins)) coins = parsed.coins;
-        if(Number.isFinite(parsed.skillRating)) rating = parsed.skillRating;
-      }
-    }catch(e){}
+    if(isActive){
+      try{
+        const raw = localStorage.getItem(saveKeyFor(nameKey));
+        if(raw){
+          const parsed = JSON.parse(raw);
+          if(Number.isFinite(parsed.coins)) coins = parsed.coins;
+          if(Number.isFinite(parsed.skillRating)) rating = parsed.skillRating;
+        }
+      }catch(e){}
+    } else if(everSeen[nameKey]){
+      // Deleted account — fall back to the last-known snapshot saved at
+      // deletion time, since its live save slot has been wiped.
+      if(Number.isFinite(everSeen[nameKey].lastCoins)) coins = everSeen[nameKey].lastCoins;
+      if(Number.isFinite(everSeen[nameKey].lastRating)) rating = everSeen[nameKey].lastRating;
+    }
+    const display = (isActive && users[nameKey].display)
+      || (everSeen[nameKey] && everSeen[nameKey].display)
+      || nameKey;
     return {
       nameKey,
-      display: users[nameKey].display || nameKey,
+      display,
       coins,
       rating: Math.round(rating),
-      owner: !!users[nameKey].isOwner
+      owner: isActive && !!users[nameKey].isOwner,
+      deleted: !isActive
     };
   }).sort((a,b)=> a.display.localeCompare(b.display));
+}
+// Sort state for the Manage Players table. 'dir' of 'desc' means highest
+// coins/rating (or Z-A for name) first — i.e. "best to worst"; 'asc' flips
+// it to "worst to best". Persists while the app is open, reset on load.
+let mpSortKey = 'name';
+let mpSortDir = 'asc';
+function sortManagePlayersRows(rows){
+  const key = mpSortKey, dir = mpSortDir;
+  return rows.slice().sort((a,b)=>{
+    let cmp;
+    if(key === 'coins') cmp = a.coins - b.coins;
+    else if(key === 'rating') cmp = a.rating - b.rating;
+    else cmp = a.display.localeCompare(b.display);
+    return dir === 'desc' ? -cmp : cmp;
+  });
 }
 function renderManagePlayers(){
   const body = $('managePlayersTableBody');
   if(!body) return;
   const allRows = loadManagePlayersRows();
   const query = ($('managePlayersSearch').value || '').trim().toLowerCase();
-  const rows = query
+  const minCoins = parseFloat($('managePlayersMinCoins').value);
+  const maxCoins = parseFloat($('managePlayersMaxCoins').value);
+  const minRating = parseFloat($('managePlayersMinRating').value);
+  const maxRating = parseFloat($('managePlayersMaxRating').value);
+  const anyFilterActive = query || Number.isFinite(minCoins) || Number.isFinite(maxCoins) || Number.isFinite(minRating) || Number.isFinite(maxRating);
+
+  let filtered = query
     ? allRows.filter(r=> r.display.toLowerCase().includes(query))
     : allRows;
+  if(Number.isFinite(minCoins)) filtered = filtered.filter(r=> r.coins >= minCoins);
+  if(Number.isFinite(maxCoins)) filtered = filtered.filter(r=> r.coins <= maxCoins);
+  if(Number.isFinite(minRating)) filtered = filtered.filter(r=> r.rating >= minRating);
+  if(Number.isFinite(maxRating)) filtered = filtered.filter(r=> r.rating <= maxRating);
+
+  const rows = sortManagePlayersRows(filtered);
 
   body.innerHTML = rows.length ? rows.map(r=>
-    '<tr class="' + (r.nameKey === currentUser ? 'statsRowMe' : '') + '">' +
+    '<tr class="' + (r.nameKey === currentUser ? 'statsRowMe' : '') + (r.deleted ? ' deletedRow' : '') + '">' +
       '<td>' + escapeHtml(r.display) + (r.nameKey === currentUser ? ' (you)' : '') + '</td>' +
       '<td>' + escapeHtml(r.coins) + '</td>' +
       '<td>' + escapeHtml(r.rating) + '</td>' +
-      '<td>' + (r.owner ? 'Owner' : '') + '</td>' +
+      '<td>' + (r.owner ? 'Owner' : (r.deleted ? 'Deleted' : '')) + '</td>' +
     '</tr>'
-  ).join('') : '<tr><td colspan="4">' + (query ? 'No players match that search.' : 'No local accounts found yet.') + '</td></tr>';
+  ).join('') : '<tr><td colspan="4">' + (anyFilterActive ? 'No players match those filters.' : 'No local accounts found yet.') + '</td></tr>';
 }
 $('managePlayersBtn').addEventListener('click', ()=>{
   $('managePlayersSearch').value = '';
+  $('managePlayersMinCoins').value = '';
+  $('managePlayersMaxCoins').value = '';
+  $('managePlayersMinRating').value = '';
+  $('managePlayersMaxRating').value = '';
+  mpSortKey = 'name';
+  mpSortDir = 'asc';
+  $('managePlayersSort').value = 'name';
+  $('managePlayersSortDirBtn').textContent = '↓';
+  $('managePlayersSortDirBtn').title = 'Toggle sort direction: best to worst';
   renderManagePlayers();
   $('managePlayersOverlay').hidden = false;
 });
 $('managePlayersSearch').addEventListener('input', renderManagePlayers);
+$('managePlayersMinCoins').addEventListener('input', renderManagePlayers);
+$('managePlayersMaxCoins').addEventListener('input', renderManagePlayers);
+$('managePlayersMinRating').addEventListener('input', renderManagePlayers);
+$('managePlayersMaxRating').addEventListener('input', renderManagePlayers);
+$('managePlayersClearFiltersBtn').addEventListener('click', ()=>{
+  $('managePlayersMinCoins').value = '';
+  $('managePlayersMaxCoins').value = '';
+  $('managePlayersMinRating').value = '';
+  $('managePlayersMaxRating').value = '';
+  renderManagePlayers();
+});
+$('managePlayersSort').addEventListener('change', ()=>{
+  mpSortKey = $('managePlayersSort').value;
+  renderManagePlayers();
+});
+$('managePlayersSortDirBtn').addEventListener('click', ()=>{
+  mpSortDir = mpSortDir === 'desc' ? 'asc' : 'desc';
+  $('managePlayersSortDirBtn').textContent = mpSortDir === 'desc' ? '↓' : '↑';
+  $('managePlayersSortDirBtn').title = mpSortDir === 'desc' ? 'Toggle sort direction: best to worst' : 'Toggle sort direction: worst to best';
+  renderManagePlayers();
+});
 $('managePlayersCloseBtn').addEventListener('click', ()=>{ $('managePlayersOverlay').hidden = true; });
+
+/* ---------- Global chat (Private mode) ----------
+   Lets any account message any other account on this device, regardless of
+   whether the recipient is online right now — unlike race chat, which only
+   exists inside a live online race. Messages are stored in localStorage, so
+   they persist and are visible whenever that account next opens Chat, and
+   sync near-instantly between browser tabs open on this same device via the
+   'storage' event. There's no server here, so this can't reach a different
+   device or browser — only accounts on this one. */
+const GLOBAL_CHAT_KEY = 'velocityCircuit_globalChat';
+let globalChatOpen = false;
+function readGlobalChat(){
+  try{ return JSON.parse(localStorage.getItem(GLOBAL_CHAT_KEY)) || []; }catch(e){ return []; }
+}
+function writeGlobalChat(messages){
+  const trimmed = messages.slice(-200); // cap history so storage can't grow forever
+  try{ localStorage.setItem(GLOBAL_CHAT_KEY, JSON.stringify(trimmed)); }catch(e){}
+  return trimmed;
+}
+function renderGlobalChat(){
+  const log = $('globalChatLog');
+  if(!log) return;
+  const messages = readGlobalChat();
+  log.innerHTML = messages.map(m=>{
+    const isMe = m.senderKey === currentUser;
+    return '<div class="chatMsg' + (isMe ? ' me' : '') + '">' +
+      '<span class="chatName">' + escapeHtml(isMe ? 'You' : (m.senderDisplay || m.senderKey)) + ':</span> ' +
+      escapeHtml(m.text) +
+    '</div>';
+  }).join('');
+  log.scrollTop = log.scrollHeight;
+}
+function openGlobalChat(){
+  globalChatOpen = true;
+  renderGlobalChat();
+  $('globalChatOverlay').hidden = false;
+  const dot = $('globalChatUnreadDot');
+  if(dot) dot.hidden = true;
+  setTimeout(()=>{ const f = $('globalChatInput'); if(f) f.focus(); }, 0);
+}
+function closeGlobalChat(){
+  globalChatOpen = false;
+  $('globalChatOverlay').hidden = true;
+}
+$('globalChatBtn').addEventListener('click', openGlobalChat);
+$('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
+$('globalChatForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const input = $('globalChatInput');
+  const text = (input.value || '').trim();
+  if(!text || !currentUser) return;
+  const users = readUsers();
+  const senderDisplay = (users[currentUser] && users[currentUser].display) || currentUser;
+  const messages = readGlobalChat();
+  messages.push({ senderKey: currentUser, senderDisplay, text: text.slice(0,200), ts: Date.now() });
+  writeGlobalChat(messages);
+  input.value = '';
+  renderGlobalChat();
+});
+// Keep chat in sync across browser tabs on this device (e.g. two accounts
+// logged in side by side), and surface an unread indicator when closed.
+window.addEventListener('storage', (e)=>{
+  if(e.key !== GLOBAL_CHAT_KEY) return;
+  if(globalChatOpen){
+    renderGlobalChat();
+  }else{
+    const dot = $('globalChatUnreadDot');
+    if(dot) dot.hidden = false;
+  }
+});
 
 /* ============================= INIT ============================= */
 function init(){
