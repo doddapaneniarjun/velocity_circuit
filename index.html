@@ -3461,12 +3461,31 @@ const Online = {
   pendingRename: null,     // { key, raw, display } while awaiting the new name after /rename(target)
   lastStatsSent: 0,        // last time we broadcast our own stats snapshot
   knownStats: {},          // key -> { name, stats, updatedAt }, populated passively from everyone's broadcasts
-  lastSend: 0, retryTimer: null,
+  lastSend: 0, retryTimer: null, watchdogTimer: null,
   pingMs: null, lastPingSent: 0, pingSamples: {},
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
   nameKey(){ return (currentUser || 'guest').toLowerCase(); },
   status(msg){ $('lobbyStatus').textContent = msg; },
+
+  // Previously, if the signaling server connection hung or failed in a way
+  // that didn't match one of the couple of explicitly-handled PeerJS error
+  // types, nothing happened: the spinner just spun forever with no
+  // feedback, indistinguishable from the feature being broken. This
+  // watchdog guarantees SOME outcome within 12s of clicking Find Match —
+  // either real progress (cleared once we're actually connected) or a
+  // clear, actionable error.
+  clearWatchdog(){
+    if(this.watchdogTimer){ clearTimeout(this.watchdogTimer); this.watchdogTimer = null; }
+  },
+  armWatchdog(){
+    this.clearWatchdog();
+    this.watchdogTimer = setTimeout(()=>{
+      if(!this.searching || this.room) return;
+      this.status('Couldn\u2019t reach the matchmaking server. Check your internet connection and try again.');
+      this.stopSearch(true);
+    }, 12000);
+  },
 
   startSearch(){
     if(!this.available){ this.status('Online needs the PeerJS library — check your internet connection and reload.'); return; }
@@ -3475,6 +3494,7 @@ const Online = {
     $('findMatchBtn').hidden = true;
     $('lobbySpinner').hidden = false;
     this.status('Connecting…');
+    this.armWatchdog();
     this.tryBecomeHost();
   },
 
@@ -3485,6 +3505,7 @@ const Online = {
     this.peer = p;
     p.on('open', ()=>{
       if(decided || !this.searching) return; decided = true;
+      this.clearWatchdog();
       this.isHost = true;
       this.roster = [{ id:this.myId, name:this.displayName(), key:this.nameKey(), car:gameState.selectedCar }];
       this.renderLobby();
@@ -3497,6 +3518,13 @@ const Online = {
         this.joinAsClient();                 // someone else is already hosting
       } else if(err && (err.type === 'network' || err.type === 'server-error')){
         this.status('Can\u2019t reach the matchmaking network. Check your internet and try again.');
+        this.stopSearch(true);
+      } else if(!decided){
+        // Any other PeerJS error type (browser-incompatible, socket-error,
+        // webrtc, ssl-unavailable, etc.) previously fell through silently
+        // and left the spinner stuck forever. Surface it instead.
+        decided = true;
+        this.status('Couldn\u2019t connect (' + (err && err.type ? err.type : 'unknown error') + '). Check your connection and try again.');
         this.stopSearch(true);
       }
     });
@@ -3622,12 +3650,18 @@ const Online = {
       if(err && err.type === 'peer-unavailable'){
         // Lobby id freed between our check and connect — claim it ourselves
         this.retryTimer = setTimeout(()=> this.tryBecomeHost(), 800);
+      } else if(err){
+        // Any other error (network, socket-error, webrtc, etc.) previously
+        // fell through silently and left the spinner stuck forever.
+        this.status('Couldn\u2019t connect (' + (err.type || 'unknown error') + '). Check your connection and try again.');
+        this.stopSearch(true);
       }
     });
   },
   clientOnMsg(m){
     if(!m || typeof m !== 'object') return;
     if(m.type === 'lobby'){
+      this.clearWatchdog();
       this.roster = m.players || [];
       this.renderLobby();
       this.status('In lobby — ' + this.roster.length + ' racer' + (this.roster.length===1?'':'s') + ' ready…');
@@ -3667,6 +3701,7 @@ const Online = {
   },
 
   enterRoom(room){
+    this.clearWatchdog();
     if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
     this.searching = false;
     this.startScheduled = false;
@@ -3831,6 +3866,7 @@ const Online = {
 
   stopSearch(keepStatus){
     this.searching = false;
+    this.clearWatchdog();
     this.cleanupPeer();
     this.roster = [];
     $('findMatchBtn').hidden = false;
