@@ -132,8 +132,8 @@
   .stageCard.locked{ opacity:.5; cursor:not-allowed; }
   .stageCard.locked:hover{ transform:none; }
   .lockNote{ color:var(--danger); font-size:12px; margin:2px 0 0; font-weight:700; }
-  .stageCardWrap{ position:relative; width:220px; }
-  .stageCardWrap .stageCard{ width:100%; }
+  .stageCardWrap{ position:relative; width:220px; display:flex; }
+  .stageCardWrap .stageCard{ width:100%; height:100%; }
   .carCardWrap{ position:relative; width:206px; }
   .carCardWrap .carCard{ width:100%; }
   .trackRenameBtn{ position:absolute; top:8px; right:8px; width:30px; height:30px; border-radius:50%;
@@ -1430,13 +1430,10 @@ function renderStagePhoto(stageIndex){
   snapScene.add(built.group);
 
   // Trackside shot: stand just off the road, look down it at driver height,
-  // so the road, barriers, surrounding scenery and sky all land in frame.
-  // A few track shapes (wide open ovals/loops) put more empty space between
-  // the camera and the visible road at this framing, making their card icon
-  // look noticeably smaller than the rest — pull the camera in closer for
-  // those specific types so the track fills the frame like the others.
-  const TIGHT_PHOTO_TYPES = { oval:true, stadium:true, wavy:true };
-  const photoOffset = TIGHT_PHOTO_TYPES[stage.type] ? 4 : 7;
+  // so the road, barriers, surrounding scenery and sky all land in frame —
+  // same fixed offset for every track type so all the card icons frame the
+  // track consistently.
+  const photoOffset = 7;
   const k = Math.floor(built.N * 0.12); // a little way past the start line
   const aheadIdx = pointIndexAtArcDistance(built.points, k, STAGE_PHOTO_LOOKAHEAD_DIST);
   const ahead = built.points[aheadIdx];
