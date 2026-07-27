@@ -6700,6 +6700,17 @@ function addLocalSystemGlobalMessage(text){
   log.appendChild(row);
   log.scrollTop = log.scrollHeight;
 }
+// This chat has no in-race roster to target, so the +coins/rename/delete
+// owner commands (see printOwnerCommandHelp, for the race chat) aren't
+// listed here — only the commands that actually work in this chat.
+function printGlobalChatCommandHelp(){
+  addLocalSystemGlobalMessage('--- Chat commands (everyone) ---');
+  addLocalSystemGlobalMessage('/clear — clear the chat on your screen only');
+  addLocalSystemGlobalMessage('--- Owner commands ---');
+  addLocalSystemGlobalMessage('/wipe — wipe the chat for everyone');
+  addLocalSystemGlobalMessage('/commands — show this list');
+  addLocalSystemGlobalMessage('Coin, rename, and delete commands only work in an online race\u2019s chat, where there\u2019s a roster of racers to target.');
+}
 function renderGlobalChat(){
   const log = $('globalChatLog');
   if(!log) return;
@@ -6784,6 +6795,11 @@ $('globalChatForm').addEventListener('submit', (e)=>{
     renderGlobalChat();
     ChatNet.broadcastWipe(senderDisplay);   // fan out to other devices currently connected
     addLocalSystemGlobalMessage('You wiped the chat for everyone.');
+    return;
+  }
+  if(/^\/commands$/i.test(text)){
+    input.value = '';
+    printGlobalChatCommandHelp();
     return;
   }
 
