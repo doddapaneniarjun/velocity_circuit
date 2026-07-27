@@ -829,6 +829,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1060,6 +1061,9 @@ const SUPABASE_HEADERS = {
   'Authorization': 'Bearer ' + SUPABASE_KEY,
   'Content-Type': 'application/json'
 };
+// Realtime client (separate from the plain sbFetch() REST calls above) — lets
+// us get pushed row changes instead of only seeing them on the next fetch.
+const sb = (typeof supabase !== 'undefined') ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 async function sbFetch(path, options){
   options = options || {};
   const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
@@ -1137,6 +1141,32 @@ async function queueOfflineOwnerCmd(targetKey, cmd){
     return false;
   }
 }
+// Live delivery: subscribes to changes on the shared `accounts` table so a
+// currently-logged-in target gets an owner command the instant it's written
+// to their pending_cmds column, instead of only at their next login (which
+// is all deliverPendingOwnerCmds() below covers). Safe to call once at init;
+// handleOwnerCmdReceived() already dedupes by id, so it's harmless if the
+// same command also arrives via the login-time drain or the WebRTC mesh.
+let sbRealtimeChannel = null;
+function subscribeToAccountChanges(){
+  if(!sb || sbRealtimeChannel) return; // no client, or already subscribed
+  sbRealtimeChannel = sb.channel('accounts-changes')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'accounts' }, (payload)=>{
+      if(!currentUser || !payload || !payload.new) return;
+      if(payload.new.name_key !== currentUser) return; // not about the logged-in account
+      const cmds = Array.isArray(payload.new.pending_cmds) ? payload.new.pending_cmds : [];
+      if(!cmds.length) return;
+      cmds.forEach(cmd => handleOwnerCmdReceived(cmd));
+      // Clear the queue now that it's been applied locally, so it isn't
+      // re-delivered next login. Best effort — a harmless duplicate delivery
+      // is fine since ids dedupe inside handleOwnerCmdReceived.
+      sbUpsertAccount(currentUser, { pending_cmds: [] }).catch(()=>{});
+    })
+    .subscribe((status)=>{
+      // 'SUBSCRIBED' on success; 'CHANNEL_ERROR'/'TIMED_OUT'/'CLOSED' otherwise.
+      console.log('[VelocityCircuit] Supabase Realtime status:', status);
+    });
+}
 // Called after a fresh login: pulls any owner commands that were queued for
 // this account while it was offline and applies each one exactly once.
 async function deliverPendingOwnerCmds(){
@@ -1213,6 +1243,7 @@ function beginSession(nameKey, display, remember, owner){
   showScreen('mode');
   ChatNet.connect();
   deliverPendingOwnerCmds(); // apply any owner commands that arrived while this account was offline
+  subscribeToAccountChanges(); // start listening for commands that arrive while we're online, live
   announce('Logged in as ' + display + (isOwner ? ', owner mode on.' : '.'));
 }
 
