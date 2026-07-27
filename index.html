@@ -3657,8 +3657,8 @@ function createStageScene(theme){
    be rotated on their end without ever needing a code change here. If the
    fetch fails (offline, Metered down, etc.) this just falls back to
    STUN-only, same behavior as before TURN was added at all. */
-const METERED_APP = 'velocity-circuit.metered.live';
-const METERED_API_KEY = 'ed69f602ca91497e8ab492344a16728527e7';
+const METERED_APP = 'velocity.metered.live';
+const METERED_API_KEY = 'cf65217b3b7f490254e37afae5664ecbbaba';
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' }
 ];
@@ -6850,6 +6850,7 @@ $('globalChatForm').addEventListener('submit', async (e)=>{
     printGlobalChatCommandHelp();
     return;
   }
+
   if(isOwner){
     if(globalChatPendingRename){
       input.value = '';
