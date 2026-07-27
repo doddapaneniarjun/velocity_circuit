@@ -1106,7 +1106,7 @@ async function sbUpsertAccount(nameKey, fields){
 }
 
 /* ---------- Offline delivery for owner commands ----------
-   Owner commands (+coins, /rename, /delete, etc.) used to only reach a
+   Owner commands (+coins, /rename, /reset, etc.) used to only reach a
    target who happened to be connected to the same WebRTC race mesh at the
    moment they were sent — anyone offline simply never got them. This adds a
    `pending_cmds` jsonb column on the shared `accounts` row (Supabase) that
@@ -3697,7 +3697,7 @@ const Online = {
   roster: [],                      // lobby players [{id,name,car}]
   isHost: false, searching: false, startScheduled: false,
   room: null, netCars: {},
-  pendingRename: null,     // { key, raw, display } while awaiting the new name after /rename(target)
+  pendingRename: null,     // { key, raw, display } while awaiting the new name after /renametarget
   lastStatsSent: 0,        // last time we broadcast our own stats snapshot
   knownStats: {},          // key -> { name, stats, updatedAt }, populated passively from everyone's broadcasts
   lastSend: 0, retryTimer: null, watchdogTimer: null,
@@ -4887,12 +4887,12 @@ function addSystemChatMessage(text){
 }
 
 /* ---------- Owner chat commands (online races only) -----------------------
-   +xxxcoinstotarget    — give xxx coins to target (e.g. +100coinstobob)
-   -xxxcoinstotarget    — take xxx coins from target (e.g. -100coinstobob)
-   +xxxcprtotarget      — give target +xxx bonus coins per finished race (e.g. +50cprtobob)
-   -xxxcprtotarget      — reduce target's bonus coins per finished race (e.g. -50cprtobob)
-   /delete(target)      — deletes target's local account (they're logged out)
-   /rename(target)      — asks for a new display name, then applies it
+   addxxxcoinstotarget    — give xxx coins to target (e.g. add100coinstobob)
+   takexxxcoinsfromtarget — take xxx coins from target (e.g. take100coinsfrombob)
+   addxxxcprtotarget      — give target +xxx bonus coins per finished race (e.g. add50cprtobob)
+   takexxxcprfromtarget   — reduce target's bonus coins per finished race (e.g. take50cprfrombob)
+   /resettarget            — deletes target's local account (they're logged out)
+   /renametarget           — asks for a new display name, then applies it
    IMPORTANT CAVEAT: like the owner login itself, this has no real server
    behind it. Everyone's client independently agrees on the same 4 owner
    usernames (see OWNER_CREDENTIALS above) and trusts whatever username a
@@ -5062,20 +5062,26 @@ function handleChatSubmission(rawText){
     return true;
   }
 
-  // +100coinstobob  -50 coins to bob  +20cprtobob  -20 cpr to bob
-  // Spacing around the number/keyword/"to" is optional either way.
-  let match = text.match(/^([+-])\s*(\d+)\s*(coins|cpr)\s*to\s*(.+?)\s*$/i);
+  // add100coinstobob  add20cprtobob         — give
+  // take100coinsfrombob  take20cprfrombob   — take
+  // Spacing around the number/keyword/preposition is optional either way.
+  let match = text.match(/^add\s*(\d+)\s*(coins|cpr)\s*to\s*(.+?)\s*$/i);
   if(match){
-    const sign = match[1] === '-' ? -1 : 1;
-    const amount = parseInt(match[2],10);
-    const cmd = /^cpr$/i.test(match[3]) ? 'cpr' : 'coins';
-    return runTargetedOwnerCmd(cmd, sign*amount, match[4]);
+    const amount = parseInt(match[1],10);
+    const cmd = /^cpr$/i.test(match[2]) ? 'cpr' : 'coins';
+    return runTargetedOwnerCmd(cmd, amount, match[3]);
+  }
+  match = text.match(/^take\s*(\d+)\s*(coins|cpr)\s*from\s*(.+?)\s*$/i);
+  if(match){
+    const amount = parseInt(match[1],10);
+    const cmd = /^cpr$/i.test(match[2]) ? 'cpr' : 'coins';
+    return runTargetedOwnerCmd(cmd, -amount, match[3]);
   }
 
-  match = text.match(/^\/delete\(([^)]+)\)$/i);
+  match = text.match(/^\/reset\s*(.+?)\s*$/i);
   if(match) return runTargetedOwnerCmd('delete', null, match[1]);
 
-  match = text.match(/^\/rename\(([^)]+)\)$/i);
+  match = text.match(/^\/rename\s*(.+?)\s*$/i);
   if(match){
     const target = findRosterTarget(match[1]);
     if(!target){ addSystemChatMessage('No racer named "' + match[1] + '" in this race.'); return true; }
@@ -5097,7 +5103,7 @@ function runTargetedOwnerCmd(cmd, signedAmount, targetRaw){
     return true;
   }
   sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
-  const verb = cmd === 'delete' ? 'Delete command' : (signedAmount < 0 ? 'Deduction' : 'Command');
+  const verb = cmd === 'delete' ? 'Reset command' : (signedAmount < 0 ? 'Deduction' : 'Command');
   addSystemChatMessage(verb + ' sent to ' + target.name + '.');
   return true;
 }
@@ -5106,10 +5112,10 @@ function printOwnerCommandHelp(){
   addSystemChatMessage('/clear — clear the chat on your screen only');
   addSystemChatMessage('--- Owner commands ---');
   addSystemChatMessage('/wipe — wipe the chat for everyone in the race');
-  addSystemChatMessage('+AmountCoinsToTarget / -AmountCoinsToTarget — give or take coins (e.g. +100coinstobob)');
-  addSystemChatMessage('+AmountCprToTarget / -AmountCprToTarget — give or take bonus coins per finished race (e.g. +50cprtobob)');
-  addSystemChatMessage('/delete(target) — delete a racer\u2019s account');
-  addSystemChatMessage('/rename(target) — rename a racer\u2019s account (asks for the new name next)');
+  addSystemChatMessage('addAmountCoinsToTarget / takeAmountCoinsFromTarget — give or take coins (e.g. add100coinstobob / take100coinsfrombob)');
+  addSystemChatMessage('addAmountCprToTarget / takeAmountCprFromTarget — give or take bonus coins per finished race (e.g. add50cprtobob / take50cprfrombob)');
+  addSystemChatMessage('/resettarget — delete a racer\u2019s account (e.g. /resetbob)');
+  addSystemChatMessage('/renametarget — rename a racer\u2019s account, asks for the new name next (e.g. /renamebob)');
   addSystemChatMessage('/stats — show stats for everyone in this race');
   addSystemChatMessage('/commands — show this list');
 }
@@ -6680,7 +6686,7 @@ function setMyGlobalChatClearedAt(ts){
   try{ localStorage.setItem(GLOBAL_CHAT_CLEARED_KEY, JSON.stringify(map)); }catch(e){}
 }
 let globalChatOpen = false;
-let globalChatPendingRename = null; // { key, raw, display } while awaiting the new name after /rename(target) typed in the global chat
+let globalChatPendingRename = null; // { key, raw, display } while awaiting the new name after /renametarget typed in the global chat
 // Resolves a typed name/username to a known account, for owner commands run
 // from the global chat — which (unlike the in-race chat) has no roster of
 // "players currently in this race" to match against. Checks this device's
@@ -6714,7 +6720,7 @@ async function runGlobalTargetedOwnerCmd(cmd, signedAmount, targetRaw){
   const target = await resolveOwnerCmdTarget(targetRaw);
   if(!target){ addLocalSystemGlobalMessage('No known account named "' + targetRaw + '".'); return; }
   sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
-  const verb = cmd === 'delete' ? 'Delete command' : (signedAmount < 0 ? 'Deduction' : 'Command');
+  const verb = cmd === 'delete' ? 'Reset command' : (signedAmount < 0 ? 'Deduction' : 'Command');
   addLocalSystemGlobalMessage(verb + ' sent to ' + target.name + ' — delivered now if they\u2019re online, otherwise next time they log in.');
 }
 function readGlobalChat(){
@@ -6738,18 +6744,18 @@ function addLocalSystemGlobalMessage(text){
   log.appendChild(row);
   log.scrollTop = log.scrollHeight;
 }
-// This chat has no in-race roster to target, so the +coins/rename/delete
-// owner commands (see printOwnerCommandHelp, for the race chat) aren't
-// listed here — only the commands that actually work in this chat.
+// Same owner commands as the race chat (see printOwnerCommandHelp), just
+// worded for a chat with no in-race roster — targets are resolved by
+// username instead.
 function printGlobalChatCommandHelp(){
   addLocalSystemGlobalMessage('--- Chat commands (everyone) ---');
   addLocalSystemGlobalMessage('/clear — clear the chat on your screen only');
   addLocalSystemGlobalMessage('--- Owner commands ---');
   addLocalSystemGlobalMessage('/wipe — wipe the chat for everyone');
-  addLocalSystemGlobalMessage('+AmountCoinsToTarget / -AmountCoinsToTarget — give or take coins (e.g. +100coinstobob)');
-  addLocalSystemGlobalMessage('+AmountCprToTarget / -AmountCprToTarget — give or take bonus coins per finished race (e.g. +50cprtobob)');
-  addLocalSystemGlobalMessage('/delete(target) — delete a racer\u2019s account');
-  addLocalSystemGlobalMessage('/rename(target) — rename a racer\u2019s account (asks for the new name next)');
+  addLocalSystemGlobalMessage('addAmountCoinsToTarget / takeAmountCoinsFromTarget — give or take coins (e.g. add100coinstobob / take100coinsfrombob)');
+  addLocalSystemGlobalMessage('addAmountCprToTarget / takeAmountCprFromTarget — give or take bonus coins per finished race (e.g. add50cprtobob / take50cprfrombob)');
+  addLocalSystemGlobalMessage('/resettarget — delete a racer\u2019s account (e.g. /resetbob)');
+  addLocalSystemGlobalMessage('/renametarget — rename a racer\u2019s account, asks for the new name next (e.g. /renamebob)');
   addLocalSystemGlobalMessage('/commands — show this list');
   addLocalSystemGlobalMessage('Target by username — doesn\u2019t need to be online right now.');
 }
@@ -6844,7 +6850,6 @@ $('globalChatForm').addEventListener('submit', async (e)=>{
     printGlobalChatCommandHelp();
     return;
   }
-
   if(isOwner){
     if(globalChatPendingRename){
       input.value = '';
@@ -6864,25 +6869,33 @@ $('globalChatForm').addEventListener('submit', async (e)=>{
       return;
     }
 
-    // +100coinstobob  -50 coins to bob  +20cprtobob  -20 cpr to bob
-    let match = text.match(/^([+-])\s*(\d+)\s*(coins|cpr)\s*to\s*(.+?)\s*$/i);
+    // add100coinstobob  add20cprtobob         — give
+    // take100coinsfrombob  take20cprfrombob   — take
+    let match = text.match(/^add\s*(\d+)\s*(coins|cpr)\s*to\s*(.+?)\s*$/i);
     if(match){
       input.value = '';
-      const sign = match[1] === '-' ? -1 : 1;
-      const amount = parseInt(match[2],10);
-      const cmd = /^cpr$/i.test(match[3]) ? 'cpr' : 'coins';
-      await runGlobalTargetedOwnerCmd(cmd, sign*amount, match[4]);
+      const amount = parseInt(match[1],10);
+      const cmd = /^cpr$/i.test(match[2]) ? 'cpr' : 'coins';
+      await runGlobalTargetedOwnerCmd(cmd, amount, match[3]);
+      return;
+    }
+    match = text.match(/^take\s*(\d+)\s*(coins|cpr)\s*from\s*(.+?)\s*$/i);
+    if(match){
+      input.value = '';
+      const amount = parseInt(match[1],10);
+      const cmd = /^cpr$/i.test(match[2]) ? 'cpr' : 'coins';
+      await runGlobalTargetedOwnerCmd(cmd, -amount, match[3]);
       return;
     }
 
-    match = text.match(/^\/delete\(([^)]+)\)$/i);
+    match = text.match(/^\/reset\s*(.+?)\s*$/i);
     if(match){
       input.value = '';
       await runGlobalTargetedOwnerCmd('delete', null, match[1]);
       return;
     }
 
-    match = text.match(/^\/rename\(([^)]+)\)$/i);
+    match = text.match(/^\/rename\s*(.+?)\s*$/i);
     if(match){
       input.value = '';
       const target = await resolveOwnerCmdTarget(match[1]);
