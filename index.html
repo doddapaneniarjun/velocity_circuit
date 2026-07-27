@@ -1448,9 +1448,10 @@ function renameCar(i, newName){
 }
 loadCarNameOverrides();
 
-// Harder tracks pay out more: every point of difficulty above 1 adds 20% to
-// every coin source in that race (per-lap coins, finish bonus, position bonus).
-function stageCoinMult(stage){ return 1 + (stage.difficulty - 1) * 0.2; }
+// Harder tracks pay out more, and easier/earlier tracks pay out less: the
+// easiest track (difficulty 1) now pays half of the old baseline, scaling up
+// to roughly the same top-end payout (2.0x) at difficulty 6 as before.
+function stageCoinMult(stage){ return 0.5 + (stage.difficulty - 1) * 0.3; }
 function coinsPerLapForStage(stage){ return Math.round(COINS_PER_LAP * stageCoinMult(stage)); }
 
 /* ============================= DOM ============================= */
