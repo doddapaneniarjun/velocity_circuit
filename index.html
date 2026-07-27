@@ -4922,7 +4922,8 @@ function sendOwnerCmd(partial){
     senderKey: (currentUser||'').toLowerCase(),
     senderName: Online.displayName()
   }, partial);
-  Online.send(m); // instant delivery if the target is online right now
+  Online.send(m); // instant delivery if the target is connected to the current race mesh
+  ChatNet.broadcastOwnerCmd(m); // instant delivery if the target is connected to the global chat mesh
   handleOwnerCmdReceived(m); // covers the case where the owner targets themselves
   queueOfflineOwnerCmd(m.targetKey, m); // also persists it, so an offline target still gets it at their next login
 }
@@ -6679,6 +6680,43 @@ function setMyGlobalChatClearedAt(ts){
   try{ localStorage.setItem(GLOBAL_CHAT_CLEARED_KEY, JSON.stringify(map)); }catch(e){}
 }
 let globalChatOpen = false;
+let globalChatPendingRename = null; // { key, raw, display } while awaiting the new name after /rename(target) typed in the global chat
+// Resolves a typed name/username to a known account, for owner commands run
+// from the global chat — which (unlike the in-race chat) has no roster of
+// "players currently in this race" to match against. Checks this device's
+// local cache first (fast, works offline), then falls back to the shared
+// account table so a target who's never logged in on this device can still
+// be found and targeted. Coins/rename/delete then reach them via the
+// offline command queue even if they're not online right now.
+async function resolveOwnerCmdTarget(raw){
+  const q = String(raw||'').trim().toLowerCase();
+  if(!q) return null;
+  const cached = readAllAccountsEver();
+  if(cached[q]) return { key:q, name: cached[q].display || q };
+  let hitKey = Object.keys(cached).find(k => (cached[k].display||'').toLowerCase() === q);
+  if(hitKey) return { key:hitKey, name: cached[hitKey].display || hitKey };
+  try{
+    const row = await sbGetAccount(q);
+    if(row) return { key: row.name_key, name: row.display || row.name_key };
+  }catch(e){}
+  try{
+    const rows = await sbGetAllAccounts();
+    const match = (rows||[]).find(r => (r.display||'').toLowerCase() === q || (r.name_key||'').toLowerCase() === q);
+    if(match) return { key: match.name_key, name: match.display || match.name_key };
+  }catch(e){}
+  return null;
+}
+async function runGlobalTargetedOwnerCmd(cmd, signedAmount, targetRaw){
+  if(cmd !== 'delete' && !(Number.isFinite(signedAmount) && signedAmount !== 0)){
+    addLocalSystemGlobalMessage('Amount must be a non-zero whole number.');
+    return;
+  }
+  const target = await resolveOwnerCmdTarget(targetRaw);
+  if(!target){ addLocalSystemGlobalMessage('No known account named "' + targetRaw + '".'); return; }
+  sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
+  const verb = cmd === 'delete' ? 'Delete command' : (signedAmount < 0 ? 'Deduction' : 'Command');
+  addLocalSystemGlobalMessage(verb + ' sent to ' + target.name + ' — delivered now if they\u2019re online, otherwise next time they log in.');
+}
 function readGlobalChat(){
   try{ return JSON.parse(localStorage.getItem(GLOBAL_CHAT_KEY)) || []; }catch(e){ return []; }
 }
@@ -6708,8 +6746,12 @@ function printGlobalChatCommandHelp(){
   addLocalSystemGlobalMessage('/clear — clear the chat on your screen only');
   addLocalSystemGlobalMessage('--- Owner commands ---');
   addLocalSystemGlobalMessage('/wipe — wipe the chat for everyone');
+  addLocalSystemGlobalMessage('+AmountCoinsToTarget / -AmountCoinsToTarget — give or take coins (e.g. +100coinstobob)');
+  addLocalSystemGlobalMessage('+AmountCprToTarget / -AmountCprToTarget — give or take bonus coins per finished race (e.g. +50cprtobob)');
+  addLocalSystemGlobalMessage('/delete(target) — delete a racer\u2019s account');
+  addLocalSystemGlobalMessage('/rename(target) — rename a racer\u2019s account (asks for the new name next)');
   addLocalSystemGlobalMessage('/commands — show this list');
-  addLocalSystemGlobalMessage('Coin, rename, and delete commands only work in an online race\u2019s chat, where there\u2019s a roster of racers to target.');
+  addLocalSystemGlobalMessage('Target by username — doesn\u2019t need to be online right now.');
 }
 function renderGlobalChat(){
   const log = $('globalChatLog');
@@ -6772,7 +6814,7 @@ function closeGlobalChat(){
 }
 $('globalChatBtn').addEventListener('click', openGlobalChat);
 $('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
-$('globalChatForm').addEventListener('submit', (e)=>{
+$('globalChatForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const input = $('globalChatInput');
   const text = (input.value || '').trim();
@@ -6801,6 +6843,54 @@ $('globalChatForm').addEventListener('submit', (e)=>{
     input.value = '';
     printGlobalChatCommandHelp();
     return;
+  }
+
+  if(isOwner){
+    if(globalChatPendingRename){
+      input.value = '';
+      if(text.toLowerCase() === '/cancel'){
+        addLocalSystemGlobalMessage('Rename cancelled.');
+        globalChatPendingRename = null;
+        return;
+      }
+      if(!/^[a-zA-Z0-9 _-]{2,24}$/.test(text)){
+        addLocalSystemGlobalMessage('New name must be 2-24 characters: letters, numbers, spaces, - and _. Or /cancel.');
+        return;
+      }
+      const pending = globalChatPendingRename;
+      globalChatPendingRename = null;
+      sendOwnerCmd({ cmd:'rename', targetKey:pending.key, targetRaw:pending.raw, newName:text });
+      addLocalSystemGlobalMessage('Rename sent to ' + pending.display + ' — delivered now if they\u2019re online, otherwise next time they log in.');
+      return;
+    }
+
+    // +100coinstobob  -50 coins to bob  +20cprtobob  -20 cpr to bob
+    let match = text.match(/^([+-])\s*(\d+)\s*(coins|cpr)\s*to\s*(.+?)\s*$/i);
+    if(match){
+      input.value = '';
+      const sign = match[1] === '-' ? -1 : 1;
+      const amount = parseInt(match[2],10);
+      const cmd = /^cpr$/i.test(match[3]) ? 'cpr' : 'coins';
+      await runGlobalTargetedOwnerCmd(cmd, sign*amount, match[4]);
+      return;
+    }
+
+    match = text.match(/^\/delete\(([^)]+)\)$/i);
+    if(match){
+      input.value = '';
+      await runGlobalTargetedOwnerCmd('delete', null, match[1]);
+      return;
+    }
+
+    match = text.match(/^\/rename\(([^)]+)\)$/i);
+    if(match){
+      input.value = '';
+      const target = await resolveOwnerCmdTarget(match[1]);
+      if(!target){ addLocalSystemGlobalMessage('No known account named "' + match[1] + '".'); return; }
+      globalChatPendingRename = { key:target.key, raw:match[1], display:target.name };
+      addLocalSystemGlobalMessage('Type the new name for ' + target.name + ', or /cancel.');
+      return;
+    }
   }
 
   const messages = readGlobalChat();
@@ -6918,6 +7008,13 @@ const ChatNet = {
         const c = this.conns[k];
         try{ if(c.open) c.send(m); }catch(e){}
       });
+    } else if(m.type === 'owner_cmd'){
+      handleOwnerCmdReceived(m); // no-ops on this device unless it's the addressed target
+      Object.keys(this.conns).forEach(k=>{
+        if(k === m.senderKey) return;                // don't echo back to the sender
+        const c = this.conns[k];
+        try{ if(c.open) c.send(m); }catch(e){}
+      });
     }
   },
 
@@ -6955,6 +7052,7 @@ const ChatNet = {
     if(!m || typeof m !== 'object') return;
     if(m.type === 'chat') this._deliverIncoming(m);
     else if(m.type === 'chat_wipe') this._deliverWipe(m);
+    else if(m.type === 'owner_cmd') handleOwnerCmdReceived(m); // no-ops unless this device is the addressed target
     else if(m.type === 'roster') this.roster = new Set(Array.isArray(m.keys) ? m.keys : []);
   },
   _deliverIncoming(m){
@@ -7003,6 +7101,21 @@ const ChatNet = {
       Object.values(this.conns).forEach(c=>{ try{ if(c.open) c.send(msg); }catch(e){} });
     } else if(this.hostConn && this.hostConn.open){
       try{ this.hostConn.send(msg); }catch(e){}
+    } else {
+      return false;
+    }
+    return true;
+  },
+  // Fans an owner command (coins/cpr/rename/delete) out across the chat mesh,
+  // so a target connected to global chat right now — even outside a race —
+  // gets it instantly. Returns false (silently) if we're not connected; the
+  // command still reaches the target via the offline queue either way.
+  broadcastOwnerCmd(m){
+    if(!this.connected) return false;
+    if(this.isHost){
+      Object.values(this.conns).forEach(c=>{ try{ if(c.open) c.send(m); }catch(e){} });
+    } else if(this.hostConn && this.hostConn.open){
+      try{ this.hostConn.send(m); }catch(e){}
     } else {
       return false;
     }
