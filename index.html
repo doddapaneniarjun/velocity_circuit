@@ -6533,6 +6533,27 @@ async function fetchManagePlayersRows(){
       if(Number.isFinite(everSeen[nameKey].lastCoins)) coins = everSeen[nameKey].lastCoins;
       if(Number.isFinite(everSeen[nameKey].lastRating)) rating = everSeen[nameKey].lastRating;
     }
+    // Fold in any owner commands already queued for this account but not
+    // yet applied — the target hasn't logged back in to drain pending_cmds
+    // yet, so remote.coins itself is still the pre-command value. Without
+    // this, an offline target's row looks unchanged right after you send a
+    // command, even though it's already guaranteed to land. Doesn't apply
+    // to your own row (nameKey === currentUser already reads live gameState,
+    // which is the actual source of truth for whatever you've applied to
+    // yourself).
+    let pendingDelete = false, hasPendingCoinCmd = false;
+    if(remote && nameKey !== currentUser){
+      const pending = Array.isArray(remote.pending_cmds) ? remote.pending_cmds : [];
+      pending.forEach(cmd=>{
+        if(!cmd) return;
+        if(cmd.cmd === 'coins' && Number.isFinite(cmd.amount)){
+          coins = Math.max(0, coins + (cmd.amount|0));
+          hasPendingCoinCmd = true;
+        } else if(cmd.cmd === 'delete'){
+          pendingDelete = true;
+        }
+      });
+    }
     const display = (remote && remote.display)
       || (users[nameKey] && users[nameKey].display)
       || (everSeen[nameKey] && everSeen[nameKey].display)
@@ -6544,7 +6565,9 @@ async function fetchManagePlayersRows(){
       coins,
       rating: Math.round(rating),
       owner,
-      deleted: remote ? !!remote.deleted : !isActive
+      deleted: remote ? !!remote.deleted : !isActive,
+      pendingDelete,
+      hasPendingCoinCmd
     };
   }).sort((a,b)=> a.display.localeCompare(b.display));
   return mpRows;
@@ -6597,9 +6620,9 @@ function renderManagePlayers(){
     const online = onlineKeys.has(r.nameKey);
     return '<tr class="' + (r.nameKey === currentUser ? 'statsRowMe' : '') + (r.deleted ? ' deletedRow' : '') + '">' +
       '<td>' + escapeHtml(r.display) + (r.nameKey === currentUser ? ' (you)' : '') + '</td>' +
-      '<td>' + escapeHtml(r.coins) + '</td>' +
+      '<td>' + escapeHtml(r.coins) + (r.hasPendingCoinCmd ? ' <span title="Includes a coin command queued for their next login — not yet applied on their end.">*</span>' : '') + '</td>' +
       '<td>' + escapeHtml(r.rating) + '</td>' +
-      '<td>' + (r.owner ? 'Owner' : (r.deleted ? 'Deleted' : '')) + '</td>' +
+      '<td>' + (r.owner ? 'Owner' : (r.deleted ? 'Deleted' : (r.pendingDelete ? 'Pending delete' : ''))) + '</td>' +
       '<td><span class="onlineDot ' + (online ? 'isOnline' : 'isOffline') + '"></span>' + (online ? 'Online' : 'Offline') + '</td>' +
     '</tr>';
   }).join('') : '<tr><td colspan="5">' + (anyFilterActive ? 'No players match those filters.' : 'No accounts found yet.') + '</td></tr>';
