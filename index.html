@@ -1148,6 +1148,23 @@ async function queueOfflineOwnerCmd(targetKey, cmd){
 // handleOwnerCmdReceived() already dedupes by id, so it's harmless if the
 // same command also arrives via the login-time drain or the WebRTC mesh.
 let sbRealtimeChannel = null;
+let mpRefreshDebounceTimer = null;
+// Manage Players' rows (mpRows) are only fetched when the modal opens
+// (fetchManagePlayersRows), so without this, seeing someone else's coins/
+// rating/owner-status change requires closing and reopening the modal. This
+// re-fetches and re-renders whenever ANY account row changes, but only while
+// the modal is actually visible — no point doing the work otherwise. Debounced
+// so a burst of changes (e.g. several owner commands in a row) triggers one
+// refresh, not one per row.
+function scheduleManagePlayersRefresh(){
+  const overlay = $('managePlayersOverlay');
+  if(!overlay || overlay.hidden) return; // modal isn't open — nothing to refresh
+  clearTimeout(mpRefreshDebounceTimer);
+  mpRefreshDebounceTimer = setTimeout(async ()=>{
+    await fetchManagePlayersRows();
+    renderManagePlayers();
+  }, 400);
+}
 function subscribeToAccountChanges(){
   if(!sb || sbRealtimeChannel) return; // no client, or already subscribed
   sbRealtimeChannel = sb.channel('accounts-changes')
@@ -1161,6 +1178,9 @@ function subscribeToAccountChanges(){
       // re-delivered next login. Best effort — a harmless duplicate delivery
       // is fine since ids dedupe inside handleOwnerCmdReceived.
       sbUpsertAccount(currentUser, { pending_cmds: [] }).catch(()=>{});
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts' }, (payload)=>{
+      scheduleManagePlayersRefresh(); // any insert/update/delete on any row
     })
     .subscribe((status)=>{
       // 'SUBSCRIBED' on success; 'CHANNEL_ERROR'/'TIMED_OUT'/'CLOSED' otherwise.
