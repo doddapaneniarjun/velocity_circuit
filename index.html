@@ -1117,15 +1117,24 @@ async function sbUpsertAccount(nameKey, fields){
    If it's missing, queuing/draining just fails silently (caught below) and
    the feature degrades to live-only delivery, exactly like before. */
 async function queueOfflineOwnerCmd(targetKey, cmd){
-  if(!targetKey) return;
+  if(!targetKey) return false;
   try{
     const row = await sbGetAccount(targetKey);
-    if(!row) return; // no shared row for this account yet — nothing to queue against
+    if(!row){
+      console.warn('[VelocityCircuit] Could not queue an offline copy of an owner command for ' + targetKey + ' — no shared account row exists for them, so there is nothing to queue against.');
+      return false;
+    }
     const pending = Array.isArray(row.pending_cmds) ? row.pending_cmds : [];
     pending.push(cmd);
     await sbUpsertAccount(targetKey, { pending_cmds: pending });
+    return true;
   }catch(e){
+    // Most common cause: the `pending_cmds` jsonb column doesn't exist yet on
+    // the shared `accounts` table (see comment above) — this call 400s and
+    // lands here. Surfaced to the caller now instead of only console.warn,
+    // so a command "sent" to an offline target doesn't silently vanish.
     console.warn('[VelocityCircuit] Could not queue an offline copy of an owner command for ' + targetKey + ' — they will only receive it if online right now.', e);
+    return false;
   }
 }
 // Called after a fresh login: pulls any owner commands that were queued for
@@ -1335,7 +1344,7 @@ const CARS = [
   { name:'Cobalt Nova',     color:0x2f6fed, price:95000,  speed:9, accel:8, handling:9, weight:5, boostPower:8 },
   { name:'Rogue Wraith',    color:0x2f3542, price:130000, speed:9, accel:9, handling:7, weight:7, boostPower:9 },
   { name:'Crimson Vortex',  color:0xff2e5b, price:175000, speed:9, accel:9, handling:9, weight:6, boostPower:9 },
-  { name:'Ghost Aurora',    color:0x6fe3d9, price:500000, speed:9, accel:9, handling:9, weight:4, boostPower:9 }
+  { name:'Ghost Aurora',    color:0x6fe3d9, price:230000, speed:9, accel:9, handling:9, weight:4, boostPower:9 }
 ];
 const CAR_STAT_MAX = 9; // stat bars in the garage are drawn as val / CAR_STAT_MAX
 
@@ -4916,7 +4925,7 @@ function iAmOwnerCmdTarget(targetKey, targetRaw){
 function ownerCmdId(){
   try{ return crypto.randomUUID(); }catch(e){ return 'c' + Date.now() + '-' + Math.random().toString(36).slice(2); }
 }
-function sendOwnerCmd(partial){
+async function sendOwnerCmd(partial){
   const m = Object.assign({
     type: 'owner_cmd',
     id: ownerCmdId(),
@@ -4924,9 +4933,10 @@ function sendOwnerCmd(partial){
     senderName: Online.displayName()
   }, partial);
   Online.send(m); // instant delivery if the target is connected to the current race mesh
-  ChatNet.broadcastOwnerCmd(m); // instant delivery if the target is connected to the global chat mesh
+  const liveSent = ChatNet.broadcastOwnerCmd(m); // instant delivery if the target is connected to the global chat mesh
   handleOwnerCmdReceived(m); // covers the case where the owner targets themselves
-  queueOfflineOwnerCmd(m.targetKey, m); // also persists it, so an offline target still gets it at their next login
+  const queued = await queueOfflineOwnerCmd(m.targetKey, m); // also persists it, so an offline target still gets it at their next login
+  return { liveSent, queued }; // callers use this to tell the owner whether delivery is actually guaranteed
 }
 // /wipe: clears the race chat log for every racer currently in the room, not
 // just the sender. Available to everyone (unlike the owner_cmd family above).
@@ -6720,9 +6730,15 @@ async function runGlobalTargetedOwnerCmd(cmd, signedAmount, targetRaw){
   }
   const target = await resolveOwnerCmdTarget(targetRaw);
   if(!target){ addLocalSystemGlobalMessage('No known account named "' + targetRaw + '".'); return; }
-  sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
   const verb = cmd === 'delete' ? 'Reset command' : (signedAmount < 0 ? 'Deduction' : 'Command');
-  addLocalSystemGlobalMessage(verb + ' sent to ' + target.name + ' — delivered now if they\u2019re online, otherwise next time they log in.');
+  const { liveSent, queued } = await sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
+  if(liveSent){
+    addLocalSystemGlobalMessage(verb + ' sent to ' + target.name + ' — delivered instantly, they\u2019re online right now.');
+  } else if(queued){
+    addLocalSystemGlobalMessage(verb + ' queued for ' + target.name + ' — they\u2019re offline, so it\u2019ll apply the next time they log in.');
+  } else {
+    addLocalSystemGlobalMessage(verb + ' could NOT be delivered or queued for ' + target.name + ' — they\u2019re offline and the offline queue failed (check the console for details; the shared database may be unreachable or missing its pending_cmds column). Try again once that\u2019s resolved.');
+  }
 }
 function readGlobalChat(){
   try{ return JSON.parse(localStorage.getItem(GLOBAL_CHAT_KEY)) || []; }catch(e){ return []; }
