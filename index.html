@@ -6720,22 +6720,21 @@ async function handleMpCoinAction(btn){
   const result = await sendOwnerCmd({ cmd:'coins', amount: signed, targetKey: nameKey, targetRaw: display });
   const mpRow = mpRows.find(r => r.nameKey === nameKey);
   const warnEl = $('managePlayersSyncWarning');
-  // NOTE: result.liveSent only means the broadcast went out into the chat
-  // mesh successfully — ChatNet.broadcastOwnerCmd() returns true as soon as
-  // WE (the admin) are connected and the send call didn't throw, regardless
-  // of whether this specific target was among the connected peers. It is
-  // NOT a per-target delivery confirmation, so it can't be used to decide
-  // whether this account actually got the command. result.queued is the
-  // only signal tied to this specific nameKey — it means the command was
-  // written to their shared account row and is guaranteed to apply (live
-  // right now if they're connected, or at their next login otherwise) — so
-  // that's what both the asterisk and the coin update below are gated on.
-  if(!result.queued){
-    warnEl.hidden = false;
-    warnEl.textContent = 'Could not queue that command for ' + display + ' — they may have never logged in yet, or the shared database is unreachable. It was broadcast to anyone currently connected, but delivery to them specifically could not be confirmed.';
-  } else if(mpRow){
+  // Update the table immediately regardless of whether the target is online
+  // right now — that's the whole point of this control. result.queued just
+  // tells us whether a guaranteed copy made it into their shared account row
+  // (applied live if they're connected, or at their next login otherwise);
+  // it does NOT gate whether the row updates, only whether we also warn that
+  // delivery isn't guaranteed.
+  if(mpRow){
     mpRow.coins = Math.max(0, mpRow.coins + signed);
     mpRow.hasPendingCoinCmd = true;
+  }
+  if(!result.queued){
+    warnEl.hidden = false;
+    warnEl.textContent = 'Warning: could not queue a guaranteed copy of that command for ' + display + ' — they may have never logged in yet, or the shared database is unreachable. The count above has been updated here, but it may not actually reach their account.';
+  } else {
+    warnEl.hidden = true;
   }
   if(input) input.value = '';
   renderManagePlayers();
