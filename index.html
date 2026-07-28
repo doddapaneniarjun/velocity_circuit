@@ -6720,17 +6720,22 @@ async function handleMpCoinAction(btn){
   const result = await sendOwnerCmd({ cmd:'coins', amount: signed, targetKey: nameKey, targetRaw: display });
   const mpRow = mpRows.find(r => r.nameKey === nameKey);
   const warnEl = $('managePlayersSyncWarning');
-  if(!result.liveSent && !result.queued){
-    // Neither a connected peer nor the shared database could take the
-    // command — most likely this account has never logged in anywhere yet
-    // (so no shared row exists to queue against) or the shared database is
-    // unreachable right now. Say so plainly rather than showing an updated
-    // coin count for a command that didn't actually land anywhere.
+  // NOTE: result.liveSent only means the broadcast went out into the chat
+  // mesh successfully — ChatNet.broadcastOwnerCmd() returns true as soon as
+  // WE (the admin) are connected and the send call didn't throw, regardless
+  // of whether this specific target was among the connected peers. It is
+  // NOT a per-target delivery confirmation, so it can't be used to decide
+  // whether this account actually got the command. result.queued is the
+  // only signal tied to this specific nameKey — it means the command was
+  // written to their shared account row and is guaranteed to apply (live
+  // right now if they're connected, or at their next login otherwise) — so
+  // that's what both the asterisk and the coin update below are gated on.
+  if(!result.queued){
     warnEl.hidden = false;
-    warnEl.textContent = 'Could not deliver or queue that command for ' + display + ' — they may have never logged in yet, or the shared database is unreachable.';
+    warnEl.textContent = 'Could not queue that command for ' + display + ' — they may have never logged in yet, or the shared database is unreachable. It was broadcast to anyone currently connected, but delivery to them specifically could not be confirmed.';
   } else if(mpRow){
     mpRow.coins = Math.max(0, mpRow.coins + signed);
-    if(result.queued) mpRow.hasPendingCoinCmd = true;
+    mpRow.hasPendingCoinCmd = true;
   }
   if(input) input.value = '';
   renderManagePlayers();
