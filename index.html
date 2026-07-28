@@ -475,7 +475,6 @@
       <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
     </div>
     <div class="accountActionsBar">
-      <button class="btn secondary managePlayersBtn" id="managePlayersBtn" type="button" hidden>Manage Players</button>
       <button class="btn secondary globalChatBtn" id="globalChatBtn" type="button">
         <span class="emoji" aria-hidden="true">💬</span> Chat<span class="chatUnreadDot" id="globalChatUnreadDot" hidden></span>
       </button>
@@ -493,55 +492,30 @@
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
 
-    <div class="overlay" id="managePlayersOverlay" hidden>
+    <div class="overlay" id="ownerStatsOverlay" hidden>
       <div class="statsOverlayCard">
-        <h2>Manage Players</h2>
-        <p class="statsSub">Every account ever created on any device — including deleted ones — with coins and driver rating.</p>
-        <p id="managePlayersSyncWarning" hidden style="background:rgba(168,58,42,.12);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:13px;margin:0 0 12px;"></p>
-        <input class="loginInput" type="text" id="managePlayersSearch" placeholder="Search players…" style="width:100%;margin-bottom:12px;" autocomplete="off">
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-          <label for="managePlayersSort" style="font-size:13px;color:var(--muted);white-space:nowrap;">Sort by</label>
-          <select id="managePlayersSort" style="flex:1;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;">
-            <option value="name">Name</option>
-            <option value="coins">Coins</option>
-            <option value="rating">Driver Rating</option>
-          </select>
-          <button class="btn secondary" id="managePlayersSortDirBtn" type="button" title="Toggle sort direction: best to worst" aria-label="Toggle sort direction" style="min-width:44px;flex:none;">↓</button>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
-          <label style="font-size:13px;color:var(--muted);white-space:nowrap;">Coins</label>
-          <input type="number" id="managePlayersMinCoins" placeholder="Min" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
-          <input type="number" id="managePlayersMaxCoins" placeholder="Max" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
-          <label style="font-size:13px;color:var(--muted);white-space:nowrap;margin-left:6px;">Rating</label>
-          <input type="number" id="managePlayersMinRating" placeholder="Min" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
-          <input type="number" id="managePlayersMaxRating" placeholder="Max" style="width:78px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 8px;">
-          <label for="managePlayersOnlineFilter" style="font-size:13px;color:var(--muted);white-space:nowrap;margin-left:6px;">Online</label>
-          <select id="managePlayersOnlineFilter" style="background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;">
-            <option value="all">All</option>
-            <option value="online">Online only</option>
-            <option value="offline">Offline only</option>
-          </select>
-        </div>
-        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-          <button class="btn secondary" id="managePlayersClearFiltersBtn" type="button" style="font-size:12px;padding:6px 12px;min-height:auto;">Clear filters</button>
-        </div>
+        <h2>Player Stats</h2>
+        <p class="statsSub">Every account ever created on any device — including deleted ones.</p>
+        <p id="ownerStatsSyncWarning" hidden style="background:rgba(168,58,42,.12);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:13px;margin:0 0 12px;"></p>
+        <input class="loginInput" type="text" id="ownerStatsSearch" placeholder="Search players…" style="width:100%;margin-bottom:12px;" autocomplete="off">
         <div class="statsTableWrap">
-          <table class="statsTable" id="managePlayersTable">
+          <table class="statsTable" id="ownerStatsTable">
             <thead>
               <tr>
                 <th>Player</th>
                 <th>Coins</th>
-                <th>Driver Rating</th>
-                <th>Status</th>
+                <th>Cars</th>
+                <th>Upgrades</th>
+                <th>Playing Time</th>
                 <th>Online</th>
-                <th>Send coins</th>
+                <th>Driver Rating</th>
               </tr>
             </thead>
-            <tbody id="managePlayersTableBody"></tbody>
+            <tbody id="ownerStatsTableBody"></tbody>
           </table>
         </div>
         <div class="btnRow" style="margin-top:16px;">
-          <button class="btn" id="managePlayersCloseBtn">Close</button>
+          <button class="btn" id="ownerStatsCloseBtn">Close</button>
         </div>
       </div>
     </div>
@@ -1033,8 +1007,6 @@ function updateOwnerBadge(){
   if(badge) badge.hidden = !isOwner;
   const modeBadge = $('modeOwnerBadge');
   if(modeBadge) modeBadge.hidden = !isOwner;
-  const manageBtn = $('managePlayersBtn');
-  if(manageBtn) manageBtn.hidden = !isOwner;
 }
 
 function saveKeyFor(nameKey){ return 'velocityCircuit_save_' + nameKey; }
@@ -1150,20 +1122,20 @@ async function queueOfflineOwnerCmd(targetKey, cmd){
 // same command also arrives via the login-time drain or the WebRTC mesh.
 let sbRealtimeChannel = null;
 let mpRefreshDebounceTimer = null;
-// Manage Players' rows (mpRows) are only fetched when the modal opens
-// (fetchManagePlayersRows), so without this, seeing someone else's coins/
-// rating/owner-status change requires closing and reopening the modal. This
+// The /stats table's rows (statsRows) are only fetched when the /stats
+// modal opens (fetchOwnerStatsRows), so without this, seeing someone else's
+// coins/rating/owner-status change requires closing and reopening it. This
 // re-fetches and re-renders whenever ANY account row changes, but only while
 // the modal is actually visible — no point doing the work otherwise. Debounced
 // so a burst of changes (e.g. several owner commands in a row) triggers one
 // refresh, not one per row.
-function scheduleManagePlayersRefresh(){
-  const overlay = $('managePlayersOverlay');
+function scheduleOwnerStatsRefresh(){
+  const overlay = $('ownerStatsOverlay');
   if(!overlay || overlay.hidden) return; // modal isn't open — nothing to refresh
   clearTimeout(mpRefreshDebounceTimer);
   mpRefreshDebounceTimer = setTimeout(async ()=>{
-    await fetchManagePlayersRows();
-    renderManagePlayers();
+    await fetchOwnerStatsRows();
+    renderOwnerStats();
   }, 400);
 }
 function subscribeToAccountChanges(){
@@ -1181,7 +1153,7 @@ function subscribeToAccountChanges(){
       sbUpsertAccount(currentUser, { pending_cmds: [] }).catch(()=>{});
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts' }, (payload)=>{
-      scheduleManagePlayersRefresh(); // any insert/update/delete on any row
+      scheduleOwnerStatsRefresh(); // any insert/update/delete on any row
     })
     .subscribe((status)=>{
       // 'SUBSCRIBED' on success; 'CHANNEL_ERROR'/'TIMED_OUT'/'CLOSED' otherwise.
@@ -3584,7 +3556,7 @@ window.addEventListener('keydown', e=>{
       // On Home itself Escape has nowhere further to go; from Garage or
       // Upgrades it steps back to Home, just like their Back buttons.
       if(!$('globalChatOverlay').hidden){ closeGlobalChat(); }
-      else if(!$('managePlayersOverlay').hidden){ $('managePlayersOverlay').hidden = true; }
+      else if(!$('ownerStatsOverlay').hidden){ $('ownerStatsOverlay').hidden = true; }
       else if(!garageScreen.hidden){ showScreen('home'); }
       else if(!upgradesScreen.hidden){ showScreen('home'); }
     }
@@ -6531,16 +6503,43 @@ $('loginForm').addEventListener('submit', (e)=>{
 });
 $('logoutBtn').addEventListener('click', logout);
 
-/* ---------- Manage Players (owner-only) ----------
+/* ---------- /stats (owner-only chat command) ----------
    Fetches every account from the shared Supabase table, so this shows every
    account ever created on any device — not just ones that logged in on this
    browser. Falls back to the old local-only view (this device's accounts
    only) if Supabase can't be reached, so the panel still works offline.
-   Fetched once when the modal opens (mpRows), then search/sort/filter just
-   re-render from that cached snapshot instead of re-fetching per keystroke. */
-let mpRows = [];
+   Cars/upgrades/playing time are never synced remotely (only coins/rating
+   are), so those columns are only filled in for the current account and any
+   other account that has actually logged in on THIS device; everyone else
+   shows "—" for them.
+   Fetched once when the modal opens (statsRows), then search just re-renders
+   from that cached snapshot instead of re-fetching per keystroke. */
+let statsRows = [];
 let mpLastFetchError = null;
-async function fetchManagePlayersRows(){
+function localStatsFieldsFor(nameKey){
+  if(nameKey === currentUser){
+    return {
+      carsCount: (gameState.ownedCars||[]).length,
+      upgradesText: upgradesSummaryText(gameState.upgrades||{}),
+      playTimeSec: gameState.totalPlayTimeSec||0
+    };
+  }
+  try{
+    const raw = localStorage.getItem(saveKeyFor(nameKey));
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      carsCount: Array.isArray(parsed.ownedCars) ? parsed.ownedCars.length : 0,
+      upgradesText: upgradesSummaryText(parsed.upgrades||{}),
+      playTimeSec: Number.isFinite(parsed.totalPlayTimeSec) ? parsed.totalPlayTimeSec : 0
+    };
+  }catch(e){ return null; }
+}
+function upgradesSummaryText(upgrades){
+  const list = Object.entries(upgrades||{}).map(([k,v])=> k+' L'+v).filter(x=>!/L0$/.test(x));
+  return list.length ? list.join(', ') : 'none';
+}
+async function fetchOwnerStatsRows(){
   const users = readUsers();
   const everSeen = readAllAccountsEver();
   let remoteRows = null;
@@ -6549,14 +6548,14 @@ async function fetchManagePlayersRows(){
   catch(e){
     remoteRows = null;
     mpLastFetchError = (e && e.message) ? e.message : String(e);
-    console.warn('[VelocityCircuit] Manage Players could not reach the shared account database — showing this device\'s accounts only.', e);
+    console.warn('[VelocityCircuit] /stats could not reach the shared account database — showing this device\'s accounts only.', e);
   }
 
   const remoteByKey = {};
   if(remoteRows) remoteRows.forEach(r=>{ remoteByKey[r.name_key] = r; });
 
   const keys = new Set([...Object.keys(everSeen), ...Object.keys(users), ...Object.keys(remoteByKey)]);
-  mpRows = Array.from(keys).map(nameKey=>{
+  statsRows = Array.from(keys).map(nameKey=>{
     const remote = remoteByKey[nameKey];
     const isActive = remote ? !remote.deleted : !!users[nameKey];
     let coins = DEFAULT_STATE.coins, rating = DEFAULT_STATE.skillRating;
@@ -6587,237 +6586,82 @@ async function fetchManagePlayersRows(){
     }
     // Fold in any owner commands already queued for this account but not
     // yet applied — the target hasn't logged back in to drain pending_cmds
-    // yet, so remote.coins itself is still the pre-command value. Without
-    // this, an offline target's row looks unchanged right after you send a
-    // command, even though it's already guaranteed to land. Doesn't apply
-    // to your own row (nameKey === currentUser already reads live gameState,
-    // which is the actual source of truth for whatever you've applied to
-    // yourself).
-    let pendingDelete = false, hasPendingCoinCmd = false;
+    // yet, so remote.coins itself is still the pre-command value.
     if(remote && nameKey !== currentUser){
       const pending = Array.isArray(remote.pending_cmds) ? remote.pending_cmds : [];
       pending.forEach(cmd=>{
-        if(!cmd) return;
-        if(cmd.cmd === 'coins' && Number.isFinite(cmd.amount)){
-          coins = Math.max(0, coins + (cmd.amount|0));
-          hasPendingCoinCmd = true;
-        } else if(cmd.cmd === 'delete'){
-          pendingDelete = true;
-        }
+        if(cmd && cmd.cmd === 'coins' && Number.isFinite(cmd.amount)) coins = Math.max(0, coins + (cmd.amount|0));
       });
     }
     const display = (remote && remote.display)
       || (users[nameKey] && users[nameKey].display)
       || (everSeen[nameKey] && everSeen[nameKey].display)
       || nameKey;
-    const owner = remote ? !!remote.is_owner : (isActive && !!(users[nameKey] && users[nameKey].isOwner));
+    const local = localStatsFieldsFor(nameKey);
     return {
       nameKey,
       display,
       coins,
       rating: Math.round(rating),
-      owner,
       deleted: remote ? !!remote.deleted : !isActive,
-      pendingDelete,
-      hasPendingCoinCmd
+      carsCount: local ? local.carsCount : null,
+      upgradesText: local ? local.upgradesText : null,
+      playTimeSec: local ? local.playTimeSec : null
     };
   }).sort((a,b)=> a.display.localeCompare(b.display));
-  return mpRows;
+  return statsRows;
 }
-function loadManagePlayersRows(){ return mpRows; }
-// Sort state for the Manage Players table. 'dir' of 'desc' means highest
-// coins/rating (or Z-A for name) first — i.e. "best to worst"; 'asc' flips
-// it to "worst to best". Persists while the app is open, reset on load.
-let mpSortKey = 'name';
-let mpSortDir = 'asc';
-function sortManagePlayersRows(rows){
-  const key = mpSortKey, dir = mpSortDir;
-  return rows.slice().sort((a,b)=>{
-    let cmp;
-    if(key === 'coins') cmp = a.coins - b.coins;
-    else if(key === 'rating') cmp = a.rating - b.rating;
-    else cmp = a.display.localeCompare(b.display);
-    return dir === 'desc' ? -cmp : cmp;
-  });
+function formatPlayTime(sec){
+  if(sec == null) return '—';
+  const hrs = Math.floor(sec/3600);
+  const mins = Math.round((sec%3600)/60);
+  return hrs + 'h ' + mins + 'm';
 }
-function renderManagePlayers(){
-  const body = $('managePlayersTableBody');
+function renderOwnerStats(){
+  const body = $('ownerStatsTableBody');
   if(!body) return;
-  const allRows = loadManagePlayersRows();
-  const query = ($('managePlayersSearch').value || '').trim().toLowerCase();
-  const minCoins = parseFloat($('managePlayersMinCoins').value);
-  const maxCoins = parseFloat($('managePlayersMaxCoins').value);
-  const minRating = parseFloat($('managePlayersMinRating').value);
-  const maxRating = parseFloat($('managePlayersMaxRating').value);
-  const onlineFilter = ($('managePlayersOnlineFilter') && $('managePlayersOnlineFilter').value) || 'all';
-  const anyFilterActive = query || Number.isFinite(minCoins) || Number.isFinite(maxCoins) || Number.isFinite(minRating) || Number.isFinite(maxRating) || onlineFilter !== 'all';
-
-  // Computed fresh on every render (not baked into mpRows) so it reflects
+  const query = ($('ownerStatsSearch').value || '').trim().toLowerCase();
+  // Computed fresh on every render (not baked into statsRows) so it reflects
   // live presence from the chat mesh without needing a full refetch —
   // ChatNet's roster can change while this modal is sitting open.
   const onlineKeys = ChatNet.getOnlineKeys();
-  let filtered = query
-    ? allRows.filter(r=> r.display.toLowerCase().includes(query))
-    : allRows;
-  if(Number.isFinite(minCoins)) filtered = filtered.filter(r=> r.coins >= minCoins);
-  if(Number.isFinite(maxCoins)) filtered = filtered.filter(r=> r.coins <= maxCoins);
-  if(Number.isFinite(minRating)) filtered = filtered.filter(r=> r.rating >= minRating);
-  if(Number.isFinite(maxRating)) filtered = filtered.filter(r=> r.rating <= maxRating);
-  if(onlineFilter === 'online') filtered = filtered.filter(r=> onlineKeys.has(r.nameKey));
-  else if(onlineFilter === 'offline') filtered = filtered.filter(r=> !onlineKeys.has(r.nameKey));
-
-  const rows = sortManagePlayersRows(filtered);
+  const rows = query ? statsRows.filter(r=> r.display.toLowerCase().includes(query)) : statsRows;
 
   body.innerHTML = rows.length ? rows.map(r=>{
     const online = onlineKeys.has(r.nameKey);
-    // Coin commands can target ANY listed account, not just ones currently
-    // online — sendOwnerCmd() below queues an offline copy (see
-    // queueOfflineOwnerCmd) that lands the moment they next log in anywhere,
-    // and fetchManagePlayersRows() already folds any not-yet-applied queued
-    // amount into r.coins, so the number in this table reflects the command
-    // right away even though the target hasn't come online to receive it
-    // yet. Disabled for your own row (edit yourself by just playing) and for
-    // deleted accounts (nothing to credit).
-    const canTarget = r.nameKey !== currentUser && !r.deleted;
-    const actionsCell = canTarget
-      ? '<div style="display:flex;gap:4px;align-items:center;">' +
-          '<input type="number" min="1" step="1" class="loginInput mpAmountInput" placeholder="amt" style="width:64px;padding:6px 8px;">' +
-          '<button class="btn secondary mpGiveBtn" type="button" data-key="' + escapeHtml(r.nameKey) + '" data-name="' + escapeHtml(r.display) + '" style="padding:6px 10px;min-height:auto;font-size:12px;">Give</button>' +
-          '<button class="btn secondary mpTakeBtn" type="button" data-key="' + escapeHtml(r.nameKey) + '" data-name="' + escapeHtml(r.display) + '" style="padding:6px 10px;min-height:auto;font-size:12px;">Take</button>' +
-        '</div>'
-      : '—';
     return '<tr class="' + (r.nameKey === currentUser ? 'statsRowMe' : '') + (r.deleted ? ' deletedRow' : '') + '">' +
-      '<td>' + escapeHtml(r.display) + (r.nameKey === currentUser ? ' (you)' : '') + '</td>' +
-      '<td>' + escapeHtml(r.coins) + (r.hasPendingCoinCmd ? ' <span title="Includes a coin command queued for their next login — not yet applied on their end.">*</span>' : '') + '</td>' +
-      '<td>' + escapeHtml(r.rating) + '</td>' +
-      '<td>' + (r.owner ? 'Owner' : (r.deleted ? 'Deleted' : (r.pendingDelete ? 'Pending delete' : ''))) + '</td>' +
+      '<td>' + escapeHtml(r.display) + (r.nameKey === currentUser ? ' (you)' : '') + (r.deleted ? ' (deleted)' : '') + '</td>' +
+      '<td>' + escapeHtml(r.coins) + '</td>' +
+      '<td>' + (r.carsCount == null ? '—' : escapeHtml(r.carsCount)) + '</td>' +
+      '<td>' + (r.upgradesText == null ? '—' : escapeHtml(r.upgradesText)) + '</td>' +
+      '<td>' + formatPlayTime(r.playTimeSec) + '</td>' +
       '<td><span class="onlineDot ' + (online ? 'isOnline' : 'isOffline') + '"></span>' + (online ? 'Online' : 'Offline') + '</td>' +
-      '<td>' + actionsCell + '</td>' +
+      '<td>' + escapeHtml(r.rating) + '</td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="6">' + (anyFilterActive ? 'No players match those filters.' : 'No accounts found yet.') + '</td></tr>';
+  }).join('') : '<tr><td colspan="7">' + (query ? 'No players match that search.' : 'No accounts found yet.') + '</td></tr>';
 }
-// Handles a Give/Take click for one row. Pure localStorage — no Supabase,
-// no network call, nothing to await. Writes straight into the target's own
-// save slot (the same key their own client reads via loadState()), so the
-// change is simply already there the moment they load: if they've never
-// logged in before, DEFAULT_STATE is used as the starting point and their
-// first login just sees the adjusted coin total; if they're already logged
-// in elsewhere on this same browser, the 'storage' listener below nudges
-// their live session too. Nothing here can hang or silently fail on a slow
-// connection since there isn't one involved.
-function handleMpCoinAction(btn){
-  const nameKey = btn.getAttribute('data-key');
-  const display = btn.getAttribute('data-name');
-  const row = btn.closest('tr');
-  const input = row && row.querySelector('.mpAmountInput');
-  const amount = input ? parseInt(input.value, 10) : NaN;
-  if(!Number.isFinite(amount) || amount <= 0){
-    if(input){ input.focus(); input.style.outline = '2px solid var(--danger)'; }
-    return;
-  }
-  const signed = btn.classList.contains('mpTakeBtn') ? -amount : amount;
-  const warnEl = $('managePlayersSyncWarning');
-
-  const saveKey = saveKeyFor(nameKey);
-  let targetState = null;
-  try{
-    const raw = localStorage.getItem(saveKey);
-    if(raw) targetState = JSON.parse(raw);
-  }catch(e){ targetState = null; }
-  if(!targetState || typeof targetState !== 'object'){
-    // No save yet — this account has never logged in on this browser (or
-    // its save was cleared). Start from the same defaults loadState() would
-    // use, so the credited coins are the first thing their new save shows.
-    targetState = JSON.parse(JSON.stringify(DEFAULT_STATE));
-  }
-  const baseCoins = Number.isFinite(targetState.coins) ? targetState.coins : DEFAULT_STATE.coins;
-  targetState.coins = Math.max(0, baseCoins + signed);
-
-  let wrote = true;
-  try{ localStorage.setItem(saveKey, JSON.stringify(targetState)); }
-  catch(e){ wrote = false; }
-
-  if(wrote){
-    recordAccountSeen(nameKey, display); // make sure they show up in this list even if they never actually signed up here before
-    warnEl.hidden = true;
-  } else {
-    warnEl.hidden = false;
-    warnEl.textContent = 'Warning: could not save that change for ' + display + ' — this browser\'s storage may be full or blocked.';
-  }
-
-  const mpRow = mpRows.find(r => r.nameKey === nameKey);
-  if(mpRow){
-    mpRow.coins = targetState.coins;
-    mpRow.hasPendingCoinCmd = false; // nothing pending — it's already written, not queued
-  }
-  if(input) input.value = '';
-  renderManagePlayers();
-
-  // If nameKey happens to be logged in live in ANOTHER tab on this same
-  // browser right now, that tab's gameState is only in memory — writing to
-  // localStorage from here doesn't touch it directly. The 'storage' event
-  // (registered below) fires in that other tab automatically and reloads
-  // its live state, so the change still shows up there without a refresh.
-}
-$('managePlayersTableBody').addEventListener('click', (e)=>{
-  const btn = e.target.closest('.mpGiveBtn, .mpTakeBtn');
-  if(btn) handleMpCoinAction(btn);
-});
-$('managePlayersBtn').addEventListener('click', async ()=>{
-  $('managePlayersSearch').value = '';
-  $('managePlayersMinCoins').value = '';
-  $('managePlayersMaxCoins').value = '';
-  $('managePlayersMinRating').value = '';
-  $('managePlayersMaxRating').value = '';
-  $('managePlayersOnlineFilter').value = 'all';
-  mpSortKey = 'name';
-  mpSortDir = 'asc';
-  $('managePlayersSort').value = 'name';
-  $('managePlayersSortDirBtn').textContent = '↓';
-  $('managePlayersSortDirBtn').title = 'Toggle sort direction: best to worst';
-  $('managePlayersOverlay').hidden = false;
-  $('managePlayersSyncWarning').hidden = true;
-  $('managePlayersTableBody').innerHTML = '<tr><td colspan="5">Loading players…</td></tr>';
+async function openOwnerStats(){
+  $('ownerStatsSearch').value = '';
+  $('ownerStatsOverlay').hidden = false;
+  $('ownerStatsSyncWarning').hidden = true;
+  $('ownerStatsTableBody').innerHTML = '<tr><td colspan="7">Loading players…</td></tr>';
   await syncCurrentUserToSupabase(true); // push our own latest coins/rating first, ignoring the throttle
-  await fetchManagePlayersRows();
-  const warnEl = $('managePlayersSyncWarning');
+  await fetchOwnerStatsRows();
+  const warnEl = $('ownerStatsSyncWarning');
   if(mpLastFetchError){
     warnEl.hidden = false;
     warnEl.textContent = 'Couldn\'t reach the shared account database, so this is only showing accounts seen on THIS device (' + mpLastFetchError + ').';
   }
-  renderManagePlayers();
-});
-$('managePlayersSearch').addEventListener('input', renderManagePlayers);
-$('managePlayersMinCoins').addEventListener('input', renderManagePlayers);
-$('managePlayersMaxCoins').addEventListener('input', renderManagePlayers);
-$('managePlayersMinRating').addEventListener('input', renderManagePlayers);
-$('managePlayersMaxRating').addEventListener('input', renderManagePlayers);
-$('managePlayersOnlineFilter').addEventListener('change', renderManagePlayers);
-$('managePlayersClearFiltersBtn').addEventListener('click', ()=>{
-  $('managePlayersMinCoins').value = '';
-  $('managePlayersMaxCoins').value = '';
-  $('managePlayersMinRating').value = '';
-  $('managePlayersMaxRating').value = '';
-  $('managePlayersOnlineFilter').value = 'all';
-  renderManagePlayers();
-});
-$('managePlayersSort').addEventListener('change', ()=>{
-  mpSortKey = $('managePlayersSort').value;
-  renderManagePlayers();
-});
-$('managePlayersSortDirBtn').addEventListener('click', ()=>{
-  mpSortDir = mpSortDir === 'desc' ? 'asc' : 'desc';
-  $('managePlayersSortDirBtn').textContent = mpSortDir === 'desc' ? '↓' : '↑';
-  $('managePlayersSortDirBtn').title = mpSortDir === 'desc' ? 'Toggle sort direction: best to worst' : 'Toggle sort direction: worst to best';
-  renderManagePlayers();
-});
-$('managePlayersCloseBtn').addEventListener('click', ()=>{ $('managePlayersOverlay').hidden = true; });
+  renderOwnerStats();
+}
+$('ownerStatsSearch').addEventListener('input', renderOwnerStats);
+$('ownerStatsCloseBtn').addEventListener('click', ()=>{ $('ownerStatsOverlay').hidden = true; });
 // Online status comes from the live chat mesh (ChatNet), not the fetched
 // snapshot, so refresh just the table periodically while the modal is open
 // to pick up players connecting/disconnecting without a manual re-fetch.
 setInterval(function(){
-  const overlay = $('managePlayersOverlay');
-  if(overlay && !overlay.hidden) renderManagePlayers();
+  const overlay = $('ownerStatsOverlay');
+  if(overlay && !overlay.hidden) renderOwnerStats();
 }, 5000);
 
 
@@ -6932,6 +6776,7 @@ function printGlobalChatCommandHelp(){
   addLocalSystemGlobalMessage('addAmountCprToTarget / takeAmountCprFromTarget — give or take bonus coins per finished race (e.g. add50cprtobob / take50cprfrombob)');
   addLocalSystemGlobalMessage('/resettarget — delete a racer\u2019s account (e.g. /resetbob)');
   addLocalSystemGlobalMessage('/renametarget — rename a racer\u2019s account, asks for the new name next (e.g. /renamebob)');
+  addLocalSystemGlobalMessage('/stats — show a table of every player\u2019s coins, cars, upgrades, playing time, online status, and driver rating');
   addLocalSystemGlobalMessage('/commands — show this list');
   addLocalSystemGlobalMessage('Target by username — doesn\u2019t need to be online right now.');
 }
@@ -7028,6 +6873,11 @@ $('globalChatForm').addEventListener('submit', async (e)=>{
   }
 
   if(isOwner){
+    if(/^\/stats$/i.test(text)){
+      input.value = '';
+      await openOwnerStats();
+      return;
+    }
     if(globalChatPendingRename){
       input.value = '';
       if(text.toLowerCase() === '/cancel'){
@@ -7100,16 +6950,6 @@ window.addEventListener('storage', (e)=>{
     const dot = $('globalChatUnreadDot');
     if(dot) dot.hidden = false;
   }
-});
-// Manage Players writes coin changes straight into a target's own save key
-// from another tab (see handleMpCoinAction). If THIS tab is that account's
-// live session, localStorage.setItem there doesn't touch our in-memory
-// gameState — but it does fire this 'storage' event here, so we reload from
-// disk and refresh the coin display instead of waiting for a manual reload.
-window.addEventListener('storage', (e)=>{
-  if(!currentUser || e.key !== SAVE_KEY) return;
-  loadState();
-  announce('Your coin balance was updated by an admin.');
 });
 
 /* ---------- ChatNet: cross-device relay for Global chat ----------
