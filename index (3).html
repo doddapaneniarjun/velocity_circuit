@@ -6696,48 +6696,68 @@ function renderManagePlayers(){
     '</tr>';
   }).join('') : '<tr><td colspan="6">' + (anyFilterActive ? 'No players match those filters.' : 'No accounts found yet.') + '</td></tr>';
 }
-// Handles a Give/Take click for one row: sends (and offline-queues) a coins
-// owner command straight to that account, independent of whether they're in
-// a race with you or connected to chat right now — sendOwnerCmd() already
-// covers live delivery (race mesh + global chat mesh) and the offline queue
-// (Supabase pending_cmds, drained at their next login) in one call. The
-// local row is updated optimistically right after so the table's coin
-// count reflects the change immediately rather than waiting on a refetch.
-async function handleMpCoinAction(btn){
+// Handles a Give/Take click for one row. Pure localStorage — no Supabase,
+// no network call, nothing to await. Writes straight into the target's own
+// save slot (the same key their own client reads via loadState()), so the
+// change is simply already there the moment they load: if they've never
+// logged in before, DEFAULT_STATE is used as the starting point and their
+// first login just sees the adjusted coin total; if they're already logged
+// in elsewhere on this same browser, the 'storage' listener below nudges
+// their live session too. Nothing here can hang or silently fail on a slow
+// connection since there isn't one involved.
+function handleMpCoinAction(btn){
   const nameKey = btn.getAttribute('data-key');
   const display = btn.getAttribute('data-name');
   const row = btn.closest('tr');
   const input = row && row.querySelector('.mpAmountInput');
   const amount = input ? parseInt(input.value, 10) : NaN;
   if(!Number.isFinite(amount) || amount <= 0){
-    if(input) input.focus();
+    if(input){ input.focus(); input.style.outline = '2px solid var(--danger)'; }
     return;
   }
   const signed = btn.classList.contains('mpTakeBtn') ? -amount : amount;
-  const giveBtn = row.querySelector('.mpGiveBtn'), takeBtn = row.querySelector('.mpTakeBtn');
-  if(giveBtn) giveBtn.disabled = true;
-  if(takeBtn) takeBtn.disabled = true;
-  const result = await sendOwnerCmd({ cmd:'coins', amount: signed, targetKey: nameKey, targetRaw: display });
-  const mpRow = mpRows.find(r => r.nameKey === nameKey);
   const warnEl = $('managePlayersSyncWarning');
-  // Update the table immediately regardless of whether the target is online
-  // right now — that's the whole point of this control. result.queued just
-  // tells us whether a guaranteed copy made it into their shared account row
-  // (applied live if they're connected, or at their next login otherwise);
-  // it does NOT gate whether the row updates, only whether we also warn that
-  // delivery isn't guaranteed.
-  if(mpRow){
-    mpRow.coins = Math.max(0, mpRow.coins + signed);
-    mpRow.hasPendingCoinCmd = true;
+
+  const saveKey = saveKeyFor(nameKey);
+  let targetState = null;
+  try{
+    const raw = localStorage.getItem(saveKey);
+    if(raw) targetState = JSON.parse(raw);
+  }catch(e){ targetState = null; }
+  if(!targetState || typeof targetState !== 'object'){
+    // No save yet — this account has never logged in on this browser (or
+    // its save was cleared). Start from the same defaults loadState() would
+    // use, so the credited coins are the first thing their new save shows.
+    targetState = JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
-  if(!result.queued){
-    warnEl.hidden = false;
-    warnEl.textContent = 'Warning: could not queue a guaranteed copy of that command for ' + display + ' — they may have never logged in yet, or the shared database is unreachable. The count above has been updated here, but it may not actually reach their account.';
-  } else {
+  const baseCoins = Number.isFinite(targetState.coins) ? targetState.coins : DEFAULT_STATE.coins;
+  targetState.coins = Math.max(0, baseCoins + signed);
+
+  let wrote = true;
+  try{ localStorage.setItem(saveKey, JSON.stringify(targetState)); }
+  catch(e){ wrote = false; }
+
+  if(wrote){
+    recordAccountSeen(nameKey, display); // make sure they show up in this list even if they never actually signed up here before
     warnEl.hidden = true;
+  } else {
+    warnEl.hidden = false;
+    warnEl.textContent = 'Warning: could not save that change for ' + display + ' — this browser\'s storage may be full or blocked.';
+  }
+
+  const mpRow = mpRows.find(r => r.nameKey === nameKey);
+  if(mpRow){
+    mpRow.coins = targetState.coins;
+    mpRow.hasPendingCoinCmd = false; // nothing pending — it's already written, not queued
   }
   if(input) input.value = '';
   renderManagePlayers();
+
+  // If nameKey happens to be logged in live in ANOTHER tab on this same
+  // browser right now, that tab's gameState is only in memory — writing to
+  // localStorage from here doesn't touch it directly. The 'storage' event
+  // (registered below) fires in that other tab automatically and reloads
+  // its live state, so the change still shows up there without a refresh.
 }
 $('managePlayersTableBody').addEventListener('click', (e)=>{
   const btn = e.target.closest('.mpGiveBtn, .mpTakeBtn');
@@ -7080,6 +7100,16 @@ window.addEventListener('storage', (e)=>{
     const dot = $('globalChatUnreadDot');
     if(dot) dot.hidden = false;
   }
+});
+// Manage Players writes coin changes straight into a target's own save key
+// from another tab (see handleMpCoinAction). If THIS tab is that account's
+// live session, localStorage.setItem there doesn't touch our in-memory
+// gameState — but it does fire this 'storage' event here, so we reload from
+// disk and refresh the coin display instead of waiting for a manual reload.
+window.addEventListener('storage', (e)=>{
+  if(!currentUser || e.key !== SAVE_KEY) return;
+  loadState();
+  announce('Your coin balance was updated by an admin.');
 });
 
 /* ---------- ChatNet: cross-device relay for Global chat ----------
