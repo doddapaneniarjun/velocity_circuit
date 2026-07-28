@@ -534,6 +534,7 @@
                 <th>Driver Rating</th>
                 <th>Status</th>
                 <th>Online</th>
+                <th>Send coins</th>
               </tr>
             </thead>
             <tbody id="managePlayersTableBody"></tbody>
@@ -6669,15 +6670,75 @@ function renderManagePlayers(){
 
   body.innerHTML = rows.length ? rows.map(r=>{
     const online = onlineKeys.has(r.nameKey);
+    // Coin commands can target ANY listed account, not just ones currently
+    // online — sendOwnerCmd() below queues an offline copy (see
+    // queueOfflineOwnerCmd) that lands the moment they next log in anywhere,
+    // and fetchManagePlayersRows() already folds any not-yet-applied queued
+    // amount into r.coins, so the number in this table reflects the command
+    // right away even though the target hasn't come online to receive it
+    // yet. Disabled for your own row (edit yourself by just playing) and for
+    // deleted accounts (nothing to credit).
+    const canTarget = r.nameKey !== currentUser && !r.deleted;
+    const actionsCell = canTarget
+      ? '<div style="display:flex;gap:4px;align-items:center;">' +
+          '<input type="number" min="1" step="1" class="loginInput mpAmountInput" placeholder="amt" style="width:64px;padding:6px 8px;">' +
+          '<button class="btn secondary mpGiveBtn" type="button" data-key="' + escapeHtml(r.nameKey) + '" data-name="' + escapeHtml(r.display) + '" style="padding:6px 10px;min-height:auto;font-size:12px;">Give</button>' +
+          '<button class="btn secondary mpTakeBtn" type="button" data-key="' + escapeHtml(r.nameKey) + '" data-name="' + escapeHtml(r.display) + '" style="padding:6px 10px;min-height:auto;font-size:12px;">Take</button>' +
+        '</div>'
+      : '—';
     return '<tr class="' + (r.nameKey === currentUser ? 'statsRowMe' : '') + (r.deleted ? ' deletedRow' : '') + '">' +
       '<td>' + escapeHtml(r.display) + (r.nameKey === currentUser ? ' (you)' : '') + '</td>' +
       '<td>' + escapeHtml(r.coins) + (r.hasPendingCoinCmd ? ' <span title="Includes a coin command queued for their next login — not yet applied on their end.">*</span>' : '') + '</td>' +
       '<td>' + escapeHtml(r.rating) + '</td>' +
       '<td>' + (r.owner ? 'Owner' : (r.deleted ? 'Deleted' : (r.pendingDelete ? 'Pending delete' : ''))) + '</td>' +
       '<td><span class="onlineDot ' + (online ? 'isOnline' : 'isOffline') + '"></span>' + (online ? 'Online' : 'Offline') + '</td>' +
+      '<td>' + actionsCell + '</td>' +
     '</tr>';
-  }).join('') : '<tr><td colspan="5">' + (anyFilterActive ? 'No players match those filters.' : 'No accounts found yet.') + '</td></tr>';
+  }).join('') : '<tr><td colspan="6">' + (anyFilterActive ? 'No players match those filters.' : 'No accounts found yet.') + '</td></tr>';
 }
+// Handles a Give/Take click for one row: sends (and offline-queues) a coins
+// owner command straight to that account, independent of whether they're in
+// a race with you or connected to chat right now — sendOwnerCmd() already
+// covers live delivery (race mesh + global chat mesh) and the offline queue
+// (Supabase pending_cmds, drained at their next login) in one call. The
+// local row is updated optimistically right after so the table's coin
+// count reflects the change immediately rather than waiting on a refetch.
+async function handleMpCoinAction(btn){
+  const nameKey = btn.getAttribute('data-key');
+  const display = btn.getAttribute('data-name');
+  const row = btn.closest('tr');
+  const input = row && row.querySelector('.mpAmountInput');
+  const amount = input ? parseInt(input.value, 10) : NaN;
+  if(!Number.isFinite(amount) || amount <= 0){
+    if(input) input.focus();
+    return;
+  }
+  const signed = btn.classList.contains('mpTakeBtn') ? -amount : amount;
+  const giveBtn = row.querySelector('.mpGiveBtn'), takeBtn = row.querySelector('.mpTakeBtn');
+  if(giveBtn) giveBtn.disabled = true;
+  if(takeBtn) takeBtn.disabled = true;
+  const result = await sendOwnerCmd({ cmd:'coins', amount: signed, targetKey: nameKey, targetRaw: display });
+  const mpRow = mpRows.find(r => r.nameKey === nameKey);
+  const warnEl = $('managePlayersSyncWarning');
+  if(!result.liveSent && !result.queued){
+    // Neither a connected peer nor the shared database could take the
+    // command — most likely this account has never logged in anywhere yet
+    // (so no shared row exists to queue against) or the shared database is
+    // unreachable right now. Say so plainly rather than showing an updated
+    // coin count for a command that didn't actually land anywhere.
+    warnEl.hidden = false;
+    warnEl.textContent = 'Could not deliver or queue that command for ' + display + ' — they may have never logged in yet, or the shared database is unreachable.';
+  } else if(mpRow){
+    mpRow.coins = Math.max(0, mpRow.coins + signed);
+    if(result.queued) mpRow.hasPendingCoinCmd = true;
+  }
+  if(input) input.value = '';
+  renderManagePlayers();
+}
+$('managePlayersTableBody').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.mpGiveBtn, .mpTakeBtn');
+  if(btn) handleMpCoinAction(btn);
+});
 $('managePlayersBtn').addEventListener('click', async ()=>{
   $('managePlayersSearch').value = '';
   $('managePlayersMinCoins').value = '';
