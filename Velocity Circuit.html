@@ -4972,6 +4972,21 @@ async function sendOwnerCmd(partial){
   const liveSent = ChatNet.broadcastOwnerCmd(m); // instant delivery if the target is connected to the global chat mesh
   handleOwnerCmdReceived(m); // covers the case where the owner targets themselves
   const queued = await queueOfflineOwnerCmd(m.targetKey, m); // also persists it, so an offline target still gets it at their next login
+  if(m.cmd === 'delete' && m.targetKey){
+    // A reset target might not be online to process the 'delete' case
+    // below (which is what actually wipes their save and flips the shared
+    // row's `deleted` flag) for a while, or ever, if they've walked away.
+    // Manage Players should stop showing them the instant the owner runs
+    // /reset, not whenever the target's own device happens to catch up —
+    // so mark the shared row (and this device's local cache) deleted right
+    // here, from the sender's side.
+    try{ await sbUpsertAccount(m.targetKey, { deleted: true }); }catch(e){}
+    try{
+      const all = readAllAccountsEver();
+      if(all[m.targetKey]){ all[m.targetKey].deleted = true; writeAllAccountsEver(all); }
+    }catch(e){}
+    scheduleOwnerStatsRefresh();
+  }
   return { liveSent, queued }; // callers use this to tell the owner whether delivery is actually guaranteed
 }
 // /wipe: clears the race chat log for every racer currently in the room, not
