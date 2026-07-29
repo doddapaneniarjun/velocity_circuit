@@ -426,26 +426,26 @@
   <!-- LOGIN SCREEN -->
   <section id="loginScreen" class="screen">
     <div class="loginCard">
-      <h1 class="title" style="font-size:clamp(28px,5.5vw,44px);">VELOCITY <span>CIRCUIT</span></h1>
-      <p class="subtitle" style="margin-bottom:22px;">Log in to save your progress on this device.</p>
+      <h1 class="title" style="font-size:clamp(28px,5.5vw,44px);">🏎️💨 VELOCITY <span>CIRCUIT</span> 🏁</h1>
+      <p class="subtitle" style="margin-bottom:22px;">🔑 Log in to save your progress on this device. 💾</p>
       <form id="loginForm" autocomplete="on">
         <div class="loginField">
-          <label for="loginUsername">Username</label>
+          <label for="loginUsername">👤 Username</label>
           <input class="loginInput" type="text" id="loginUsername" name="username" autocomplete="username" maxlength="20" placeholder="e.g. speedster99">
         </div>
         <div class="loginField">
-          <label for="loginPassword">Password</label>
+          <label for="loginPassword">🔒 Password</label>
           <input class="loginInput" type="password" id="loginPassword" name="password" autocomplete="current-password" maxlength="40" placeholder="At least 4 characters">
         </div>
         <p class="loginError" id="loginError" role="alert"></p>
         <p class="loginError" id="loginSyncWarning" role="alert" hidden style="color:var(--danger);"></p>
-        <button class="btn" id="loginSubmitBtn" type="submit" style="width:100%;">Log In / Create Profile</button>
+        <button class="btn" id="loginSubmitBtn" type="submit" style="width:100%;">🚀 Log In / Create Profile ✨</button>
         <div class="rememberRow">
           <input type="checkbox" id="rememberMeToggle" checked style="width:16px;height:16px;accent-color:var(--accent);">
-          <label for="rememberMeToggle">Stay logged in on this device</label>
+          <label for="rememberMeToggle">📱 Stay logged in on this device</label>
         </div>
       </form>
-      <p class="loginNote">Your account works on any device — just log in with the same username and password. Use one you don't rely on anywhere else, since this isn't bank-grade security.</p>
+      <p class="loginNote">🌐 Your account works on any device — just log in with the same username and password. Use one you don't rely on anywhere else, since this isn't bank-grade security.</p>
       <p style="color:var(--muted);font-size:10px;margin-top:10px;opacity:.6;">build 2026-07-26-r3</p>
     </div>
   </section>
@@ -453,60 +453,60 @@
   <!-- MODE SELECT (new home) -->
   <section id="modeScreen" class="screen" hidden>
     <div class="profileBar" aria-label="Logged in profile">
-      <span class="emoji" aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><span class="ownerBadge" id="modeOwnerBadge" hidden>OWNER</span><button class="logoutLink" id="modeLogoutBtn" type="button">Log out</button>
+      <span class="emoji" aria-hidden="true">👤</span><strong id="modeProfileName">Player</strong><span class="ownerBadge" id="modeOwnerBadge" hidden>OWNER</span><button class="logoutLink" id="modeLogoutBtn" type="button">👋 Log out</button>
     </div>
-    <h1 class="megaTitle">VELOCITY<br><span>CIRCUIT</span></h1>
-    <button class="modeBtn online" id="chooseOnlineBtn" type="button">ONLINE<small>Race other people playing right now</small></button>
-    <button class="modeBtn" id="choosePrivateBtn" type="button">PRIVATE<small>Race CPU rivals · tracks · garage · upgrades</small></button>
+    <h1 class="megaTitle">🏁 VELOCITY<br><span>CIRCUIT</span> 🏆</h1>
+    <button class="modeBtn online" id="chooseOnlineBtn" type="button">🌍 ONLINE<small>🕹️ Race other people playing right now</small></button>
+    <button class="modeBtn" id="choosePrivateBtn" type="button">🔐 PRIVATE<small>🤖 Race CPU rivals · 🗺️ tracks · 🚗 garage · ⚙️ upgrades</small></button>
     <p class="modeFootnote" id="modeFootnote"></p>
   </section>
 
   <!-- ONLINE LOBBY -->
   <section id="onlineScreen" class="screen" hidden>
     <div class="lobbyCard">
-      <h2 class="sectionTitle" style="margin-top:0;">Online Race</h2>
-      <div class="lobbyStatus" id="lobbyStatus">Ready to race?</div>
+      <h2 class="sectionTitle" style="margin-top:0;">🌐 Online Race 🏎️</h2>
+      <div class="lobbyStatus" id="lobbyStatus">🏁 Ready to race? 🚦</div>
       <p class="lobbySub" id="lobbySub">You'll be matched with other players who choose Online. Your racer name and position are visible to them.</p>
       <div class="spinner" id="lobbySpinner" hidden></div>
       <ul class="lobbyPlayers" id="lobbyPlayers"></ul>
       <div class="btnRow">
-        <button class="btn" id="findMatchBtn">Find Match</button>
-        <button class="btn ghost" id="lobbyBackBtn">&larr; Back</button>
+        <button class="btn" id="findMatchBtn">🔍 Find Match 🎮</button>
+        <button class="btn ghost" id="lobbyBackBtn">⬅️ Back</button>
       </div>
     </div>
   </section>
 
   <!-- HOME SCREEN -->
   <section id="homeScreen" class="screen" hidden>
-    <div class="coinBar" aria-label="Coin balance"><span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins</div>
+    <div class="coinBar" aria-label="Coin balance"><span class="coinDot" aria-hidden="true"></span>🪙 <span id="homeCoinText">0</span> coins</div>
     <div class="ratingBar" aria-label="Driver rating, determines CPU difficulty">
-      Driver Rating <strong id="homeRatingText">50</strong>
+      ⭐ Driver Rating <strong id="homeRatingText">50</strong>
     </div>
 
     <div class="profileBar" aria-label="Logged in profile">
-      <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
+      <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">👋 Log out</button>
     </div>
     <div class="accountActionsBar">
       <button class="btn secondary globalChatBtn" id="globalChatBtn" type="button">
         <span class="emoji" aria-hidden="true">💬</span> Chat<span class="chatUnreadDot" id="globalChatUnreadDot" hidden></span>
       </button>
     </div>
-    <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
-    <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
+    <h1 class="title">🏎️💨 VELOCITY <span>CIRCUIT</span> 🏁</h1>
+    <p class="subtitle">🏁 Race laps. 🪙 Earn coins. 🔧 Upgrade your car. 🚀</p>
 
     <div class="stageGrid" id="stageGrid" role="group" aria-label="Select a track"></div>
 
     <div class="btnRow">
-      <button class="btn ghost" id="homeMenuBtn">&larr; Menu</button>
-      <button class="btn secondary" id="openGarageBtn">Garage</button>
-      <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
+      <button class="btn ghost" id="homeMenuBtn">⬅️ Menu</button>
+      <button class="btn secondary" id="openGarageBtn">🚗 Garage</button>
+      <button class="btn secondary" id="openUpgradesBtn">🔧 Upgrades</button>
     </div>
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
 
     <div class="overlay" id="ownerStatsOverlay" hidden>
       <div class="statsOverlayCard">
-        <h2>Player Stats</h2>
+        <h2>📊 Player Stats 🏆</h2>
         <p class="statsSub">Every account ever created on any device — including deleted ones.</p>
         <p id="ownerStatsSyncWarning" hidden style="background:rgba(168,58,42,.12);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:13px;margin:0 0 12px;"></p>
         <input class="loginInput" type="text" id="ownerStatsSearch" placeholder="Search players…" style="width:100%;margin-bottom:12px;" autocomplete="off">
@@ -514,27 +514,27 @@
           <table class="statsTable" id="ownerStatsTable">
             <thead>
               <tr>
-                <th>Player</th>
-                <th>Coins</th>
-                <th>Cars</th>
-                <th>Upgrades</th>
-                <th>Playing Time</th>
-                <th>Online</th>
-                <th>Driver Rating</th>
+                <th>👤 Player</th>
+                <th>🪙 Coins</th>
+                <th>🚗 Cars</th>
+                <th>🔧 Upgrades</th>
+                <th>⏱️ Playing Time</th>
+                <th>🟢 Online</th>
+                <th>⭐ Driver Rating</th>
               </tr>
             </thead>
             <tbody id="ownerStatsTableBody"></tbody>
           </table>
         </div>
         <div class="btnRow" style="margin-top:16px;">
-          <button class="btn" id="ownerStatsCloseBtn">Close</button>
+          <button class="btn" id="ownerStatsCloseBtn">✅ Close</button>
         </div>
       </div>
     </div>
 
     <div class="overlay" id="globalChatOverlay" hidden>
       <div class="statsOverlayCard">
-        <h2>Chat</h2>
+        <h2>💬 Chat</h2>
         <p class="statsSub">Message players on this device instantly, plus anyone else currently signed in on another device — they need to be online right now to receive it.</p>
         <p id="globalChatStatus" style="font-size:12px;color:var(--muted);margin:0 0 10px;"></p>
         <div class="chatLog" id="globalChatLog" role="log" aria-live="polite" aria-label="Chat messages" style="max-height:280px;min-height:160px;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:12px;"></div>
@@ -545,7 +545,7 @@
           <button class="btn chatSendBtn" type="submit">Send</button>
         </form>
         <div class="btnRow" style="margin-top:16px;">
-          <button class="btn" id="globalChatCloseBtn">Close</button>
+          <button class="btn" id="globalChatCloseBtn">✅ Close</button>
         </div>
       </div>
     </div>
@@ -555,11 +555,11 @@
   <section id="garageScreen" class="screen" hidden>
     <div class="garageWrap">
       <div class="garageHeader">
-        <button class="btn ghost" id="garageBackBtn">&larr; Back</button>
+        <button class="btn ghost" id="garageBackBtn">⬅️ Back</button>
         <div class="coinBar" style="position:static;"><span class="coinDot" aria-hidden="true"></span><span id="garageCoinText">0</span> coins</div>
       </div>
 
-      <h2 class="sectionTitle">Cars</h2>
+      <h2 class="sectionTitle">🚗 Cars 🏎️</h2>
       <div class="carGrid" id="carGrid" role="group" aria-label="Choose or unlock a car"></div>
     </div>
   </section>
@@ -568,11 +568,11 @@
   <section id="upgradesScreen" class="screen" hidden>
     <div class="garageWrap">
       <div class="garageHeader">
-        <button class="btn ghost" id="upgradesBackBtn">&larr; Back</button>
+        <button class="btn ghost" id="upgradesBackBtn">⬅️ Back</button>
         <div class="coinBar" style="position:static;"><span class="coinDot" aria-hidden="true"></span><span id="upgradesCoinText">0</span> coins</div>
       </div>
 
-      <h2 class="sectionTitle">Upgrades</h2>
+      <h2 class="sectionTitle">🔧 Upgrades ⚡</h2>
       <div id="upgradeList"></div>
     </div>
   </section>
@@ -587,7 +587,7 @@
         </div>
       </div>
       <div class="lapLeftWrap">
-        <div class="lapLeftLabel">LAPS LEFT</div>
+        <div class="lapLeftLabel">🏁 LAPS LEFT</div>
         <div class="lapLeftNum" id="lapLeftNum">0</div>
       </div>
       <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute</div>
@@ -607,7 +607,7 @@
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
       <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="posLabel" id="posLabel">st</div></div>
       <div class="hudPanel leaderboardPanel" id="leaderboardPanel">
-        <div class="leaderboardTitle">LEADERBOARD</div>
+        <div class="leaderboardTitle">🏆 LEADERBOARD</div>
         <div id="leaderboardList"></div>
       </div>
       <div class="hudPanel" id="fpsCounter" hidden style="position:absolute;top:118px;right:14px;padding:4px 10px;">
@@ -635,7 +635,7 @@
       </div>
       <div class="boostWrap">
         <button class="boostBtn" id="boostBtn" type="button" aria-label="Activate boost (Space)" disabled>
-          <span id="boostLabel">BOOST</span>
+          <span id="boostLabel">⚡ BOOST</span>
         </button>
         <div class="boostBarTrack"><div class="boostBarFill" id="boostBarFill"></div></div>
       </div>
@@ -651,23 +651,23 @@
     <div class="overlay" id="pauseOverlay" hidden>
       <!-- Pause menu -->
       <div class="overlayCard" id="pauseCard">
-        <h2>Paused</h2>
-        <p>Take a breath.</p>
+        <h2>⏸️ Paused</h2>
+        <p>😮‍💨 Take a breath.</p>
         <div class="btnRow" style="flex-direction:column;">
-          <button class="btn garage" id="resumeBtn">Resume</button>
+          <button class="btn garage" id="resumeBtn">▶️ Resume</button>
           <button class="btn secondary" id="settingsBtn"><span class="emoji" aria-hidden="true">⚙️</span> Settings</button>
-          <button class="btn secondary" id="restartBtn">Restart Race</button>
-          <button class="btn ghost" id="quitBtn">Quit to Home</button>
+          <button class="btn secondary" id="restartBtn">🔄 Restart Race</button>
+          <button class="btn ghost" id="quitBtn">🏠 Quit to Home</button>
         </div>
       </div>
       <!-- Settings panel (hidden until Settings is clicked) -->
       <div class="overlayCard" id="settingsCard" hidden>
-        <h2>Settings</h2>
+        <h2>⚙️ Settings</h2>
         <p style="color:var(--muted);margin:0 0 22px;">Adjust controls and preferences.</p>
         <div class="settingsScrollArea">
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="themeToggle" style="display:block;font-weight:700;">Theme</label>
+            <label for="themeToggle" style="display:block;font-weight:700;">🎨 Theme</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Switch between light and dark mode.</p>
           </div>
           <select id="themeToggle" style="background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;flex:none;">
@@ -677,7 +677,7 @@
         </div>
         <div style="margin-bottom:24px;text-align:left;">
           <label style="display:block;font-weight:700;margin-bottom:8px;">
-            Steering Sensitivity
+            🎮 Steering Sensitivity
             <span id="sensitivityVal" style="color:var(--accent);margin-left:8px;">50</span>
           </label>
           <div style="display:flex;align-items:center;gap:12px;">
@@ -690,7 +690,7 @@
         </div>
         <div style="margin-bottom:24px;text-align:left;">
           <label style="display:block;font-weight:700;margin-bottom:8px;">
-            Master Volume
+            🔊 Master Volume
             <span id="volumeVal" style="color:var(--accent);margin-left:8px;">70</span>
           </label>
           <div style="display:flex;align-items:center;gap:12px;">
@@ -702,35 +702,35 @@
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="touchControlsToggle" style="display:block;font-weight:700;">Touchscreen Controls</label>
+            <label for="touchControlsToggle" style="display:block;font-weight:700;">📱 Touchscreen Controls</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Steer with an on-screen joystick, plus tap buttons for boost (Space) and mute (M).</p>
           </div>
           <input type="checkbox" id="touchControlsToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="invertSteeringToggle" style="display:block;font-weight:700;">Invert Steering</label>
+            <label for="invertSteeringToggle" style="display:block;font-weight:700;">🔃 Invert Steering</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Swap left/right controls.</p>
           </div>
           <input type="checkbox" id="invertSteeringToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="emojiToggle" style="display:block;font-weight:700;">Show Emoji Icons</label>
+            <label for="emojiToggle" style="display:block;font-weight:700;">😄 Show Emoji Icons</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Toggle emoji icons throughout the interface.</p>
           </div>
           <input type="checkbox" id="emojiToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="minimapToggle" style="display:block;font-weight:700;">Show Minimap</label>
+            <label for="minimapToggle" style="display:block;font-weight:700;">🗺️ Show Minimap</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Toggle the track overview in the corner.</p>
           </div>
           <input type="checkbox" id="minimapToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="unitsToggle" style="display:block;font-weight:700;">Speed Units</label>
+            <label for="unitsToggle" style="display:block;font-weight:700;">💨 Speed Units</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Show speed in mph or km/h.</p>
           </div>
           <select id="unitsToggle" style="background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;flex:none;">
@@ -740,21 +740,21 @@
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="cameraShakeToggle" style="display:block;font-weight:700;">Camera Shake</label>
+            <label for="cameraShakeToggle" style="display:block;font-weight:700;">📷 Camera Shake</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Screen shake on collisions.</p>
           </div>
           <input type="checkbox" id="cameraShakeToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="fpsCounterToggle" style="display:block;font-weight:700;">Show FPS Counter</label>
+            <label for="fpsCounterToggle" style="display:block;font-weight:700;">🖥️ Show FPS Counter</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Display frame rate during races.</p>
           </div>
           <input type="checkbox" id="fpsCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
-            <label for="pingCounterToggle" style="display:block;font-weight:700;">Show Ping Counter</label>
+            <label for="pingCounterToggle" style="display:block;font-weight:700;">📶 Show Ping Counter</label>
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Display network latency (ms) during online races.</p>
           </div>
           <input type="checkbox" id="pingCounterToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
@@ -768,8 +768,8 @@
         </div>
         </div>
         <div class="settingsFooter">
-          <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">Reset Progress</button>
-          <button class="btn" id="settingsBackBtn" style="width:100%;">← Back</button>
+          <button class="btn ghost" id="resetProgressBtn" style="width:100%;margin-bottom:12px;">🗑️ Reset Progress</button>
+          <button class="btn" id="settingsBackBtn" style="width:100%;">⬅️ Back</button>
         </div>
       </div>
     </div>
@@ -779,29 +779,29 @@
         <h2 id="resultTitle">Race Complete!</h2>
         <div id="resultBody"></div>
         <div class="btnRow" style="flex-direction:column; margin-top:14px;">
-          <button class="btn garage" id="raceAgainBtn">Race Again</button>
-          <button class="btn secondary" id="resultsGarageBtn">Garage</button>
-          <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
-          <button class="btn ghost" id="resultsHomeBtn">Home</button>
+          <button class="btn garage" id="raceAgainBtn">🔁 Race Again</button>
+          <button class="btn secondary" id="resultsGarageBtn">🚗 Garage</button>
+          <button class="btn secondary" id="resultsUpgradesBtn">🔧 Upgrades</button>
+          <button class="btn ghost" id="resultsHomeBtn">🏠 Home</button>
         </div>
       </div>
     </div>
 
     <div class="overlay" id="statsOverlay" hidden>
       <div class="statsOverlayCard">
-        <h2>Race Stats</h2>
+        <h2>📈 Race Stats 🏁</h2>
         <p class="statsSub" id="statsSub"></p>
         <div class="statsTableWrap">
           <table class="statsTable" id="statsTable">
             <thead>
               <tr>
-                <th>Racer</th>
-                <th>Coins</th>
-                <th>Wins</th>
-                <th>Losses</th>
-                <th>Playtime</th>
-                <th>Cars</th>
-                <th>Upgrades</th>
+                <th>🏎️ Racer</th>
+                <th>🪙 Coins</th>
+                <th>🏆 Wins</th>
+                <th>💔 Losses</th>
+                <th>⏱️ Playtime</th>
+                <th>🚗 Cars</th>
+                <th>🔧 Upgrades</th>
               </tr>
             </thead>
             <tbody id="statsTableBody"></tbody>
@@ -809,7 +809,7 @@
         </div>
         <p class="statsMissingNote" id="statsMissingNote" hidden></p>
         <div class="btnRow" style="margin-top:16px;">
-          <button class="btn" id="statsCloseBtn">Close</button>
+          <button class="btn" id="statsCloseBtn">✅ Close</button>
         </div>
       </div>
     </div>
@@ -1569,7 +1569,7 @@ function renderStageGrid(){
       <p class="stageMeta"><span class="emoji" aria-hidden="true">💰</span> ${coinsPerLapForStage(s)} coins/lap &middot; <span class="emoji" aria-hidden="true">🏁</span> ${s.laps || DEFAULT_LAPS} laps</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
-        : `<p class="lockNote">Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
+        : `<p class="lockNote">🔒 Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
     `;
     if(unlocked){ card.addEventListener('click', ()=>{ selectedStage = i; startRace(i); }); }
     wrap.appendChild(card);
@@ -1735,11 +1735,11 @@ function renderCarGrid(){
     const statsAria = statDefs.map(([, label, val]) => `${label} ${val} of ${CAR_STAT_MAX}`).join(', ');
     let buttonHtml;
     if(equipped){
-      buttonHtml = `<button class="btn secondary" disabled>Equipped</button>`;
+      buttonHtml = `<button class="btn secondary" disabled>✅ Equipped</button>`;
     } else if(owned){
-      buttonHtml = `<button class="btn" data-select="${i}">Select</button>`;
+      buttonHtml = `<button class="btn" data-select="${i}">👉 Select</button>`;
     } else {
-      buttonHtml = `<button class="btn" data-buy="${i}" ${(!isOwner && gameState.coins < c.price) ? 'disabled' : ''}>Buy — ${isOwner ? 'Free (Owner)' : c.price + ' coins'}</button>`;
+      buttonHtml = `<button class="btn" data-buy="${i}" ${(!isOwner && gameState.coins < c.price) ? 'disabled' : ''}>🛒 Buy — ${isOwner ? '🆓 Free (Owner)' : '🪙 ' + c.price + ' coins'}</button>`;
     }
     card.innerHTML = `
       <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
@@ -1869,8 +1869,8 @@ function renderUpgrades(){
         <p class="hudSmall" style="margin-top:6px;">${def.desc}</p>
       </div>
       <div class="upgradeBuy">
-        <span class="costTag">${maxed ? 'MAX LEVEL' : (isOwner ? 'Free (Owner)' : cost+' coins')}</span>
-        <button class="btn" data-key="${def.key}" ${maxed || (!isOwner && gameState.coins < cost) ? 'disabled' : ''}>${maxed?'Maxed':'Upgrade'}</button>
+        <span class="costTag">${maxed ? '🏆 MAX LEVEL' : (isOwner ? '🆓 Free (Owner)' : '🪙 ' + cost+' coins')}</span>
+        <button class="btn" data-key="${def.key}" ${maxed || (!isOwner && gameState.coins < cost) ? 'disabled' : ''}>${maxed?'⭐ Maxed':'⬆️ Upgrade'}</button>
       </div>
     `;
     list.appendChild(card);
@@ -3901,7 +3901,7 @@ const Online = {
         if(remaining <= 1){
           kickFromOnlineRace('All other racers left — race ended.');
         } else {
-          showToast('A racer disconnected');
+          showToast('👋 A racer disconnected');
         }
       }
     }
@@ -4018,7 +4018,7 @@ const Online = {
     // would just be a solo "online" race — bail out instead of starting one.
     if(!room.players || room.players.length <= 1){
       this.room = null;
-      showToast('No other racers — race cancelled.');
+      showToast('😕 No other racers — race cancelled.');
       announce('No other racers were in the race. Race cancelled.');
       showScreen('mode');
       return;
@@ -4048,7 +4048,7 @@ const Online = {
       player.crashBoost = 3;
       if(Date.now() - lastRivalBoostToast > 2500){
         lastRivalBoostToast = Date.now();
-        showToast('Rival crashed — speed boost!');
+        showToast('💥 Rival crashed — speed boost! ⚡');
       }
     }
   },
@@ -4399,7 +4399,7 @@ function giveCrashBoost(crasher){
     player.lastWallHitAt = Date.now();       // online: tells opponents to take their boost
   } else if(!crasher.remote && Date.now() - lastRivalBoostToast > 2500){
     lastRivalBoostToast = Date.now();
-    showToast('Rival crashed — speed boost!');
+    showToast('💥 Rival crashed — speed boost! ⚡');
   }
 }
 // Keeps the sky dome centered on the camera every frame instead of fixed
@@ -4550,7 +4550,7 @@ function completeLap(car){
     refreshCoinDisplays();
     saveState();
     Sound.lap(car.lap >= raceLaps);
-    showToast('+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!', 'lap');
+    showToast('🪙 +' + lapCoins + ' coins — Lap ' + car.lap + ' complete! 🏁', 'lap');
     announce('Lap ' + car.lap + ' complete. Plus ' + lapCoins + ' coins.');
     if(!gameState.bestLaps[selectedStage] || lapTime < gameState.bestLaps[selectedStage]){
       gameState.bestLaps[selectedStage] = lapTime;
@@ -5742,7 +5742,7 @@ function teleportPlayerTo(worldX, worldZ){
   const lookAt = new THREE.Vector3().copy(player.pos).addScaledVector(fwd, 6);
   lookAt.y = 1.2;
   camera.lookAt(lookAt);
-  showToast('Teleported.');
+  showToast('✨ Teleported. 🌀');
   announce('Teleported to the tapped location.');
 }
 $('minimap').addEventListener('click', (e)=>{
@@ -6470,7 +6470,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   applyPingVisibility();
   applyEmojiVisibility();
   announce('Progress reset.');
-  showToast('Progress reset');
+  showToast('🗑️ Progress reset');
 });
 $('restartBtn').addEventListener('click', ()=>{ $('pauseOverlay').hidden = true; startRace(selectedStage); });
 $('quitBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; endOnlineIfNeeded(); $('pauseOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); refreshCoinDisplays(); renderStageGrid(); } });
@@ -6531,7 +6531,7 @@ function finishRace(){
   preRaceSnapshot = null;
   try{ localStorage.removeItem(ROLLBACK_KEY); }catch(e){}
 
-  $('resultTitle').textContent = pos===1 ? 'Victory!' : 'Race Complete!';
+  $('resultTitle').textContent = pos===1 ? '🏆 Victory! 🎉' : '🏁 Race Complete!';
   // List every other racer's time (or their live progress if they haven't
   // finished yet) underneath the player's own result. This refreshes on an
   // interval below rather than being built once, because CPU racers (and any
@@ -6564,20 +6564,20 @@ function finishRace(){
     if(el) el.innerHTML = buildOpponentRows();
   }, 1000);
   $('resultBody').innerHTML = `
-    <div class="resultRow"><span>Finish position</span><strong>${pos} of ${cars.length}</strong></div>
-    <div class="resultRow"><span>Total time</span><strong>${formatTime(player.finishTime)}</strong></div>
+    <div class="resultRow"><span>🏁 Finish position</span><strong>${pos} of ${cars.length}</strong></div>
+    <div class="resultRow"><span>⏱️ Total time</span><strong>${formatTime(player.finishTime)}</strong></div>
     <div id="opponentStandings">${buildOpponentRows()}</div>
-    <div class="resultRow"><span>Best lap</span><strong>${formatTime(player.bestLap)}</strong></div>
-    <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/raceLaps)}</strong></div>
-    <div class="resultRow"><span>Top speed</span><strong>${Math.round(gameState.units === 'kph' ? player.topSpeed*1.60934 : player.topSpeed)} ${gameState.units === 'kph' ? 'km/h' : 'mph'}</strong></div>
-    <div class="resultRow"><span>Collisions</span><strong>${playerCollisions}</strong></div>
-    <div class="resultRow"><span>Difficulty payout</span><strong>×${diffMult.toFixed(1)}</strong></div>
-    <div class="resultRow"><span>Laps coins</span><strong>${lapCoinsEarned}</strong></div>
-    <div class="resultRow"><span>Finish bonus</span><strong>+${finishBonus}</strong></div>
-    <div class="resultRow"><span>Position bonus</span><strong>+${bonus}</strong></div>
-    <div class="resultRow"><span>Coins earned</span><strong>${lapCoinsEarned + finishBonus + bonus + (gameState.bonusCoinsPerRace || 0)}</strong></div>
-    <div class="resultRow"><span>CPU skill match</span><strong>${gameState.skillRating} (${ratingDelta>=0?'+':''}${ratingDelta})</strong></div>
-    ${newlyUnlocked ? `<div class="resultRow"><span><span class="emoji" aria-hidden="true">🔓</span> New track</span><strong>Unlocked!</strong></div>` : ''}
+    <div class="resultRow"><span>⚡ Best lap</span><strong>${formatTime(player.bestLap)}</strong></div>
+    <div class="resultRow"><span>📊 Avg lap</span><strong>${formatTime(player.finishTime/raceLaps)}</strong></div>
+    <div class="resultRow"><span>💨 Top speed</span><strong>${Math.round(gameState.units === 'kph' ? player.topSpeed*1.60934 : player.topSpeed)} ${gameState.units === 'kph' ? 'km/h' : 'mph'}</strong></div>
+    <div class="resultRow"><span>💥 Collisions</span><strong>${playerCollisions}</strong></div>
+    <div class="resultRow"><span>🎚️ Difficulty payout</span><strong>×${diffMult.toFixed(1)}</strong></div>
+    <div class="resultRow"><span>🪙 Laps coins</span><strong>${lapCoinsEarned}</strong></div>
+    <div class="resultRow"><span>🎁 Finish bonus</span><strong>+${finishBonus}</strong></div>
+    <div class="resultRow"><span>🥇 Position bonus</span><strong>+${bonus}</strong></div>
+    <div class="resultRow"><span>💰 Coins earned</span><strong>${lapCoinsEarned + finishBonus + bonus + (gameState.bonusCoinsPerRace || 0)}</strong></div>
+    <div class="resultRow"><span>🤖 CPU skill match</span><strong>${gameState.skillRating} (${ratingDelta>=0?'+':''}${ratingDelta})</strong></div>
+    ${newlyUnlocked ? `<div class="resultRow"><span><span class="emoji" aria-hidden="true">🔓</span> New track</span><strong>🎉 Unlocked!</strong></div>` : ''}
   `;
   $('resultsOverlay').hidden = false;
   announce('Race complete. You finished in position ' + pos + ' of ' + cars.length + '. You earned ' + (bonus+finishBonus) + ' bonus coins.' + (newlyUnlocked ? ' A new track has been unlocked.' : ''));
