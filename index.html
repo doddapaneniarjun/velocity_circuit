@@ -6620,7 +6620,8 @@ async function fetchOwnerStatsRows(){
       upgradesText: local ? local.upgradesText : null,
       playTimeSec: local ? local.playTimeSec : null
     };
-  }).sort((a,b)=> a.display.localeCompare(b.display));
+  }).filter(r => !r.deleted) // a reset account drops off the list entirely until they log back in
+    .sort((a,b)=> a.display.localeCompare(b.display));
   return statsRows;
 }
 function formatPlayTime(sec){
