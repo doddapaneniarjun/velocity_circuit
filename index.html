@@ -332,7 +332,18 @@
   .chatRecipientRow{ padding:8px 8px 0; }
   .chatRecipientSelect{ width:100%; padding:6px 8px; border-radius:8px; border:1px solid var(--border);
     background:var(--panel); color:var(--text); font:inherit; font-size:12px; cursor:pointer; }
-  .chatForm{ display:flex; gap:6px; padding:8px; border-top:1px solid var(--border); }
+  .chatForm{ display:flex; gap:6px; padding:8px; border-top:1px solid var(--border); position:relative; }
+  .chatEmojiBtn{ flex:none; padding:8px 10px; font-size:17px; min-height:0; border-radius:8px;
+    background:var(--panel2); color:var(--text); line-height:1; }
+  .chatEmojiBtn[aria-expanded="true"]{ box-shadow:0 0 0 2px var(--accent) inset; }
+  .emojiPicker{ position:absolute; bottom:100%; left:8px; margin-bottom:8px; background:var(--panel);
+    border:1px solid var(--border-strong); border-radius:10px; padding:8px; display:grid;
+    grid-template-columns:repeat(8,1fr); gap:2px; box-shadow:0 6px 20px rgba(var(--shadow-rgb),.35); z-index:30;
+    width:min(320px,84vw); max-height:min(280px,50vh); overflow-y:auto; }
+  .emojiPicker[hidden]{ display:none; }
+  .emojiPicker button{ font-size:19px; line-height:1; background:none; border:none; cursor:pointer;
+    padding:5px; border-radius:6px; }
+  .emojiPicker button:hover, .emojiPicker button:focus-visible{ background:var(--panel2); outline:none; }
   .chatInputField{ flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
     background:var(--panel); color:var(--text); font:inherit; font-size:13px; }
   .chatInputField:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
@@ -528,6 +539,8 @@
         <p id="globalChatStatus" style="font-size:12px;color:var(--muted);margin:0 0 10px;"></p>
         <div class="chatLog" id="globalChatLog" role="log" aria-live="polite" aria-label="Chat messages" style="max-height:280px;min-height:160px;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:12px;"></div>
         <form class="chatForm" id="globalChatForm" style="padding:0;border-top:none;">
+          <button type="button" class="btn chatEmojiBtn" id="globalChatEmojiBtn" aria-label="Insert emoji" aria-haspopup="true" aria-expanded="false">🙂</button>
+          <div class="emojiPicker" id="globalChatEmojiPicker" role="menu" aria-label="Emoji picker" hidden></div>
           <input class="chatInputField" id="globalChatInput" type="text" maxlength="200" placeholder="Message everyone…" autocomplete="off" aria-label="Chat message" />
           <button class="btn chatSendBtn" type="submit">Send</button>
         </form>
@@ -614,6 +627,8 @@
           </select>
         </div>
         <form class="chatForm" id="chatForm">
+          <button type="button" class="btn chatEmojiBtn" id="chatEmojiBtn" aria-label="Insert emoji" aria-haspopup="true" aria-expanded="false">🙂</button>
+          <div class="emojiPicker" id="chatEmojiPicker" role="menu" aria-label="Emoji picker" hidden></div>
           <input class="chatInputField" id="chatInput" type="text" maxlength="120" placeholder="Message racers…" autocomplete="off" aria-label="Chat message" />
           <button class="btn chatSendBtn" type="submit">Send</button>
         </form>
@@ -4908,9 +4923,12 @@ function addChatMessage(name, text, isMe, isPrivate, otherName){
   while(log.children.length > 50) log.removeChild(log.firstChild);
   log.scrollTop = log.scrollHeight;
   announce((isMe ? 'You' : name) + (isPrivate ? ' whispered' : ' said') + ': ' + text);
-  if(!isMe && !chatOpen){
-    const dot = $('chatUnreadDot');
-    if(dot) dot.hidden = false;
+  if(!isMe){
+    Sound.ding();
+    if(!chatOpen){
+      const dot = $('chatUnreadDot');
+      if(dot) dot.hidden = false;
+    }
   }
 }
 // Italic, unattributed line in the chat log — used for owner-command
@@ -5303,6 +5321,88 @@ function closeChat(keepFocus){
 }
 function toggleChat(){ if(chatOpen) closeChat(); else openChat(); }
 $('chatToggleBtn').addEventListener('click', toggleChat);
+
+/* ---------- Emoji picker (shared by race chat + global chat) ---------- */
+const CHAT_EMOJIS = [
+  // Faces & emotion
+  '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😉','😊','😇',
+  '🥰','😍','😘','😋','😛','😜','🤪','🤨','🧐','🤓','😎','🥳',
+  '🤩','😏','😴','🤤','😮','😯','😲','😳','🥺','😢','😭','😤',
+  '😠','😡','🤬','😱','😨','😰','😥','🤔','🤫','🤭','🙄','😬',
+  '🙃','😵','🤯','🥴','😷','🤒','🤕','🤢','🥵','🥶','😈','👻',
+  '💀','🤡','👽','🤖',
+  // Gestures & people
+  '👍','👎','👏','🙌','🙏','👋','🤝','💪','✌️','🤞','🤟','🤙',
+  '👊','✊','🫡','🤦','🤷','🖕','👉','👈','☝️','👀','🧠','🫶',
+  // Hearts & symbols
+  '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','💯','💥','💫',
+  '⭐','🌟','✨','⚡','🔥','💨','💦','💤','❗','❓','‼️','⁉️',
+  // Racing / game
+  '🏁','🏆','🥇','🥈','🥉','🚗','🏎️','🛞','🚦','⛽','🔧','⚙️',
+  '🎮','🕹️','🎯','🎉','🎊','🎁','💰','💎','🔒','🔓','⏱️','⏸️',
+  // Animals
+  '🐶','🐱','🦊','🐻','🐼','🐨','🐸','🐵','🦁','🐯','🐴','🦄',
+  // Food & drink
+  '🍕','🍔','🍟','🌭','🍿','🍩','🍪','🍰','☕','🥤','🍺','🍎',
+  // Travel / nature / weather
+  '🌎','🌙','☀️','⛅','🌈','🌧️','❄️','🌪️','🚀','✈️','🏝️','🗺️'
+];
+function setupEmojiPicker(btnId, pickerId, inputId){
+  const btn = $(btnId), picker = $(pickerId), input = $(inputId);
+  if(!btn || !picker || !input) return;
+  if(!picker.childElementCount){
+    CHAT_EMOJIS.forEach(em=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = em;
+      b.setAttribute('role','menuitem');
+      b.setAttribute('aria-label', 'Insert ' + em);
+      b.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        insertAtCursor(input, em);
+        closePicker();
+        input.focus();
+      });
+      picker.appendChild(b);
+    });
+  }
+  function openPicker(){
+    picker.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    document.addEventListener('click', onOutsideClick, true);
+    document.addEventListener('keydown', onKeydown, true);
+  }
+  function closePicker(){
+    picker.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onOutsideClick, true);
+    document.removeEventListener('keydown', onKeydown, true);
+  }
+  function onOutsideClick(e){
+    if(e.target === btn || picker.contains(e.target)) return;
+    closePicker();
+  }
+  function onKeydown(e){
+    if(e.key === 'Escape'){ closePicker(); input.focus(); }
+  }
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(picker.hidden) openPicker(); else closePicker();
+  });
+}
+function insertAtCursor(input, text){
+  const start = input.selectionStart != null ? input.selectionStart : input.value.length;
+  const end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+  const before = input.value.slice(0, start);
+  const after = input.value.slice(end);
+  const maxLen = input.maxLength && input.maxLength > 0 ? input.maxLength : Infinity;
+  const combined = before + text + after;
+  input.value = combined.length > maxLen ? combined.slice(0, maxLen) : combined;
+  const newPos = Math.min(start + text.length, input.value.length);
+  input.setSelectionRange(newPos, newPos);
+}
+setupEmojiPicker('chatEmojiBtn', 'chatEmojiPicker', 'chatInput');
+setupEmojiPicker('globalChatEmojiBtn', 'globalChatEmojiPicker', 'globalChatInput');
 $('chatForm').addEventListener('submit', (e)=>{
   e.preventDefault();
   const input = $('chatInput');
@@ -5933,6 +6033,26 @@ const Sound = (function(){
     lap(isFinal){
       this.chime(isFinal ? 'final' : 'lap');
       this.cheer(isFinal ? 1.6 : 1);
+    },
+
+    /* Short two-note "ding" for an incoming chat message. Lives on uiBus,
+       same as chime(), so it's audible over the engine/crowd and even when
+       no race is running. */
+    ding(){
+      this.unlock();
+      if(!ctx || !this.isOn() || ctx.state !== 'running') return;
+      const t = ctx.currentTime + 0.02;
+      const notes = [[1318,0],[1760,0.09]];
+      notes.forEach(([f, off])=>{
+        const at = t + off;
+        const o = ctx.createOscillator(); o.type='sine'; o.frequency.value=f;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(0.3, at+0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, at+0.32);
+        o.connect(g); g.connect(uiBus);
+        o.start(at); o.stop(at+0.35);
+      });
     },
 
     start(theme){
@@ -6832,6 +6952,7 @@ function recordIncomingGlobalMessage(senderKey, senderDisplay, text){
   const messages = readGlobalChat();
   messages.push({ senderKey, senderDisplay: String(senderDisplay||senderKey).slice(0,16), text: clean, ts: Date.now() });
   writeGlobalChat(messages);
+  Sound.ding();
   if(globalChatOpen){
     renderGlobalChat();
   } else {
@@ -6973,6 +7094,7 @@ $('globalChatForm').addEventListener('submit', async (e)=>{
 // logged in side by side), and surface an unread indicator when closed.
 window.addEventListener('storage', (e)=>{
   if(e.key !== GLOBAL_CHAT_KEY) return;
+  Sound.ding();
   if(globalChatOpen){
     renderGlobalChat();
   }else{
