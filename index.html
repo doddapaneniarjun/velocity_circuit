@@ -119,6 +119,13 @@
   .rememberRow{ display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; justify-content:center; margin-top:14px; }
   .loginNote{ color:var(--muted); font-size:12px; margin-top:22px; line-height:1.5; }
 
+  .ttToggle{ display:flex; align-items:center; gap:8px; justify-content:center; color:var(--muted); font-size:13px;
+    font-weight:600; margin:0 0 16px; cursor:pointer; max-width:520px; text-align:left; }
+  .ttToggle input{ width:16px; height:16px; accent-color:var(--accent); flex:none; }
+  .ghostDeltaWrap{ position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:15; text-align:center;
+    font-weight:800; font-size:15px; padding:6px 14px; border-radius:999px; background:var(--panel); border:1px solid var(--border); }
+  .ghostDeltaWrap.ahead{ color:var(--good); }
+  .ghostDeltaWrap.behind{ color:var(--danger); }
   .stageGrid{ display:flex; gap:18px; flex-wrap:wrap; justify-content:center; max-width:920px; margin-bottom:26px; }
   .stageCard{ width:220px; background:var(--panel); border:2px solid var(--border-strong); border-radius:var(--radius);
     padding:14px; cursor:pointer; text-align:left; color:var(--text); font:inherit; transition:border-color .15s, transform .15s; }
@@ -513,12 +520,18 @@
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
 
+    <label class="ttToggle" for="timeTrialToggle">
+      <input type="checkbox" id="timeTrialToggle">
+      <span class="emoji" aria-hidden="true">👻</span> Time Trial mode — race solo against your best-lap ghost (no CPUs)
+    </label>
+
     <div class="stageGrid" id="stageGrid" role="group" aria-label="Select a track"></div>
 
     <div class="btnRow">
       <button class="btn ghost" id="homeMenuBtn">Menu</button>
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
+      <button class="btn secondary" id="openCircuitBtn"><span class="emoji" aria-hidden="true">🏆</span> Championships</button>
     </div>
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Shift</strong> to drift. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
@@ -596,6 +609,20 @@
     </div>
   </section>
 
+  <!-- CHAMPIONSHIP / CIRCUIT SCREEN -->
+  <section id="circuitScreen" class="screen" hidden>
+    <div class="garageWrap">
+      <div class="garageHeader">
+        <button class="btn ghost" id="circuitBackBtn">Back</button>
+        <div class="coinBar" style="position:static;"><span class="coinDot" aria-hidden="true"></span><span id="circuitCoinText">0</span> coins</div>
+      </div>
+
+      <h2 class="sectionTitle">Championships</h2>
+      <p class="stageMeta" style="max-width:640px;margin-bottom:18px;">Race a fixed circuit of tracks back-to-back. Each finish earns championship points (12/8/5/3 for 1st–4th) that carry over between races — the bigger your total by the final stage, the bigger the coin payout.</p>
+      <div class="stageGrid" id="circuitGrid" role="group" aria-label="Select a championship"></div>
+    </div>
+  </section>
+
   <!-- GAME SCREEN -->
   <section id="gameScreen" class="screen" hidden>
     <canvas id="canvas"></canvas>
@@ -609,6 +636,7 @@
         <div class="lapLeftLabel">LAPS LEFT</div>
         <div class="lapLeftNum" id="lapLeftNum">0</div>
       </div>
+      <div class="ghostDeltaWrap" id="ghostDeltaWrap" hidden><span class="emoji" aria-hidden="true">👻</span> <span id="ghostDeltaText">--</span></div>
       <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Shift to drift &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute</div>
       <div class="hudToolbar">
         <button class="soundBtn" id="chatToggleBtn" type="button" aria-label="Toggle race chat" aria-pressed="false" hidden>
@@ -810,6 +838,7 @@
         <h2 id="resultTitle">Race Complete!</h2>
         <div id="resultBody"></div>
         <div class="btnRow" style="flex-direction:column; margin-top:14px;">
+          <button class="btn garage" id="circuitNextBtn" hidden>Next Race</button>
           <button class="btn garage" id="raceAgainBtn">Race Again</button>
           <button class="btn secondary" id="resultsGarageBtn">Garage</button>
           <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
@@ -867,6 +896,7 @@ const DEFAULT_STATE = {
   selectedCar: 0,
   ownedCars: [0],
   bestLaps: {},
+  circuitBests: {},     // championship id -> best cumulative points ever scored
   racesCompleted: 0,
   skillRating: 50,
   soundOn: true,
@@ -921,6 +951,7 @@ function loadState(){
       gameState.ownedCars = Array.isArray(parsed.ownedCars) && parsed.ownedCars.length
         ? parsed.ownedCars.slice() : DEFAULT_STATE.ownedCars.slice();
       gameState.bestLaps       = parsed.bestLaps && typeof parsed.bestLaps==='object' ? parsed.bestLaps : {};
+      gameState.circuitBests   = parsed.circuitBests && typeof parsed.circuitBests==='object' ? parsed.circuitBests : {};
       gameState.racesCompleted = Number.isFinite(parsed.racesCompleted) ? parsed.racesCompleted : 0;
       gameState.skillRating    = Number.isFinite(parsed.skillRating)    ? parsed.skillRating    : 50;
       gameState.soundOn        = parsed.soundOn !== false;
@@ -1487,6 +1518,23 @@ const STAGES = [
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
 
+/* ---------- Championship / circuit mode ----------
+   Groups of 3-5 stages, roughly banded by difficulty, raced back-to-back
+   with cumulative points instead of picking one track at a time. A
+   championship unlocks once every stage inside it is individually unlocked. */
+const CHAMPIONSHIPS = [
+  { id:'rookie',  name:'Rookie Cup',          stages:[0,1,2,3] },
+  { id:'amateur', name:'Amateur Series',      stages:[4,5,6] },
+  { id:'pro',     name:'Pro Circuit',         stages:[7,8,9] },
+  { id:'expert',  name:'Expert Grand Prix',   stages:[10,11,12] },
+  { id:'master',  name:'Master Championship', stages:[13,14,15] }
+];
+const CIRCUIT_POINTS = [12, 8, 5, 3]; // points for 1st/2nd/3rd/4th place, per race
+function isChampionshipUnlocked(champ){ return champ.stages.every(i=>isStageUnlocked(i)); }
+// The active championship run, or null when just racing freely.
+// { champId, name, stages:[...], idx, points, results:[{stage,pos,pts}] }
+let circuit = null;
+
 // Track name overrides. Names are stored separately from STAGES (which
 // stays the source of truth for everything else about a track) and shared
 // globally across all local profiles, since a rename is meant to relabel the
@@ -1561,7 +1609,7 @@ function coinsPerLapForStage(stage){
 /* ============================= DOM ============================= */
 const $ = id => document.getElementById(id);
 const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), upgradesScreen = $('upgradesScreen'), gameScreen = $('gameScreen');
-const modeScreen = $('modeScreen'), onlineScreen = $('onlineScreen');
+const modeScreen = $('modeScreen'), onlineScreen = $('onlineScreen'), circuitScreen = $('circuitScreen');
 const liveRegion = $('liveRegion');
 
 function announce(text){ liveRegion.textContent = ''; requestAnimationFrame(()=>{ liveRegion.textContent = text; }); }
@@ -1573,6 +1621,7 @@ function showScreen(name){
   homeScreen.hidden = name!=='home';
   garageScreen.hidden = name!=='garage';
   upgradesScreen.hidden = name!=='upgrades';
+  circuitScreen.hidden = name!=='circuit';
   gameScreen.hidden = name!=='game';
 }
 
@@ -1622,6 +1671,9 @@ function renderStageGrid(){
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
         : `<p class="lockNote"><span class="emoji" aria-hidden="true">🔒</span> Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
+      ${unlocked && timeTrialMode
+        ? `<p class="stageMeta">${emo('👻')} ${loadGhostForStage(i) ? 'Ghost ready — race against it' : 'No ghost yet — you\'ll set the first one'}</p>`
+        : ''}
     `;
     if(unlocked){ card.addEventListener('click', ()=>{ selectedStage = i; startRace(i); }); }
     wrap.appendChild(card);
@@ -1754,6 +1806,70 @@ $('openGarageBtn').addEventListener('click', ()=>{ showScreen('garage'); renderC
 $('garageBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 $('openUpgradesBtn').addEventListener('click', ()=>{ showScreen('upgrades'); renderUpgrades(); });
 $('upgradesBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
+$('timeTrialToggle').addEventListener('change', (e)=>{ timeTrialMode = e.target.checked; renderStageGrid(); });
+$('openCircuitBtn').addEventListener('click', ()=>{ showScreen('circuit'); renderCircuitScreen(); });
+$('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
+
+/* ---------- Championship screen ---------- */
+function renderCircuitScreen(){
+  $('circuitCoinText').textContent = gameState.coins;
+  const grid = $('circuitGrid');
+  grid.innerHTML = '';
+  CHAMPIONSHIPS.forEach(champ=>{
+    const unlocked = isChampionshipUnlocked(champ);
+    const wrap = document.createElement('div');
+    wrap.className = 'stageCardWrap';
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'stageCard' + (unlocked ? '' : ' locked');
+    card.disabled = !unlocked;
+    const trackNames = champ.stages.map(i=>getStageName(i)).join(' → ');
+    const best = gameState.circuitBests ? gameState.circuitBests[champ.id] : null;
+    const maxPts = champ.stages.length * CIRCUIT_POINTS[0];
+    card.innerHTML = `
+      <p class="stageName">${unlocked ? '' : '<span class="emoji" aria-hidden="true">🔒</span> '}${champ.name}</p>
+      <p class="stageMeta">${champ.stages.length} races &middot; up to ${maxPts} pts</p>
+      <p class="stageMeta">${trackNames}</p>
+      ${unlocked
+        ? `<p class="stageMeta">${best ? 'Best score: ' + best + ' pts' : 'Not attempted yet'}</p>`
+        : `<p class="lockNote"><span class="emoji" aria-hidden="true">🔒</span> Unlock every track in this circuit first</p>`}
+    `;
+    if(unlocked){ card.addEventListener('click', ()=> startCircuit(champ.id)); }
+    wrap.appendChild(card);
+    grid.appendChild(wrap);
+  });
+}
+function startCircuit(champId){
+  const champ = CHAMPIONSHIPS.find(c=>c.id===champId);
+  if(!champ) return;
+  timeTrialMode = false;
+  $('timeTrialToggle').checked = false;
+  circuit = { champId, name:champ.name, stages:champ.stages.slice(), idx:0, points:0, results:[] };
+  selectedStage = circuit.stages[0];
+  startRace(selectedStage);
+}
+// A championship run is abandoned (not just paused) if the player leaves the
+// results screen through Garage/Upgrades/Home instead of Next Race.
+function abandonCircuitIfActive(){ circuit = null; }
+function finishCircuit(){
+  const champ = CHAMPIONSHIPS.find(c=>c.id===circuit.champId);
+  const totalPoints = circuit.points;
+  const coinAward = totalPoints * 15;
+  gameState.coins += coinAward;
+  gameState.circuitBests = gameState.circuitBests || {};
+  const prevBest = gameState.circuitBests[circuit.champId] || 0;
+  const isNewBest = totalPoints > prevBest;
+  if(isNewBest) gameState.circuitBests[circuit.champId] = totalPoints;
+  refreshCoinDisplays();
+  saveState();
+  circuit = null;
+  appState = 'home';
+  Sound.stop();
+  showScreen('circuit');
+  renderCircuitScreen();
+  showToast(emo('🏆') + ' ' + champ.name + ' complete! ' + totalPoints + ' pts, +' + coinAward + ' coins' + (isNewBest ? ' — new best!' : ''), 'lap');
+  announce(champ.name + ' complete with ' + totalPoints + ' championship points, earning ' + coinAward + ' coins.');
+}
 
 /* ---------- Garage ---------- */
 function renderGarage(){
@@ -3565,6 +3681,77 @@ function makeCar(isPlayer, colorHex, aiSkill){
   };
 }
 
+/* ---------- Time Trial mode + ghost cars ----------
+   A ghost is a recording of the player's own best lap on a given stage:
+   an array of {t, x, z, h} samples (t = seconds since that lap started).
+   It's stored per-profile, per-stage in localStorage (kept out of the main
+   save blob since it can run to a few hundred KB per track). While Time
+   Trial mode is on, every lap is recorded into ghostRecordBuf; if it beats
+   the stage's best lap, that recording replaces the saved ghost. */
+let timeTrialMode = false;
+let ghostRecordBuf = [];         // samples for the lap currently being driven
+let ghostFrames = null;          // loaded recording being played back this race
+let ghostLapDuration = 0;        // seconds — length of ghostFrames, for looping
+let ghostMesh = null;            // translucent car mesh following ghostFrames
+let ghostIdx = 0;                // playback cursor into ghostFrames
+let ghostPrevT = 0;
+
+function ghostStorageKey(stageIndex){
+  return 'velocityCircuit_ghost_' + (currentUser || 'guest') + '_' + stageIndex;
+}
+function loadGhostForStage(stageIndex){
+  try{
+    const raw = localStorage.getItem(ghostStorageKey(stageIndex));
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(Array.isArray(parsed) && parsed.length > 1) return parsed;
+  }catch(e){}
+  return null;
+}
+function saveGhostForStage(stageIndex, frames){
+  try{ localStorage.setItem(ghostStorageKey(stageIndex), JSON.stringify(frames)); }catch(e){}
+}
+function clearGhostPlayback(){
+  if(ghostMesh){ try{ scene && scene.remove(ghostMesh); }catch(e){} ghostMesh = null; }
+  ghostFrames = null; ghostLapDuration = 0; ghostIdx = 0; ghostPrevT = 0;
+  $('ghostDeltaWrap').hidden = true;
+}
+// Positions/rotates the translucent ghost mesh to match its recorded lap at
+// the player's current in-lap time, looping the recording every lap. Also
+// keeps the live "ahead/behind the ghost" HUD readout in sync.
+function updateGhost(){
+  if(!ghostMesh || !ghostFrames || ghostFrames.length < 2 || !player) return;
+  const dur = ghostLapDuration || ghostFrames[ghostFrames.length-1].t;
+  if(!(dur > 0)) return;
+  const rawT = raceClock - player.lapStartClock;
+  let t = rawT % dur;
+  if(t < 0) t += dur;
+  if(t < ghostPrevT) ghostIdx = 0; // wrapped into a new lap — restart the scan
+  ghostPrevT = t;
+  while(ghostIdx < ghostFrames.length-2 && ghostFrames[ghostIdx+1].t < t) ghostIdx++;
+  const a = ghostFrames[ghostIdx], b = ghostFrames[ghostIdx+1] || a;
+  const span = Math.max(0.0001, b.t - a.t);
+  const f = Math.max(0, Math.min(1, (t - a.t)/span));
+  const x = a.x + (b.x-a.x)*f;
+  const z = a.z + (b.z-a.z)*f;
+  const h = a.h + normalizeAngle(b.h-a.h)*f;
+  ghostMesh.position.set(x, 0, z);
+  ghostMesh.rotation.y = h;
+
+  // "Ahead/behind the ghost" readout: compare how far along the recorded
+  // lap the ghost is at this instant (t) against how far along the ghost's
+  // OWN clock the player currently is (rawT clamped to this lap) — a rough
+  // but responsive proxy for split time since both share the same clock.
+  const deltaWrap = $('ghostDeltaWrap');
+  if(deltaWrap){
+    const delta = rawT - t; // + = you're slower into this point than the ghost was
+    deltaWrap.hidden = false;
+    deltaWrap.classList.toggle('ahead', delta < 0);
+    deltaWrap.classList.toggle('behind', delta >= 0);
+    $('ghostDeltaText').textContent = (delta <= 0 ? '-' : '+') + Math.abs(delta).toFixed(1) + 's vs ghost';
+  }
+}
+
 /* Runtime race stats used for the end-of-race summary */
 let playerCollisions = 0;
 let lapCoinsEarned = 0;
@@ -4378,6 +4565,7 @@ function startRace(stageIndex, onlineRoom){
   // a few points top-to-bottom, which got lost next to the skill/variance
   // terms and made "harder track" barely feel different from "easier track".
   const diffFrac = (stage.difficulty - 1) / 5;
+  if(!timeTrialMode)
   for(let n=0;n<3;n++){
     const ci = cpuColorPool[n % cpuColorPool.length];
     const variance = (Math.random() * 4) - 2;              // ±2 — kept small so skill, not luck, drives the pack
@@ -4419,6 +4607,33 @@ function startRace(stageIndex, onlineRoom){
   });
 
   camera.position.set(player.pos.x, player.pos.y+6, player.pos.z+12);
+
+  // Ghost setup: only in offline Time Trial races. Any ghost mesh from a
+  // previous race is already gone (its old scene was torn down above); load
+  // this stage's recorded best lap, if one exists, and spawn a translucent
+  // replay car for it. ghostRecordBuf always resets so a fresh recording
+  // starts clean regardless of mode.
+  clearGhostPlayback();
+  ghostRecordBuf = [];
+  if(timeTrialMode && !onlineRoom){
+    const loaded = loadGhostForStage(stageIndex);
+    if(loaded){
+      ghostFrames = loaded;
+      ghostLapDuration = ghostFrames[ghostFrames.length-1].t || 0;
+      ghostMesh = createCarMesh(0xffffff);
+      ghostMesh.traverse(o=>{
+        if(o.isMesh && o.material){
+          o.material = o.material.clone();
+          o.material.transparent = true;
+          o.material.opacity = 0.32;
+          o.material.depthWrite = false;
+        }
+      });
+      ghostMesh.position.copy(player.pos);
+      ghostMesh.rotation.y = player.heading;
+      scene.add(ghostMesh);
+    }
+  }
 
   raceClock = 0;
   Sound.start(SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval);
@@ -4618,9 +4833,15 @@ function completeLap(car){
     Sound.lap(car.lap >= raceLaps);
     showToast(emo('🪙') + '+' + lapCoins + ' coins — Lap ' + car.lap + ' complete!', 'lap');
     announce('Lap ' + car.lap + ' complete. Plus ' + lapCoins + ' coins.');
-    if(!gameState.bestLaps[selectedStage] || lapTime < gameState.bestLaps[selectedStage]){
+    const prevBestLap = gameState.bestLaps[selectedStage];
+    const isNewBestLap = !prevBestLap || lapTime < prevBestLap;
+    if(isNewBestLap){
       gameState.bestLaps[selectedStage] = lapTime;
       saveState();
+    }
+    if(timeTrialMode){
+      if(isNewBestLap && ghostRecordBuf.length > 1) saveGhostForStage(selectedStage, ghostRecordBuf.slice());
+      ghostRecordBuf = [];
     }
     if(car.lap >= raceLaps && !car.finished){
       car.finished = true;
@@ -6716,13 +6937,36 @@ function finishRace(){
   appState = 'results';
   Sound.finish();
   setTimeout(()=>{ if(appState === 'results') Sound.stop(); }, 3200);
+  $('ghostDeltaWrap').hidden = true;
   const standings = currentStandings();
   const pos = standings.indexOf(player) + 1;
   const stage = STAGES[selectedStage];
   const diffMult = stageCoinMult(stage);
-  const bonus = Math.round((POSITION_BONUS[pos-1] || 0) * diffMult);
+  // Time Trial races have no CPUs to place against, so there's no position
+  // bonus to farm — coins there come from lap coins and the finish bonus only.
+  const bonus = timeTrialMode ? 0 : Math.round((POSITION_BONUS[pos-1] || 0) * diffMult);
   const finishBonus = Math.round(FINISH_BONUS * diffMult);
   gameState.coins += bonus + finishBonus + (gameState.bonusCoinsPerRace || 0);
+
+  // Championship points for this leg, if a circuit run is active.
+  let circuitSection = '';
+  if(circuit){
+    const pts = CIRCUIT_POINTS[pos-1] || 0;
+    circuit.points += pts;
+    circuit.results.push({ stage: selectedStage, pos, pts });
+    const raceNum = circuit.idx + 1;
+    const totalRaces = circuit.stages.length;
+    circuitSection = `
+      <div class="resultRow"><span>${escapeHtml(circuit.name)} — Race ${raceNum} of ${totalRaces}</span><strong>+${pts} pts</strong></div>
+      <div class="resultRow"><span>Championship total</span><strong>${circuit.points} pts</strong></div>
+    `;
+  }
+  let ghostSection = '';
+  if(timeTrialMode && ghostFrames){
+    const ghostLapTime = ghostLapDuration;
+    const delta = player.bestLap - ghostLapTime;
+    ghostSection = `<div class="resultRow"><span>${emo('👻')} Ghost's lap</span><strong>${formatTime(ghostLapTime)} (${delta<=0?'-':'+'}${formatTime(Math.abs(delta))})</strong></div>`;
+  }
 
   const previouslyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   gameState.racesCompleted += 1;
@@ -6805,6 +7049,7 @@ function finishRace(){
     <div class="resultRow"><span>Total time</span><strong>${formatTime(player.finishTime)}</strong></div>
     <div id="opponentStandings">${buildOpponentRows()}</div>
     <div class="resultRow"><span>Best lap</span><strong>${formatTime(player.bestLap)}</strong></div>
+    ${ghostSection}
     <div class="resultRow"><span>Avg lap</span><strong>${formatTime(player.finishTime/raceLaps)}</strong></div>
     <div class="resultRow"><span>Top speed</span><strong>${Math.round(gameState.units === 'kph' ? player.topSpeed*1.60934 : player.topSpeed)} ${gameState.units === 'kph' ? 'km/h' : 'mph'}</strong></div>
     <div class="resultRow"><span>Collisions</span><strong>${playerCollisions}</strong></div>
@@ -6815,7 +7060,21 @@ function finishRace(){
     <div class="resultRow"><span>Coins earned</span><strong>${lapCoinsEarned + finishBonus + bonus + (gameState.bonusCoinsPerRace || 0)}</strong></div>
     <div class="resultRow"><span>CPU skill match</span><strong>${gameState.skillRating} (${ratingDelta>=0?'+':''}${ratingDelta})</strong></div>
     ${newlyUnlocked ? `<div class="resultRow"><span><span class="emoji" aria-hidden="true">🔓</span> New track</span><strong>Unlocked!</strong></div>` : ''}
+    ${circuitSection}
   `;
+  // In a championship run, "Next Race" replaces "Race Again" as the primary
+  // action and auto-advances the circuit; the other buttons still work but
+  // stepping away through them abandons the run (see their click handlers).
+  const nextBtn = $('circuitNextBtn');
+  if(circuit){
+    const isLastRace = circuit.idx >= circuit.stages.length - 1;
+    nextBtn.hidden = false;
+    nextBtn.textContent = isLastRace ? 'View Final Standings' : 'Next Race (' + (circuit.idx+2) + '/' + circuit.stages.length + ')';
+    $('raceAgainBtn').hidden = true;
+  } else {
+    nextBtn.hidden = true;
+    $('raceAgainBtn').hidden = false;
+  }
   $('resultsOverlay').hidden = false;
   announce('Race complete. You finished in position ' + pos + ' of ' + cars.length + '. You earned ' + (bonus+finishBonus) + ' bonus coins.' + (newlyUnlocked ? ' A new track has been unlocked.' : ''));
 }
@@ -6838,6 +7097,17 @@ function kickFromOnlineRace(reason){
   showToast(reason);
   announce(reason);
 }
+$('circuitNextBtn').addEventListener('click', ()=>{
+  $('resultsOverlay').hidden = true;
+  if(!circuit) return;
+  circuit.idx++;
+  if(circuit.idx >= circuit.stages.length){
+    finishCircuit();
+  } else {
+    selectedStage = circuit.stages[circuit.idx];
+    startRace(selectedStage);
+  }
+});
 $('raceAgainBtn').addEventListener('click', ()=>{
   $('resultsOverlay').hidden = true;
   if(Online.room){
@@ -6847,9 +7117,9 @@ $('raceAgainBtn').addEventListener('click', ()=>{
   }
   startRace(selectedStage);
 });
-$('resultsGarageBtn').addEventListener('click', ()=>{ endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
-$('resultsUpgradesBtn').addEventListener('click', ()=>{ endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
-$('resultsHomeBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
+$('resultsGarageBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
+$('resultsUpgradesBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
+$('resultsHomeBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
 
 /* ---------- Main loop ---------- */
 let lastTime = performance.now();
@@ -6894,6 +7164,7 @@ function animate(now){
       $('countdownWrap').hidden = true;
       appState = 'racing';
       cars.forEach(c=>{ c.lapStartClock = 0; });
+      ghostRecordBuf = []; ghostIdx = 0; ghostPrevT = 0;
       announce('Go!');
     } else if(shown !== lastAnnouncedCountdown){
       lastAnnouncedCountdown = shown;
@@ -6914,6 +7185,15 @@ function animate(now){
     updateRubberBand(dt);
     updateBoost(dt);
     updateAiDebugPanel(now);
+    if(timeTrialMode && player){
+      ghostRecordBuf.push({
+        t: +(raceClock - player.lapStartClock).toFixed(3),
+        x: +player.pos.x.toFixed(2),
+        z: +player.pos.z.toFixed(2),
+        h: +player.heading.toFixed(3)
+      });
+      updateGhost();
+    }
     updateHUD();
     Sound.update(dt);
     updateCamera(dt);
