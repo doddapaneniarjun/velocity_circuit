@@ -288,10 +288,14 @@
   .boostBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   @keyframes boostPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
   .driftIndicator{ position:absolute; top:70px; left:50%; transform:translateX(-50%); background:var(--panel-glass);
-    border:1px solid var(--accent2); color:var(--accent2); font-weight:800; letter-spacing:2px; font-size:15px;
-    padding:6px 16px; border-radius:999px; box-shadow:0 0 14px rgba(var(--accent-rgb),.5); pointer-events:none;
-    animation:driftPulse .5s ease-in-out infinite; }
+    border:1px solid #9db8c9; color:#9db8c9; font-weight:800; letter-spacing:2px; font-size:15px;
+    padding:6px 16px; border-radius:999px; box-shadow:0 0 14px rgba(157,184,201,.5); pointer-events:none;
+    animation:driftPulse .5s ease-in-out infinite; transition:color .15s, border-color .15s, box-shadow .15s; }
   .driftIndicator[hidden]{ display:none; }
+  .driftIndicator.tier1{ border-color:#4fd8ff; color:#4fd8ff; box-shadow:0 0 14px rgba(79,216,255,.6); }
+  .driftIndicator.tier2{ border-color:#ffb23d; color:#ffb23d; box-shadow:0 0 16px rgba(255,178,61,.65); }
+  .driftIndicator.tier3{ border-color:#e14fff; color:#e14fff; box-shadow:0 0 20px rgba(225,79,255,.75);
+    animation:driftPulse .28s ease-in-out infinite; }
   @keyframes driftPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
   .keybindRow{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
   .keybindRow:last-child{ margin-bottom:0; }
@@ -1428,9 +1432,25 @@ const BOOST_CHARGE_TIME = 9;      // seconds to fill from empty
 const BOOST_DURATION = 5;         // seconds the boost lasts once triggered
 const BOOST_SPEED_MULT = 1.35;
 const BOOST_ACCEL_MULT = 1.9;
-const DRIFT_TURN_MULT = 1.55;     // sharper cornering while drifting
-const DRIFT_SCRUB = 0.55;         // fraction of speed/sec scrubbed off while drifting (lost traction)
+const DRIFT_TURN_MULT = 0.6;      // Mario-Kart-style: a wide, slower arc while drifting, not a snap turn
 const DRIFT_MIN_SPEED_FRAC = 0.22; // need at least this fraction of maxSpeed to start a drift
+// Mini-turbo charge tiers (blue / orange / purple sparks), matching Mario Kart's
+// drift-boost: the longer you hold the drift, the bigger the payoff on release.
+const DRIFT_CHARGE_T1 = 1.0;
+const DRIFT_CHARGE_T2 = 2.0;
+const DRIFT_CHARGE_T3 = 3.2;
+const DRIFT_CHARGE_MAX = DRIFT_CHARGE_T3;   // charge caps out at the top tier
+const DRIFT_BOOST_DURATIONS = { 1:0.8, 2:1.4, 3:2.2 };
+const DRIFT_HOP_DURATION = 0.22;    // little sideways hop when a drift kicks off
+const DRIFT_HOP_HEIGHT = 0.35;      // how high the hop lifts the car mesh (cosmetic)
+const DRIFT_SLIP_ANGLE = 0.5;       // radians the body fishtails away from its line of travel at full charge
+const DRIFT_SLIP_EASE = 10;         // how fast the fishtail angle eases toward/away from its target
+function driftBoostTier(charge){
+  if(charge >= DRIFT_CHARGE_T3) return 3;
+  if(charge >= DRIFT_CHARGE_T2) return 2;
+  if(charge >= DRIFT_CHARGE_T1) return 1;
+  return 0;
+}
 const BOOST_CHARGE_RATE = BOOST_MAX / BOOST_CHARGE_TIME;
 
 const UPGRADE_DEFS = [
@@ -4687,23 +4707,79 @@ function updateCar(car, dt){
     ? Math.max(-maxSpeed*0.45, Math.min(maxSpeed, car.speed))
     : Math.max(0, Math.min(maxSpeed, car.speed));
 
-  // Drift: holding the drift key while steering at speed sharpens cornering
-  // at the cost of scrubbing off some speed, like losing rear-wheel grip.
+  // Drift: Mario-Kart style. Hold the drift key while steering at speed to
+  // kick into a locked-direction slide — a wide, slower arc (not a snap
+  // turn) while a mini-turbo charge builds up. Letting go of the key fires
+  // a boost sized by how long you held it — the longer the drift, the
+  // bigger the payoff.
   let drifting = false;
-  if(car.isPlayer && !car.touchingWall){
-    drifting = !!keys[gameState.keyBinds.drift] && Math.abs(steer) > 0.1
+  const canDrift = car.isPlayer && !car.touchingWall;
+  if(canDrift){
+    const driftKeyDown = !!keys[gameState.keyBinds.drift];
+    drifting = driftKeyDown && Math.abs(steer) > 0.1
       && Math.abs(car.speed) > maxSpeed*DRIFT_MIN_SPEED_FRAC;
+    if(drifting){
+      // Rising edge of the drift itself (not just the key) — this is the
+      // moment a real kart hops sideways into the slide. Lock the arc's
+      // direction to whichever way you were steering at that instant;
+      // steering the other way mid-slide narrows the arc (an "outward"
+      // drift) rather than reversing it, same as the real games.
+      if(!car.wasDrifting){
+        car.driftDir = steer > 0 ? 1 : -1;
+        car.driftHopT = DRIFT_HOP_DURATION;
+      }
+      car.driftCharge = Math.min(DRIFT_CHARGE_MAX, (car.driftCharge||0) + dt);
+    }
+    // Rising edge of "key released" — pay out the mini-turbo, if any charge
+    // was actually built up, then reset for the next drift.
+    if(car.driftHeld && !driftKeyDown){
+      const tier = driftBoostTier(car.driftCharge||0);
+      if(tier > 0){
+        boosting = true;
+        boostTimer = DRIFT_BOOST_DURATIONS[tier];
+        Sound.unlock();
+        announce('Mini-turbo!');
+      }
+      car.driftCharge = 0;
+    }
+    car.driftHeld = driftKeyDown;
+  } else {
+    car.driftHeld = false;
+    car.driftCharge = 0;
   }
+  car.wasDrifting = drifting;
   car.drifting = drifting;
   const effTurnRate = drifting ? turnRate*DRIFT_TURN_MULT : turnRate;
+
+  // Locked-direction drift steering: once the slide starts, the turn
+  // direction is pinned to car.driftDir. Steering with the slide holds a
+  // tight, full-power arc ("inward" drift); steering against it widens the
+  // arc but never flips direction ("outward" drift) — exactly how Mario
+  // Kart's powerslide reads.
+  let driftSteer = steer;
   if(drifting){
-    car.speed -= car.speed*DRIFT_SCRUB*dt;
+    const withSlide = Math.sign(steer) === car.driftDir || steer === 0;
+    driftSteer = car.driftDir * (withSlide ? Math.max(Math.abs(steer), 0.6) : 0.35);
   }
+
+  // The brief sideways hop when a drift kicks off — a quick squash-and-lift
+  // on the car mesh, purely cosmetic, decaying back to normal over
+  // DRIFT_HOP_DURATION.
+  if(car.driftHopT > 0) car.driftHopT = Math.max(0, car.driftHopT - dt);
+
+  // Visual slide/fishtail: the car body angles away from its actual line of
+  // travel while drifting (like a real powerslide), then eases back to
+  // dead-ahead once the drift ends. This is cosmetic only — it offsets the
+  // rendered mesh, never the heading used for movement/physics below.
+  const targetSlipAngle = drifting
+    ? car.driftDir * DRIFT_SLIP_ANGLE * Math.min(1, (car.driftCharge||0)/DRIFT_CHARGE_T1)
+    : 0;
+  car.driftSlipAngle = (car.driftSlipAngle||0) + (targetSlipAngle - (car.driftSlipAngle||0)) * Math.min(1, dt*DRIFT_SLIP_EASE);
 
   const baseSpeedFactor = 0.35 + 0.65*Math.min(Math.abs(car.speed)/maxSpeed, 1);
   const speedFactor = car.isPlayer ? baseSpeedFactor : Math.max(baseSpeedFactor, car.aiMisalign || 0);
   const dir = car.speed < 0 ? -1 : 1;   // only ever -1 for the player now
-  car.heading += steer*effTurnRate*dt*speedFactor*dir;
+  car.heading += driftSteer*effTurnRate*dt*speedFactor*dir;
 
   const fwd = forwardVec(car.heading);
   car.pos.addScaledVector(fwd, car.speed*dt);
@@ -4727,7 +4803,19 @@ function updateCar(car, dt){
   car.prevIndex = car.trackIndex;
 
   car.mesh.position.copy(car.pos);
-  car.mesh.rotation.y = car.heading;
+  // Hop + fishtail are cosmetic only: they nudge the rendered mesh's height,
+  // squash, and yaw without ever touching car.pos/car.heading (the physics
+  // used above), so collisions and the racing line stay exactly on-track.
+  const hopT = car.driftHopT||0;
+  if(hopT > 0){
+    const hopK = hopT/DRIFT_HOP_DURATION;                 // 1 -> 0 over the hop
+    car.mesh.position.y += Math.sin(hopK*Math.PI) * DRIFT_HOP_HEIGHT;
+    const squash = 1 - Math.sin(hopK*Math.PI)*0.12;
+    car.mesh.scale.set(1/squash, squash, 1/squash);
+  } else if(car.mesh.scale.y !== 1){
+    car.mesh.scale.set(1,1,1);
+  }
+  car.mesh.rotation.y = car.heading + (car.driftSlipAngle||0);
   const wheelSpin = car.speed*dt*0.6;
   car.mesh.userData.wheels.forEach(w=>{ w.rotation.x += wheelSpin; });
 
@@ -5574,7 +5662,15 @@ function ordinalSuffix(n){
   }
 }
 function updateHUD(){
-  $('driftIndicator').hidden = !player.drifting;
+  const driftEl = $('driftIndicator');
+  driftEl.hidden = !player.drifting;
+  if(player.drifting){
+    const tier = driftBoostTier(player.driftCharge||0);
+    driftEl.classList.toggle('tier1', tier === 1);
+    driftEl.classList.toggle('tier2', tier === 2);
+    driftEl.classList.toggle('tier3', tier >= 3);
+    driftEl.textContent = tier >= 3 ? 'MINI-TURBO!' : 'DRIFT';
+  }
   const lapsLeft = Math.max(0, raceLaps - player.lap);
   $('lapLeftNum').textContent = lapsLeft;
   const standings = currentStandings();
