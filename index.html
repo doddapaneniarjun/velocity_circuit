@@ -3699,17 +3699,33 @@ let ghostPrevT = 0;
 function ghostStorageKey(stageIndex){
   return 'velocityCircuit_ghost_' + (currentUser || 'guest') + '_' + stageIndex;
 }
+// In-memory fallback so ghosts still work for the rest of this session even
+// if localStorage is unavailable (sandboxed iframe, private browsing, quota
+// exceeded, etc). Keyed the same way as localStorage so lookups match.
+const ghostMemoryCache = {};
 function loadGhostForStage(stageIndex){
+  const key = ghostStorageKey(stageIndex);
   try{
-    const raw = localStorage.getItem(ghostStorageKey(stageIndex));
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    if(Array.isArray(parsed) && parsed.length > 1) return parsed;
+    const raw = localStorage.getItem(key);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length > 1) return parsed;
+    }
   }catch(e){}
+  // Fall back to whatever we've managed to keep in memory this session.
+  const cached = ghostMemoryCache[key];
+  if(Array.isArray(cached) && cached.length > 1) return cached;
   return null;
 }
 function saveGhostForStage(stageIndex, frames){
-  try{ localStorage.setItem(ghostStorageKey(stageIndex), JSON.stringify(frames)); }catch(e){}
+  const key = ghostStorageKey(stageIndex);
+  ghostMemoryCache[key] = frames; // always keep this so ghost racing works this session regardless of storage
+  try{
+    localStorage.setItem(key, JSON.stringify(frames));
+  }catch(e){
+    console.warn('Ghost lap could not be saved to localStorage (falling back to in-memory only for this session):', e);
+    showToast(emo('👻') + ' Ghost saved for this session only (storage unavailable)', 'lap');
+  }
 }
 function clearGhostPlayback(){
   if(ghostMesh){ try{ scene && scene.remove(ghostMesh); }catch(e){} ghostMesh = null; }
