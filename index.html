@@ -1430,7 +1430,14 @@ const STAGES = [
   { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:22, laps:3 },
   { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:3 },
   { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:3 },
-  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3, coinsPerLap:90 }
+  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3, coinsPerLap:90 },
+  // The next two tracks are built at 1.75x the footprint of a standard
+  // circuit (see genRainbowSkyway / genStarGrandPrix — every radius and
+  // wobble amplitude is the earlier canyon/serpent formula times 1.75),
+  // and lean into a bright, arcade-kart look rather than the realistic
+  // scenery themes above.
+  { name:'Rainbow Skyway', type:'rainbowSkyway', desc:'A dazzling, oversized ribbon of color arcing through the night sky — 1.75x the size of a standard circuit.', grad:['#1a0a2e','#ff4fd8'], difficulty:4, width:35, unlockRaces:38, laps:3 },
+  { name:'Star Grand Prix', type:'starGrandPrix', desc:'Big banked sweepers and a festive grandstand under a bright sky — a sprawling course at 1.75x scale.', grad:['#2f7fd9','#ffe14d'], difficulty:5, width:37, unlockRaces:42, laps:3 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
@@ -2134,6 +2141,31 @@ function genFoggyMansion(N){
   }
   return pts;
 }
+// Rainbow Skyway — the same family of curve as Canyon Run (a circle plus a
+// few sine wobbles), but with every radius/amplitude scaled by 1.75x for a
+// sprawling, Mario-Kart-style rainbow course: 74*1.75=129.5, 18*1.75=31.5,
+// 9*1.75=15.75, 6*1.75=10.5.
+function genRainbowSkyway(N){
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const t = i/N*Math.PI*2;
+    const r = 129.5 + 31.5*Math.sin(2*t) - 15.75*Math.sin(5*t) + 10.5*Math.cos(3*t);
+    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)*0.92));
+  }
+  return pts;
+}
+// Star Grand Prix — the same family of curve as Serpent Circuit, scaled
+// 1.75x: 64*1.75=112, 16*1.75=28, 9*1.75=15.75, 7*1.75=12.25. A big,
+// sweeping grand-prix loop rather than Serpent's tighter woodland weave.
+function genStarGrandPrix(N){
+  const pts=[];
+  for(let i=0;i<N;i++){
+    const t = i/N*Math.PI*2;
+    const r = 112 + 28*Math.sin(2*t) + 15.75*Math.cos(5*t) - 12.25*Math.sin(7*t);
+    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)));
+  }
+  return pts;
+}
 function generateCenterline(type, N){
   if(type==='oval') return genOval(N);
   if(type==='stadium') return genStadium(N);
@@ -2151,6 +2183,8 @@ function generateCenterline(type, N){
   if(type==='redwood') return genRedwood(N);
   if(type==='glacier') return genGlacier(N);
   if(type==='foggyMansion') return genFoggyMansion(N);
+  if(type==='rainbowSkyway') return genRainbowSkyway(N);
+  if(type==='starGrandPrix') return genStarGrandPrix(N);
   return genWavy(N);
 }
 
@@ -2267,7 +2301,9 @@ const SCENERY_THEMES = {
   citygrid:    { ground:0x2b3442, sky:['#4a90d9','#cfe9ff'], deco:'city',    skyStyle:'hazyDay',  groundStyle:'asphalt', crowd:0.35 },
   volcano:     { ground:0x3a2a24, sky:['#170a08','#ff8a3d'], deco:'volcano', skyStyle:'ember',    groundStyle:'ash',      crowd:0.00 },
   cavern:      { ground:0x2a2438, sky:['#0a0612','#2c1a44'], deco:'cavern',  skyStyle:'cave',     groundStyle:'stone',    crowd:0.05 },
-  lunar:       { ground:0x9a978c, sky:['#000000','#070818'], deco:'lunar',   skyStyle:'space',    groundStyle:'regolith', crowd:0.00 }
+  lunar:       { ground:0x9a978c, sky:['#000000','#070818'], deco:'lunar',   skyStyle:'space',    groundStyle:'regolith', crowd:0.00 },
+  rainbowSkyway:  { ground:0x1a0a2e, sky:['#1a0a2e','#ff4fd8'], deco:'rainbow', skyStyle:'rainbow',  groundStyle:'asphalt', crowd:0.00 },
+  starGrandPrix:  { ground:0x4a9c3a, sky:['#2f7fd9','#ffe9a8'], deco:'starGP',  skyStyle:'clearDay', groundStyle:'grass',   crowd:0.60 }
 };
 // New tracks reuse an existing decor/sky set rather than needing brand new
 // art — they're differentiated by geometry (see genHarbor/genRedwood/
@@ -2296,7 +2332,7 @@ SCENERY_THEMES.foggyMansion = {
 // Tracks using these sky styles (Neon Serpent, Crystal Hollow, Lunar Basin)
 // are dark enough that the boost light needs to be brighter and reach
 // further to actually illuminate the surroundings, not just glow faintly.
-const DIM_SKY_STYLES = new Set(['night','cave','space']);
+const DIM_SKY_STYLES = new Set(['night','cave','space','rainbow']);
 
 const SKY_PRESETS = {
   sunset: {
@@ -2358,6 +2394,12 @@ const SKY_PRESETS = {
     sun:{ u:0.72, v:0.62, r:9, core:'#fffef2', glow:'rgba(255,255,240,0.5)', halo:40 },
     clouds:{ count:0, color:'rgba(0,0,0,0)', shadow:'rgba(0,0,0,0)', vMin:0, vMax:0 },
     stars:500, starV:1.0
+  },
+  rainbow: {
+    stops:[[0,'#0d0221'],[0.22,'#3d1361'],[0.42,'#7a2382'],[0.60,'#c1355e'],[0.78,'#ff7a3d'],[0.92,'#ffe14d'],[1,'#eafcff']],
+    sun:null,
+    clouds:{ count:8, color:'rgba(255,255,255,0.5)', shadow:'rgba(80,20,80,0.3)', vMin:0.05, vMax:0.30 },
+    stars:180, starV:0.6
   }
 };
 
@@ -2999,6 +3041,79 @@ function addCollider(group, x, z, r){
   (group.userData.colliders || (group.userData.colliders = [])).push({x, z, r});
 }
 
+// Rainbow Skyway decor — candy-striped pylons, floating item-box cubes, and
+// a few big rainbow arches spanning the course, pushed well outside the
+// track's 1.75x-scaled edge (which reaches roughly r=190 at its widest).
+function addRainbowDecor(group){
+  const colors = [0xff4d4d,0xff9d3d,0xffe14d,0x4dff88,0x4dc9ff,0xb14dff];
+  for(let i=0;i<22;i++){
+    const ang = (i/22)*Math.PI*2;
+    const r = 215 + Math.random()*70;
+    const h = 40 + Math.random()*60;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(2,2,h,8), new THREE.MeshBasicMaterial({ color:colors[i%colors.length], fog:false }));
+    pole.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
+    group.add(pole);
+    addCollider(group, pole.position.x, pole.position.z, 2.4);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(4,10,10), new THREE.MeshBasicMaterial({ color:0xffffff, fog:false }));
+    cap.position.set(pole.position.x, h+4, pole.position.z);
+    group.add(cap);
+  }
+  // Concentric rainbow-striped arches spanning over the course at a few points
+  for(let i=0;i<4;i++){
+    const ang = (i/4)*Math.PI*2 + 0.4;
+    const archGroup = new THREE.Group();
+    colors.forEach((col, j)=>{
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(58 - j*3, 1.6, 8, 32, Math.PI), new THREE.MeshBasicMaterial({ color:col, fog:false }));
+      archGroup.add(arc);
+    });
+    archGroup.position.set(Math.cos(ang)*150, 0, Math.sin(ang)*150);
+    archGroup.rotation.y = ang + Math.PI/2;
+    group.add(archGroup);
+  }
+  // Floating star/item-box cubes drifting above the course
+  const boxMat = new THREE.MeshBasicMaterial({ color:0xfff23d, fog:false });
+  for(let i=0;i<14;i++){
+    const ang = Math.random()*Math.PI*2;
+    const r = 120 + Math.random()*170;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), boxMat);
+    box.position.set(Math.cos(ang)*r, 25+Math.random()*60, Math.sin(ang)*r);
+    box.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+    group.add(box);
+  }
+}
+
+// Star Grand Prix decor — a big grandstand ring plus checkered, star-topped
+// pylons and festive banner flags, sized for the track's 1.75x-scaled
+// footprint (which reaches roughly r=175 at its widest).
+function addStarGPDecor(group){
+  const wall = new THREE.Mesh(new THREE.TorusGeometry(230, 14, 8, 48), new THREE.MeshStandardMaterial({ color:0x2c384a, roughness:0.85 }));
+  wall.rotation.x = Math.PI/2;
+  wall.position.y = 14;
+  group.add(wall);
+  const checkerMats = [new THREE.MeshBasicMaterial({ color:0xffffff, fog:false }), new THREE.MeshBasicMaterial({ color:0x222222, fog:false })];
+  const starMat = new THREE.MeshBasicMaterial({ color:0xffe14d, fog:false });
+  for(let i=0;i<10;i++){
+    const ang = (i/10)*Math.PI*2;
+    const pylon = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,60,8), checkerMats[i%2]);
+    pole.position.y = 30; pylon.add(pole);
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(5,0), starMat);
+    star.position.y = 62; pylon.add(star);
+    pylon.position.set(Math.cos(ang)*240, 0, Math.sin(ang)*240);
+    group.add(pylon);
+    addCollider(group, pylon.position.x, pylon.position.z, 2);
+  }
+  const bannerColors = [0xff4d4d,0x4dc9ff,0xffe14d,0x4dff88];
+  for(let i=0;i<16;i++){
+    const ang = Math.random()*Math.PI*2;
+    const r = 205 + Math.random()*70;
+    const flag = new THREE.Mesh(new THREE.ConeGeometry(3,7,3), new THREE.MeshBasicMaterial({ color:bannerColors[i%bannerColors.length], fog:false }));
+    flag.position.set(Math.cos(ang)*r, 3.5, Math.sin(ang)*r);
+    flag.rotation.y = Math.random()*Math.PI*2;
+    group.add(flag);
+  }
+}
+
 function buildScenery(theme){
   const group = new THREE.Group();
   if(theme.deco==='desert') addDesertDecor(group);
@@ -3014,6 +3129,8 @@ function buildScenery(theme){
   else if(theme.deco==='volcano') addVolcanoDecor(group);
   else if(theme.deco==='cavern') addCavernDecor(group);
   else if(theme.deco==='lunar') addLunarDecor(group);
+  else if(theme.deco==='rainbow') addRainbowDecor(group);
+  else if(theme.deco==='starGP') addStarGPDecor(group);
   return group;
 }
 
