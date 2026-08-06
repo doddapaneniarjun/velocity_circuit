@@ -287,6 +287,21 @@
     cursor:default; animation:none; box-shadow:0 0 20px rgba(243,205,142,.72); }
   .boostBtn:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   @keyframes boostPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
+  .driftIndicator{ position:absolute; top:70px; left:50%; transform:translateX(-50%); background:var(--panel-glass);
+    border:1px solid var(--accent2); color:var(--accent2); font-weight:800; letter-spacing:2px; font-size:15px;
+    padding:6px 16px; border-radius:999px; box-shadow:0 0 14px rgba(var(--accent-rgb),.5); pointer-events:none;
+    animation:driftPulse .5s ease-in-out infinite; }
+  .driftIndicator[hidden]{ display:none; }
+  @keyframes driftPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
+  .keybindRow{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .keybindRow:last-child{ margin-bottom:0; }
+  .keybindLabel{ font-size:14px; font-weight:600; }
+  .keybindBtn{ font:inherit; font-weight:700; font-size:12px; letter-spacing:.5px; min-width:76px;
+    padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--panel);
+    color:var(--text); cursor:pointer; flex:none; }
+  .keybindBtn:hover{ border-color:var(--accent); }
+  .keybindBtn.listening{ border-color:var(--accent); color:var(--accent); }
+  .keybindBtn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   .joystickZone{ position:absolute; left:0; top:200px; bottom:0; width:50%; pointer-events:all; touch-action:none; }
   .joystickBase{ position:absolute; width:120px; height:120px; margin-left:-60px; margin-top:-60px;
     border-radius:50%; background:var(--panel-glass); border:2px solid var(--border); display:none;
@@ -502,7 +517,7 @@
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
     </div>
 
-    <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
+    <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Shift</strong> to drift. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
 
     <div class="overlay" id="ownerStatsOverlay" hidden>
       <div class="statsOverlayCard">
@@ -590,7 +605,7 @@
         <div class="lapLeftLabel">LAPS LEFT</div>
         <div class="lapLeftNum" id="lapLeftNum">0</div>
       </div>
-      <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute</div>
+      <div class="controlsHint" id="controlsHint">W/A/S/D or Arrows to drive &middot; Space to boost &middot; Shift to drift &middot; Esc or tap <span class="emoji" aria-hidden="true">⏸</span> to pause &middot; M to mute</div>
       <div class="hudToolbar">
         <button class="soundBtn" id="chatToggleBtn" type="button" aria-label="Toggle race chat" aria-pressed="false" hidden>
           <span class="emoji" aria-hidden="true">💬</span><span>Chat</span><span class="chatUnreadDot" id="chatUnreadDot" hidden></span>
@@ -603,6 +618,7 @@
         </button>
       </div>
       <div class="toast" id="toast"></div>
+      <div class="driftIndicator" id="driftIndicator" hidden>DRIFT!</div>
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
       <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="posLabel" id="posLabel">st</div></div>
@@ -645,6 +661,7 @@
       <div class="touchKeys" id="touchKeys" hidden>
         <button class="keycapBtn" id="keyM" type="button" aria-label="Mute (M)">M</button>
         <button class="keycapBtn keycapWide" id="keySpace" type="button" aria-label="Boost (Space)">SPACE</button>
+        <button class="keycapBtn keycapWide" id="keyShift" type="button" aria-label="Drift (Shift)">SHIFT</button>
       </div>
     </div>
 
@@ -703,7 +720,7 @@
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
             <label for="touchControlsToggle" style="display:block;font-weight:700;">Touchscreen Controls</label>
-            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Steer with an on-screen joystick, plus tap buttons for boost (Space) and mute (M).</p>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Steer with an on-screen joystick, plus tap/hold buttons for boost, drift, and mute.</p>
           </div>
           <input type="checkbox" id="touchControlsToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
@@ -713,6 +730,16 @@
             <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Swap left/right controls.</p>
           </div>
           <input type="checkbox" id="invertSteeringToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div style="margin-bottom:24px;text-align:left;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="display:block;font-weight:700;">Button Controls</label>
+              <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Click a key, then press its replacement.</p>
+            </div>
+            <button class="btn ghost" id="resetKeybindsBtn" type="button" style="font-size:12px;padding:8px 14px;min-height:auto;flex:none;">Reset</button>
+          </div>
+          <div id="keybindsList"></div>
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
@@ -849,6 +876,7 @@ const DEFAULT_STATE = {
   showFps: false,
   showPing: false,
   touchControls: false,
+  keyBinds: { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', boost:'Space', drift:'ShiftLeft', mute:'KeyM' },
   noclipWalls: false,   // owner-only: drive straight through track barriers
   appliedOwnerCmdIds: []   // ids of owner commands already applied, so a command
                            // delivered twice (once live, once from the offline
@@ -902,6 +930,7 @@ function loadState(){
       gameState.showFps        = parsed.showFps === true;
       gameState.showPing       = parsed.showPing === true;
       gameState.touchControls  = parsed.touchControls === true;
+      gameState.keyBinds       = Object.assign({}, DEFAULT_STATE.keyBinds, parsed.keyBinds||{});
       gameState.noclipWalls    = parsed.noclipWalls === true;
       gameState.appliedOwnerCmdIds = Array.isArray(parsed.appliedOwnerCmdIds) ? parsed.appliedOwnerCmdIds : [];
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
@@ -1399,6 +1428,9 @@ const BOOST_CHARGE_TIME = 9;      // seconds to fill from empty
 const BOOST_DURATION = 5;         // seconds the boost lasts once triggered
 const BOOST_SPEED_MULT = 1.35;
 const BOOST_ACCEL_MULT = 1.9;
+const DRIFT_TURN_MULT = 1.55;     // sharper cornering while drifting
+const DRIFT_SCRUB = 0.55;         // fraction of speed/sec scrubbed off while drifting (lost traction)
+const DRIFT_MIN_SPEED_FRAC = 0.22; // need at least this fraction of maxSpeed to start a drift
 const BOOST_CHARGE_RATE = BOOST_MAX / BOOST_CHARGE_TIME;
 
 const UPGRADE_DEFS = [
@@ -1430,14 +1462,7 @@ const STAGES = [
   { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:22, laps:3 },
   { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:3 },
   { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:3 },
-  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3, coinsPerLap:90 },
-  // The next two tracks are built at 1.75x the footprint of a standard
-  // circuit (see genRainbowSkyway / genStarGrandPrix — every radius and
-  // wobble amplitude is the earlier canyon/serpent formula times 1.75),
-  // and lean into a bright, arcade-kart look rather than the realistic
-  // scenery themes above.
-  { name:'Rainbow Skyway', type:'rainbowSkyway', desc:'A dazzling, oversized ribbon of color arcing through the night sky — 1.75x the size of a standard circuit.', grad:['#1a0a2e','#ff4fd8'], difficulty:4, width:35, unlockRaces:38, laps:3 },
-  { name:'Star Grand Prix', type:'starGrandPrix', desc:'Big banked sweepers and a festive grandstand under a bright sky — a sprawling course at 1.75x scale.', grad:['#2f7fd9','#ffe14d'], difficulty:5, width:37, unlockRaces:42, laps:3 }
+  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3, coinsPerLap:90 }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
@@ -2141,31 +2166,6 @@ function genFoggyMansion(N){
   }
   return pts;
 }
-// Rainbow Skyway — the same family of curve as Canyon Run (a circle plus a
-// few sine wobbles), but with every radius/amplitude scaled by 1.75x for a
-// sprawling, Mario-Kart-style rainbow course: 74*1.75=129.5, 18*1.75=31.5,
-// 9*1.75=15.75, 6*1.75=10.5.
-function genRainbowSkyway(N){
-  const pts=[];
-  for(let i=0;i<N;i++){
-    const t = i/N*Math.PI*2;
-    const r = 129.5 + 31.5*Math.sin(2*t) - 15.75*Math.sin(5*t) + 10.5*Math.cos(3*t);
-    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)*0.92));
-  }
-  return pts;
-}
-// Star Grand Prix — the same family of curve as Serpent Circuit, scaled
-// 1.75x: 64*1.75=112, 16*1.75=28, 9*1.75=15.75, 7*1.75=12.25. A big,
-// sweeping grand-prix loop rather than Serpent's tighter woodland weave.
-function genStarGrandPrix(N){
-  const pts=[];
-  for(let i=0;i<N;i++){
-    const t = i/N*Math.PI*2;
-    const r = 112 + 28*Math.sin(2*t) + 15.75*Math.cos(5*t) - 12.25*Math.sin(7*t);
-    pts.push(new THREE.Vector3(r*Math.cos(t), 0, r*Math.sin(t)));
-  }
-  return pts;
-}
 function generateCenterline(type, N){
   if(type==='oval') return genOval(N);
   if(type==='stadium') return genStadium(N);
@@ -2183,8 +2183,6 @@ function generateCenterline(type, N){
   if(type==='redwood') return genRedwood(N);
   if(type==='glacier') return genGlacier(N);
   if(type==='foggyMansion') return genFoggyMansion(N);
-  if(type==='rainbowSkyway') return genRainbowSkyway(N);
-  if(type==='starGrandPrix') return genStarGrandPrix(N);
   return genWavy(N);
 }
 
@@ -2301,9 +2299,7 @@ const SCENERY_THEMES = {
   citygrid:    { ground:0x2b3442, sky:['#4a90d9','#cfe9ff'], deco:'city',    skyStyle:'hazyDay',  groundStyle:'asphalt', crowd:0.35 },
   volcano:     { ground:0x3a2a24, sky:['#170a08','#ff8a3d'], deco:'volcano', skyStyle:'ember',    groundStyle:'ash',      crowd:0.00 },
   cavern:      { ground:0x2a2438, sky:['#0a0612','#2c1a44'], deco:'cavern',  skyStyle:'cave',     groundStyle:'stone',    crowd:0.05 },
-  lunar:       { ground:0x9a978c, sky:['#000000','#070818'], deco:'lunar',   skyStyle:'space',    groundStyle:'regolith', crowd:0.00 },
-  rainbowSkyway:  { ground:0x1a0a2e, sky:['#1a0a2e','#ff4fd8'], deco:'rainbow', skyStyle:'rainbow',  groundStyle:'asphalt', crowd:0.00 },
-  starGrandPrix:  { ground:0x4a9c3a, sky:['#2f7fd9','#ffe9a8'], deco:'starGP',  skyStyle:'clearDay', groundStyle:'grass',   crowd:0.60 }
+  lunar:       { ground:0x9a978c, sky:['#000000','#070818'], deco:'lunar',   skyStyle:'space',    groundStyle:'regolith', crowd:0.00 }
 };
 // New tracks reuse an existing decor/sky set rather than needing brand new
 // art — they're differentiated by geometry (see genHarbor/genRedwood/
@@ -2332,7 +2328,7 @@ SCENERY_THEMES.foggyMansion = {
 // Tracks using these sky styles (Neon Serpent, Crystal Hollow, Lunar Basin)
 // are dark enough that the boost light needs to be brighter and reach
 // further to actually illuminate the surroundings, not just glow faintly.
-const DIM_SKY_STYLES = new Set(['night','cave','space','rainbow']);
+const DIM_SKY_STYLES = new Set(['night','cave','space']);
 
 const SKY_PRESETS = {
   sunset: {
@@ -2394,12 +2390,6 @@ const SKY_PRESETS = {
     sun:{ u:0.72, v:0.62, r:9, core:'#fffef2', glow:'rgba(255,255,240,0.5)', halo:40 },
     clouds:{ count:0, color:'rgba(0,0,0,0)', shadow:'rgba(0,0,0,0)', vMin:0, vMax:0 },
     stars:500, starV:1.0
-  },
-  rainbow: {
-    stops:[[0,'#0d0221'],[0.22,'#3d1361'],[0.42,'#7a2382'],[0.60,'#c1355e'],[0.78,'#ff7a3d'],[0.92,'#ffe14d'],[1,'#eafcff']],
-    sun:null,
-    clouds:{ count:8, color:'rgba(255,255,255,0.5)', shadow:'rgba(80,20,80,0.3)', vMin:0.05, vMax:0.30 },
-    stars:180, starV:0.6
   }
 };
 
@@ -3041,79 +3031,6 @@ function addCollider(group, x, z, r){
   (group.userData.colliders || (group.userData.colliders = [])).push({x, z, r});
 }
 
-// Rainbow Skyway decor — candy-striped pylons, floating item-box cubes, and
-// a few big rainbow arches spanning the course, pushed well outside the
-// track's 1.75x-scaled edge (which reaches roughly r=190 at its widest).
-function addRainbowDecor(group){
-  const colors = [0xff4d4d,0xff9d3d,0xffe14d,0x4dff88,0x4dc9ff,0xb14dff];
-  for(let i=0;i<22;i++){
-    const ang = (i/22)*Math.PI*2;
-    const r = 215 + Math.random()*70;
-    const h = 40 + Math.random()*60;
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(2,2,h,8), new THREE.MeshBasicMaterial({ color:colors[i%colors.length], fog:false }));
-    pole.position.set(Math.cos(ang)*r, h/2, Math.sin(ang)*r);
-    group.add(pole);
-    addCollider(group, pole.position.x, pole.position.z, 2.4);
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(4,10,10), new THREE.MeshBasicMaterial({ color:0xffffff, fog:false }));
-    cap.position.set(pole.position.x, h+4, pole.position.z);
-    group.add(cap);
-  }
-  // Concentric rainbow-striped arches spanning over the course at a few points
-  for(let i=0;i<4;i++){
-    const ang = (i/4)*Math.PI*2 + 0.4;
-    const archGroup = new THREE.Group();
-    colors.forEach((col, j)=>{
-      const arc = new THREE.Mesh(new THREE.TorusGeometry(58 - j*3, 1.6, 8, 32, Math.PI), new THREE.MeshBasicMaterial({ color:col, fog:false }));
-      archGroup.add(arc);
-    });
-    archGroup.position.set(Math.cos(ang)*150, 0, Math.sin(ang)*150);
-    archGroup.rotation.y = ang + Math.PI/2;
-    group.add(archGroup);
-  }
-  // Floating star/item-box cubes drifting above the course
-  const boxMat = new THREE.MeshBasicMaterial({ color:0xfff23d, fog:false });
-  for(let i=0;i<14;i++){
-    const ang = Math.random()*Math.PI*2;
-    const r = 120 + Math.random()*170;
-    const box = new THREE.Mesh(new THREE.BoxGeometry(5,5,5), boxMat);
-    box.position.set(Math.cos(ang)*r, 25+Math.random()*60, Math.sin(ang)*r);
-    box.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
-    group.add(box);
-  }
-}
-
-// Star Grand Prix decor — a big grandstand ring plus checkered, star-topped
-// pylons and festive banner flags, sized for the track's 1.75x-scaled
-// footprint (which reaches roughly r=175 at its widest).
-function addStarGPDecor(group){
-  const wall = new THREE.Mesh(new THREE.TorusGeometry(230, 14, 8, 48), new THREE.MeshStandardMaterial({ color:0x2c384a, roughness:0.85 }));
-  wall.rotation.x = Math.PI/2;
-  wall.position.y = 14;
-  group.add(wall);
-  const checkerMats = [new THREE.MeshBasicMaterial({ color:0xffffff, fog:false }), new THREE.MeshBasicMaterial({ color:0x222222, fog:false })];
-  const starMat = new THREE.MeshBasicMaterial({ color:0xffe14d, fog:false });
-  for(let i=0;i<10;i++){
-    const ang = (i/10)*Math.PI*2;
-    const pylon = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,60,8), checkerMats[i%2]);
-    pole.position.y = 30; pylon.add(pole);
-    const star = new THREE.Mesh(new THREE.OctahedronGeometry(5,0), starMat);
-    star.position.y = 62; pylon.add(star);
-    pylon.position.set(Math.cos(ang)*240, 0, Math.sin(ang)*240);
-    group.add(pylon);
-    addCollider(group, pylon.position.x, pylon.position.z, 2);
-  }
-  const bannerColors = [0xff4d4d,0x4dc9ff,0xffe14d,0x4dff88];
-  for(let i=0;i<16;i++){
-    const ang = Math.random()*Math.PI*2;
-    const r = 205 + Math.random()*70;
-    const flag = new THREE.Mesh(new THREE.ConeGeometry(3,7,3), new THREE.MeshBasicMaterial({ color:bannerColors[i%bannerColors.length], fog:false }));
-    flag.position.set(Math.cos(ang)*r, 3.5, Math.sin(ang)*r);
-    flag.rotation.y = Math.random()*Math.PI*2;
-    group.add(flag);
-  }
-}
-
 function buildScenery(theme){
   const group = new THREE.Group();
   if(theme.deco==='desert') addDesertDecor(group);
@@ -3129,8 +3046,6 @@ function buildScenery(theme){
   else if(theme.deco==='volcano') addVolcanoDecor(group);
   else if(theme.deco==='cavern') addCavernDecor(group);
   else if(theme.deco==='lunar') addLunarDecor(group);
-  else if(theme.deco==='rainbow') addRainbowDecor(group);
-  else if(theme.deco==='starGP') addStarGPDecor(group);
   return group;
 }
 
@@ -3644,6 +3559,7 @@ function forwardVec(heading){ return new THREE.Vector3(Math.sin(heading), 0, Mat
 function normalizeAngle(a){ while(a>Math.PI) a-=Math.PI*2; while(a<-Math.PI) a+=Math.PI*2; return a; }
 
 const keys = {};
+let rebindingAction = null; // set to an action name (e.g. 'drift') while a control-remap capture is in progress
 /* Browsers only let audio start from a user gesture — but which gestures count
    varies by browser, and a page opened from disk is stricter than an embedded
    https iframe. So retry on every gesture until the context is actually
@@ -3666,9 +3582,12 @@ window.addEventListener('keydown', e=>{
   // to be sitting on a settings slider/checkbox — only real typing (text
   // fields, like login) should swallow it.
   if(typingInField && e.code !== 'Escape') return;
+  // A control-remap capture is in progress (see startKeybindListen) — let
+  // that handler alone claim this keypress instead of also firing shortcuts.
+  if(rebindingAction) return;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
-  if(e.code === 'KeyM' && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
+  if(e.code === gameState.keyBinds.mute && (appState==='racing' || appState==='racing-countdown' || appState==='paused')){
     Sound.toggle(); refreshSoundBtn();
   }
   if(e.code === 'KeyC' && Online.room && !$('chatToggleBtn').hidden && (appState==='racing' || appState==='racing-countdown')){
@@ -3677,7 +3596,7 @@ window.addEventListener('keydown', e=>{
   if(e.code === 'KeyC' && appState==='home' && $('homeScreen') && !$('homeScreen').hidden){
     e.preventDefault(); openGlobalChat();
   }
-  if(e.code === 'Space' && appState==='racing'){ triggerBoost(); }
+  if(e.code === gameState.keyBinds.boost && appState==='racing'){ triggerBoost(); }
   if(e.code === 'Escape'){
     if(appState === 'racing' || appState === 'racing-countdown'){
       pauseRace();
@@ -3765,6 +3684,16 @@ window.addEventListener('keyup', e=>{ keys[e.code] = false; });
     e.preventDefault();
     if(appState==='racing'){ triggerBoost(); }
   }, { passive:false });
+  // Drift is a hold, not a tap — it just sets the same `keys` flag the
+  // keyboard's drift binding sets, so updateCar() needs no touch-specific logic.
+  $('keyShift').addEventListener('touchstart', e=>{
+    e.preventDefault();
+    keys[gameState.keyBinds.drift] = true;
+  }, { passive:false });
+  ['touchend','touchcancel'].forEach(ev=> $('keyShift').addEventListener(ev, e=>{
+    e.preventDefault();
+    keys[gameState.keyBinds.drift] = false;
+  }, { passive:false }));
 })();
 
 /* ---------- Race setup ---------- */
@@ -4710,9 +4639,10 @@ function updateCar(car, dt){
   let throttle=0, brake=0, steer=0;
 
   if(car.isPlayer){
-    throttle = (keys['ArrowUp']||keys['KeyW']) ? 1 : 0;
-    brake = (keys['ArrowDown']||keys['KeyS']) ? 1 : 0;
-    steer = ((keys['ArrowLeft']||keys['KeyA'])?1:0) - ((keys['ArrowRight']||keys['KeyD'])?1:0);
+    const kb = gameState.keyBinds;
+    throttle = (keys['ArrowUp']||keys[kb.up]) ? 1 : 0;
+    brake = (keys['ArrowDown']||keys[kb.down]) ? 1 : 0;
+    steer = ((keys['ArrowLeft']||keys[kb.left])?1:0) - ((keys['ArrowRight']||keys[kb.right])?1:0);
     if(gameState.invertSteering) steer = -steer;
   } else {
     // Build a lane-offset waypoint: shift the centreline point laterally by
@@ -4757,10 +4687,23 @@ function updateCar(car, dt){
     ? Math.max(-maxSpeed*0.45, Math.min(maxSpeed, car.speed))
     : Math.max(0, Math.min(maxSpeed, car.speed));
 
+  // Drift: holding the drift key while steering at speed sharpens cornering
+  // at the cost of scrubbing off some speed, like losing rear-wheel grip.
+  let drifting = false;
+  if(car.isPlayer && !car.touchingWall){
+    drifting = !!keys[gameState.keyBinds.drift] && Math.abs(steer) > 0.1
+      && Math.abs(car.speed) > maxSpeed*DRIFT_MIN_SPEED_FRAC;
+  }
+  car.drifting = drifting;
+  const effTurnRate = drifting ? turnRate*DRIFT_TURN_MULT : turnRate;
+  if(drifting){
+    car.speed -= car.speed*DRIFT_SCRUB*dt;
+  }
+
   const baseSpeedFactor = 0.35 + 0.65*Math.min(Math.abs(car.speed)/maxSpeed, 1);
   const speedFactor = car.isPlayer ? baseSpeedFactor : Math.max(baseSpeedFactor, car.aiMisalign || 0);
   const dir = car.speed < 0 ? -1 : 1;   // only ever -1 for the player now
-  car.heading += steer*turnRate*dt*speedFactor*dir;
+  car.heading += steer*effTurnRate*dt*speedFactor*dir;
 
   const fwd = forwardVec(car.heading);
   car.pos.addScaledVector(fwd, car.speed*dt);
@@ -5013,6 +4956,10 @@ function emo(ch){
   return gameState.showEmojis === false ? '' : ch + ' ';
 }
 function showToast(text, variant){
+  // Only the lap-complete toast is shown on the HUD now — every other
+  // toast call is a no-op (screen-reader announcements via announce()
+  // are untouched, so accessibility isn't affected).
+  if(variant !== 'lap') return;
   const el = $('toast');
   el.textContent = text;
   el.classList.toggle('toastLap', variant === 'lap');
@@ -5627,6 +5574,7 @@ function ordinalSuffix(n){
   }
 }
 function updateHUD(){
+  $('driftIndicator').hidden = !player.drifting;
   const lapsLeft = Math.max(0, raceLaps - player.lap);
   $('lapLeftNum').textContent = lapsLeft;
   const standings = currentStandings();
@@ -6423,14 +6371,82 @@ function applyTouchControlsVisibility(){
   $('joystickZone').hidden = !on;
   $('touchKeys').hidden = !on;
   if(!on){
-    // Leaving touch mode shouldn't leave a steering direction stuck held down.
+    // Leaving touch mode shouldn't leave a steering direction (or drift) stuck held down.
     keys['ArrowLeft'] = keys['ArrowRight'] = keys['ArrowUp'] = keys['ArrowDown'] = false;
+    keys[gameState.keyBinds.drift] = false;
     $('joystickBase').style.display = 'none';
   }
 }
+/* ---------- Rebindable controls ---------- */
+const KEYBIND_ACTIONS = [
+  { action:'up',    label:'Accelerate' },
+  { action:'down',  label:'Brake' },
+  { action:'left',  label:'Steer Left' },
+  { action:'right', label:'Steer Right' },
+  { action:'boost', label:'Boost' },
+  { action:'drift', label:'Drift' },
+  { action:'mute',  label:'Mute' },
+];
+const KEY_LABEL_OVERRIDES = {
+  ArrowUp:'Up', ArrowDown:'Down', ArrowLeft:'Left', ArrowRight:'Right',
+  Space:'Space', ShiftLeft:'Shift', ShiftRight:'R Shift', ControlLeft:'Ctrl', ControlRight:'R Ctrl',
+  AltLeft:'Alt', AltRight:'R Alt', Escape:'Esc'
+};
+function keyLabel(code){
+  if(!code) return '—';
+  if(KEY_LABEL_OVERRIDES[code]) return KEY_LABEL_OVERRIDES[code];
+  if(/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if(/^Digit[0-9]$/.test(code)) return code.slice(5);
+  return code;
+}
+function renderKeybindsList(){
+  const list = $('keybindsList');
+  list.innerHTML = KEYBIND_ACTIONS.map(({action,label})=>`
+    <div class="keybindRow">
+      <span class="keybindLabel">${label}</span>
+      <button type="button" class="keybindBtn" id="kb_${action}" data-action="${action}">${keyLabel(gameState.keyBinds[action])}</button>
+    </div>`).join('');
+  KEYBIND_ACTIONS.forEach(({action})=>{
+    $('kb_'+action).addEventListener('click', ()=> startKeybindListen(action));
+  });
+}
+// Puts one rebind button into "listening" mode and captures the very next
+// keydown anywhere on the page as that action's new binding. Escape cancels
+// without changing anything. The main keydown handler checks `rebindingAction`
+// and bails out early so this capture is the only thing that sees the key.
+function startKeybindListen(action){
+  if(rebindingAction) return; // already mid-capture on another button
+  rebindingAction = action;
+  const btn = $('kb_'+action);
+  const prevLabel = btn.textContent;
+  btn.textContent = 'Press a key…';
+  btn.classList.add('listening');
+  const onCapture = (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    window.removeEventListener('keydown', onCapture, true);
+    rebindingAction = null;
+    if(e.code === 'Escape'){
+      btn.textContent = prevLabel;
+      btn.classList.remove('listening');
+      return;
+    }
+    gameState.keyBinds[action] = e.code;
+    saveState();
+    renderKeybindsList();
+  };
+  window.addEventListener('keydown', onCapture, true);
+}
+$('resetKeybindsBtn').addEventListener('click', ()=>{
+  gameState.keyBinds = Object.assign({}, DEFAULT_STATE.keyBinds);
+  saveState();
+  renderKeybindsList();
+});
+
 $('settingsBtn').addEventListener('click', ()=>{
   $('pauseCard').hidden = true;
   $('settingsCard').hidden = false;
+  renderKeybindsList();
   $('themeToggle').value = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   $('sensitivitySlider').value = gameState.sensitivity;
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
@@ -6573,6 +6589,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
         keepMinimap = gameState.showMinimap, keepUnits = gameState.units,
         keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps,
         keepShowPing = gameState.showPing, keepTouchControls = gameState.touchControls,
+        keepKeyBinds = gameState.keyBinds,
         keepNoclipWalls = gameState.noclipWalls;
   gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
   // Preserve control/audio preferences through a progress reset — those
@@ -6583,6 +6600,7 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   gameState.showMinimap = keepMinimap; gameState.units = keepUnits;
   gameState.cameraShake = keepCameraShake; gameState.showFps = keepShowFps;
   gameState.showPing = keepShowPing; gameState.touchControls = keepTouchControls;
+  gameState.keyBinds = keepKeyBinds;
   gameState.noclipWalls = keepNoclipWalls;
   saveState();
   refreshCoinDisplays();
