@@ -527,12 +527,31 @@
 
     <div class="stageGrid" id="stageGrid" role="group" aria-label="Select a track"></div>
 
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-weight:800;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Challenges</div>
+      <div id="homeDailyChallengeText" style="font-size:14px;margin-bottom:6px;">Loading…</div>
+      <div id="homeWeeklyChallengeText" style="font-size:14px;">Loading…</div>
+    </div>
+
     <div class="btnRow">
       <button class="btn ghost" id="homeMenuBtn">Menu</button>
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
       <button class="btn secondary" id="openCircuitBtn"><span class="emoji" aria-hidden="true">🏆</span> Championships</button>
+      <button class="btn secondary" id="homeAchievementsBtn">🏅 Achievements</button>
     </div>
+
+    <div class="overlay" id="achievementsOverlay" hidden>
+      <div class="statsOverlayCard">
+        <h2>Achievements</h2>
+        <p class="statsSub">Badges earned from racing, collecting, and upgrading on this profile.</p>
+        <div id="achievementsGrid" style="max-height:360px;overflow-y:auto;"></div>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="achievementsCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Shift</strong> to drift. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
 
@@ -876,6 +895,7 @@
   </section>
 
   <div class="liveRegion" id="liveRegion" aria-live="assertive" aria-atomic="true"></div>
+  <div id="globalToast" aria-live="polite" style="position:fixed;top:14px;left:50%;transform:translate(-50%,-8px);z-index:9999;background:var(--panel);border:1px solid var(--border-strong);border-radius:10px;padding:10px 16px;font-weight:700;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;max-width:90vw;text-align:center;"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -912,9 +932,16 @@ const DEFAULT_STATE = {
   touchControls: false,
   keyBinds: { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', boost:'Space', drift:'ShiftLeft', mute:'KeyM' },
   noclipWalls: false,   // owner-only: drive straight through track barriers
-  appliedOwnerCmdIds: []   // ids of owner commands already applied, so a command
+  appliedOwnerCmdIds: [],  // ids of owner commands already applied, so a command
                            // delivered twice (once live, once from the offline
                            // queue) only ever takes effect once
+  unlockedAchievements: [], // ids of achievements this profile has earned
+  lifetimeCoins: 0,         // cumulative coins ever earned (never decreases), for coin-total badges
+  ghostBeatsCount: 0,       // how many times this profile has beaten its own Time Trial ghost
+  dailyChallengeKey: '',    // the date this profile's daily challenge was generated for
+  dailyChallengeDone: false,
+  weeklyChallengeKey: '',   // the week this profile's weekly challenge was generated for
+  weeklyChallengeDone: false
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -968,6 +995,13 @@ function loadState(){
       gameState.keyBinds       = Object.assign({}, DEFAULT_STATE.keyBinds, parsed.keyBinds||{});
       gameState.noclipWalls    = parsed.noclipWalls === true;
       gameState.appliedOwnerCmdIds = Array.isArray(parsed.appliedOwnerCmdIds) ? parsed.appliedOwnerCmdIds : [];
+      gameState.unlockedAchievements = Array.isArray(parsed.unlockedAchievements) ? parsed.unlockedAchievements : [];
+      gameState.lifetimeCoins   = Number.isFinite(parsed.lifetimeCoins) ? parsed.lifetimeCoins : 0;
+      gameState.ghostBeatsCount = Number.isFinite(parsed.ghostBeatsCount) ? parsed.ghostBeatsCount : 0;
+      gameState.dailyChallengeKey   = typeof parsed.dailyChallengeKey === 'string' ? parsed.dailyChallengeKey : '';
+      gameState.dailyChallengeDone  = parsed.dailyChallengeDone === true;
+      gameState.weeklyChallengeKey  = typeof parsed.weeklyChallengeKey === 'string' ? parsed.weeklyChallengeKey : '';
+      gameState.weeklyChallengeDone = parsed.weeklyChallengeDone === true;
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -985,6 +1019,9 @@ function loadState(){
   applyFpsVisibility();
   applyPingVisibility();
   applyTouchControlsVisibility();
+  refreshChallenges();
+  renderHomeChallenges();
+  checkAchievements();
 }
 
 function saveState(){
@@ -1535,6 +1572,177 @@ function isChampionshipUnlocked(champ){ return champ.stages.every(i=>isStageUnlo
 // { champId, name, stages:[...], idx, points, results:[{stage,pos,pts}] }
 let circuit = null;
 
+/* ---------- Achievements / badges ----------
+   Pure functions of gameState — checked opportunistically (after a race,
+   a purchase, an upgrade, or a ghost beaten) rather than on a timer, since
+   nothing here can change outside those moments. */
+const ACHIEVEMENTS = [
+  { id:'first_win',   emoji:'🏁', name:'First Blood',        desc:'Win your first race.',                         check:()=> (gameState.wins||0) >= 1 },
+  { id:'ten_wins',     emoji:'🥇', name:'Podium Regular',     desc:'Win 10 races.',                                check:()=> (gameState.wins||0) >= 10 },
+  { id:'fifty_wins',   emoji:'🏆', name:'Track Star',         desc:'Win 50 races.',                                check:()=> (gameState.wins||0) >= 50 },
+  { id:'races_25',     emoji:'🚦', name:'Checkered Veteran',  desc:'Complete 25 races.',                           check:()=> (gameState.racesCompleted||0) >= 25 },
+  { id:'races_100',    emoji:'🎖️', name:'Century Club',       desc:'Complete 100 races.',                          check:()=> (gameState.racesCompleted||0) >= 100 },
+  { id:'coins_5k',     emoji:'🪙', name:'Coin Collector',     desc:'Earn 5,000 coins in total.',                   check:()=> (gameState.lifetimeCoins||0) >= 5000 },
+  { id:'coins_25k',    emoji:'💰', name:'High Roller',        desc:'Earn 25,000 coins in total.',                  check:()=> (gameState.lifetimeCoins||0) >= 25000 },
+  { id:'full_garage',  emoji:'🚗', name:'Full Garage',        desc:'Own every car.',                               check:()=> (gameState.ownedCars||[]).length >= CARS.length },
+  { id:'maxed_out',    emoji:'🔧', name:'Maxed Out',          desc:'Max every upgrade.',                           check:()=> UPGRADE_DEFS.every(d=> (gameState.upgrades[d.key]||0) >= MAX_UPGRADE_LEVEL) },
+  { id:'all_tracks',   emoji:'🗺️', name:'Circuit Master',     desc:'Unlock every track.',                          check:()=> STAGES.every((s,i)=>isStageUnlocked(i)) },
+  { id:'ghost_beater', emoji:'👻', name:'Ghost Hunter',       desc:'Beat your own ghost in Time Trial mode.',      check:()=> (gameState.ghostBeatsCount||0) >= 1 },
+  { id:'marathon',     emoji:'⏱️', name:'Marathon Driver',    desc:'Play for 5 hours in total.',                   check:()=> (gameState.totalPlayTimeSec||0) >= 18000 }
+];
+// Re-checked after anything that could move one of the counters above. Silent
+// unless something newly qualifies, so it's cheap to call liberally.
+function checkAchievements(){
+  if(!Array.isArray(gameState.unlockedAchievements)) gameState.unlockedAchievements = [];
+  let unlockedNew = false;
+  ACHIEVEMENTS.forEach(a=>{
+    if(gameState.unlockedAchievements.includes(a.id)) return;
+    let ok = false;
+    try{ ok = !!a.check(); }catch(e){ ok = false; }
+    if(ok){
+      gameState.unlockedAchievements.push(a.id);
+      unlockedNew = true;
+      showGlobalToast(a.emoji + ' Achievement unlocked — ' + a.name);
+      announce('Achievement unlocked: ' + a.name);
+      if(typeof Sound !== 'undefined' && Sound.chime) Sound.chime('final');
+    }
+  });
+  if(unlockedNew) saveState();
+  refreshAchievementsButton();
+}
+
+/* ---------- Daily / weekly challenges ----------
+   A small deterministic pool: everyone racing on the same calendar day (or
+   week) gets the same challenge, computed from the date rather than stored,
+   so there's nothing to keep in sync beyond "which key was it generated for"
+   and "did this profile complete it". Reward scales off the same
+   stageCoinMult() the normal race payouts use, so harder/later tracks pay
+   out more for the same challenge shape. */
+const CHALLENGE_POOL = [
+  { id:'any_win',        desc:'Win any race',                                   stage:null, noUpgrades:false },
+  { id:'sunset_win',     desc:'Win a race on Sunset Oval',                      stage:0,    noUpgrades:false },
+  { id:'stadium_win',    desc:'Win a race on Stadium Sprint',                   stage:2,    noUpgrades:false },
+  { id:'canyon_no_upg',  desc:'Win Canyon Run without any upgrades',            stage:6,    noUpgrades:true  },
+  { id:'ember_no_upg',   desc:'Win Ember Caldera without any upgrades',         stage:7,    noUpgrades:true  },
+  { id:'switchback_win', desc:'Win a race on Switchback Pass',                  stage:8,    noUpgrades:false },
+  { id:'glacier_no_upg', desc:'Win Glacier Circuit without any upgrades',       stage:9,    noUpgrades:true  },
+  { id:'serpent_win',    desc:'Win a race on Serpent Circuit',                  stage:10,   noUpgrades:false },
+  { id:'downtown_no_upg',desc:'Win Downtown Gauntlet without any upgrades',     stage:12,   noUpgrades:true  },
+  { id:'lunar_win',      desc:'Win a race on Lunar Basin',                      stage:14,   noUpgrades:false }
+];
+const DAILY_CHALLENGE_BONUS = 250;
+const WEEKLY_CHALLENGE_BONUS = 900;
+function dateKeyFor(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function weekKeyFor(d){
+  const start = new Date(d.getFullYear(),0,1);
+  const dayOfYear = Math.floor((d - start)/86400000);
+  return d.getFullYear()+'-W'+Math.floor(dayOfYear/7);
+}
+function hashStr(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
+  return Math.abs(h);
+}
+function challengeFromKey(key){ return CHALLENGE_POOL[hashStr(key) % CHALLENGE_POOL.length]; }
+function currentDailyChallenge(){ return challengeFromKey('D' + gameState.dailyChallengeKey); }
+function currentWeeklyChallenge(){ return challengeFromKey('W' + gameState.weeklyChallengeKey); }
+function challengeRewardFor(ch, base){
+  const stage = ch.stage != null ? STAGES[ch.stage] : null;
+  return Math.round(base * (stage ? stageCoinMult(stage) : 1));
+}
+// Rolls the daily/weekly challenge over the moment the calendar day/week
+// changes, resetting its completion flag. Cheap enough to call on every
+// home-screen render.
+function refreshChallenges(){
+  const today = dateKeyFor(new Date());
+  if(gameState.dailyChallengeKey !== today){
+    gameState.dailyChallengeKey = today;
+    gameState.dailyChallengeDone = false;
+    saveState();
+  }
+  const wk = weekKeyFor(new Date());
+  if(gameState.weeklyChallengeKey !== wk){
+    gameState.weeklyChallengeKey = wk;
+    gameState.weeklyChallengeDone = false;
+    saveState();
+  }
+}
+// Called from finishRace() with the just-finished race's stage/result. Awards
+// coins and flips the done flag the first time each challenge is met per
+// day/week; returns how many bonus coins (if any) to fold into the payout.
+function checkChallengeCompletion(stageIndex, won){
+  let bonusCoins = 0;
+  if(!won) return bonusCoins;
+  const noUpgrades = UPGRADE_DEFS.every(d => (gameState.upgrades[d.key]||0) === 0);
+  const daily = currentDailyChallenge();
+  if(!gameState.dailyChallengeDone && (daily.stage == null || daily.stage === stageIndex) && (!daily.noUpgrades || noUpgrades)){
+    gameState.dailyChallengeDone = true;
+    const reward = challengeRewardFor(daily, DAILY_CHALLENGE_BONUS);
+    bonusCoins += reward;
+    showGlobalToast('🎯 Daily challenge complete — +' + reward + ' coins');
+  }
+  const weekly = currentWeeklyChallenge();
+  if(!gameState.weeklyChallengeDone && (weekly.stage == null || weekly.stage === stageIndex) && (!weekly.noUpgrades || noUpgrades)){
+    gameState.weeklyChallengeDone = true;
+    const reward = challengeRewardFor(weekly, WEEKLY_CHALLENGE_BONUS);
+    bonusCoins += reward;
+    showGlobalToast('🎯 Weekly challenge complete — +' + reward + ' coins');
+  }
+  return bonusCoins;
+}
+function renderHomeChallenges(){
+  refreshChallenges();
+  const daily = currentDailyChallenge();
+  const weekly = currentWeeklyChallenge();
+  const dEl = $('homeDailyChallengeText');
+  if(dEl){
+    const reward = challengeRewardFor(daily, DAILY_CHALLENGE_BONUS);
+    dEl.textContent = (gameState.dailyChallengeDone ? '✅ ' : '🎯 ') + daily.desc + ' — +' + reward + ' coins';
+  }
+  const wEl = $('homeWeeklyChallengeText');
+  if(wEl){
+    const reward = challengeRewardFor(weekly, WEEKLY_CHALLENGE_BONUS);
+    wEl.textContent = (gameState.weeklyChallengeDone ? '✅ ' : '🎯 ') + weekly.desc + ' — +' + reward + ' coins';
+  }
+  refreshAchievementsButton();
+}
+function refreshAchievementsButton(){
+  const btn = $('homeAchievementsBtn');
+  if(btn) btn.textContent = '🏅 Achievements (' + (gameState.unlockedAchievements||[]).length + '/' + ACHIEVEMENTS.length + ')';
+}
+// Small fixed-position banner, independent of whichever screen is showing —
+// used for achievement unlocks and challenge completions, both of which can
+// fire mid-race or back on the home screen.
+let globalToastTimer = null;
+function showGlobalToast(text){
+  const el = $('globalToast');
+  if(!el) return;
+  el.textContent = text;
+  el.style.opacity = '1';
+  el.style.transform = 'translate(-50%, 0)';
+  if(globalToastTimer) clearTimeout(globalToastTimer);
+  globalToastTimer = setTimeout(()=>{ el.style.opacity = '0'; el.style.transform = 'translate(-50%, -8px)'; }, 3400);
+}
+function renderAchievements(){
+  const grid = $('achievementsGrid');
+  if(!grid) return;
+  const unlocked = gameState.unlockedAchievements || [];
+  grid.innerHTML = ACHIEVEMENTS.map(a=>{
+    const got = unlocked.includes(a.id);
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;'
+      + (got ? '' : 'opacity:.45;filter:grayscale(1);') + '">'
+      + '<span style="font-size:26px;">' + a.emoji + '</span>'
+      + '<div><div style="font-weight:800;">' + escapeHtml(a.name) + '</div>'
+      + '<div style="font-size:12px;color:var(--muted);">' + escapeHtml(a.desc) + '</div></div>'
+      + '</div>';
+  }).join('');
+}
+function openAchievements(){
+  renderAchievements();
+  $('achievementsOverlay').hidden = false;
+}
+function closeAchievements(){ $('achievementsOverlay').hidden = true; }
+
 // Track name overrides. Names are stored separately from STAGES (which
 // stays the source of truth for everything else about a track) and shared
 // globally across all local profiles, since a rename is meant to relabel the
@@ -1643,6 +1851,7 @@ function refreshCoinDisplays(){
   $('hudCoins').textContent = gameState.coins;
   const rating = Math.round(gameState.skillRating);
   $('homeRatingText').textContent = rating;
+  renderHomeChallenges();
 }
 
 /* ---------- Home: stage cards ---------- */
@@ -1808,6 +2017,8 @@ $('openUpgradesBtn').addEventListener('click', ()=>{ showScreen('upgrades'); ren
 $('upgradesBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 $('timeTrialToggle').addEventListener('change', (e)=>{ timeTrialMode = e.target.checked; renderStageGrid(); });
 $('openCircuitBtn').addEventListener('click', ()=>{ showScreen('circuit'); renderCircuitScreen(); });
+$('homeAchievementsBtn').addEventListener('click', openAchievements);
+$('achievementsCloseBtn').addEventListener('click', closeAchievements);
 $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 
 /* ---------- Championship screen ---------- */
@@ -1933,6 +2144,7 @@ function renderCarGrid(){
       refreshCoinDisplays();
       renderCarGrid();
       announce(getCarName(i) + ' purchased and equipped.');
+      checkAchievements();
     });
   });
   carGrid.querySelectorAll('button[data-select]').forEach(btn=>{
@@ -2056,6 +2268,7 @@ function renderUpgrades(){
       refreshCoinDisplays();
       renderUpgrades();
       announce(def_name_for(key) + ' upgraded to level ' + (level+1));
+      checkAchievements();
     });
   });
 }
@@ -4853,6 +5066,7 @@ function completeLap(car){
   if(car.isPlayer){
     const lapCoins = coinsPerLapForStage(STAGES[selectedStage]);
     gameState.coins += lapCoins;
+    gameState.lifetimeCoins = (gameState.lifetimeCoins||0) + lapCoins;
     lapCoinsEarned += lapCoins;
     refreshCoinDisplays();
     saveState();
@@ -4872,7 +5086,13 @@ function completeLap(car){
       // ghost yet at all, this lap always qualifies — so finishing a race
       // in Time Trial always saves a ghost the first time.
       const beatsGhost = ghostRecordBuf.length > 1 && (!ghostFrames || lapTime < ghostLapDuration);
-      if(beatsGhost) saveGhostForStage(selectedStage, ghostRecordBuf.slice());
+      if(beatsGhost){
+        saveGhostForStage(selectedStage, ghostRecordBuf.slice());
+        if(ghostFrames){ // only counts as "beating" one that already existed, not setting the first ever ghost
+          gameState.ghostBeatsCount = (gameState.ghostBeatsCount||0) + 1;
+          checkAchievements();
+        }
+      }
       ghostRecordBuf = [];
     }
     if(car.lap >= raceLaps && !car.finished){
@@ -6994,7 +7214,11 @@ function finishRace(){
   // bonus to farm — coins there come from lap coins and the finish bonus only.
   const bonus = timeTrialMode ? 0 : Math.round((POSITION_BONUS[pos-1] || 0) * diffMult);
   const finishBonus = Math.round(FINISH_BONUS * diffMult);
-  gameState.coins += bonus + finishBonus + (gameState.bonusCoinsPerRace || 0);
+  // Daily/weekly challenges only make sense against real CPU fields, not a
+  // solo Time Trial run, and only count on an actual win (pos 1).
+  const challengeBonus = (!timeTrialMode) ? checkChallengeCompletion(selectedStage, pos === 1) : 0;
+  gameState.coins += bonus + finishBonus + challengeBonus + (gameState.bonusCoinsPerRace || 0);
+  gameState.lifetimeCoins = (gameState.lifetimeCoins||0) + bonus + finishBonus + challengeBonus + (gameState.bonusCoinsPerRace || 0);
 
   // Championship points for this leg, if a circuit run is active.
   let circuitSection = '';
@@ -7015,12 +7239,16 @@ function finishRace(){
     const delta = player.bestLap - ghostLapTime;
     ghostSection = `<div class="resultRow"><span>${emo('👻')} Ghost's lap</span><strong>${formatTime(ghostLapTime)} (${delta<=0?'-':'+'}${formatTime(Math.abs(delta))})</strong></div>`;
   }
+  const challengeSection = challengeBonus > 0
+    ? `<div class="resultRow"><span>${emo('🎯')} Challenge bonus</span><strong>+${challengeBonus}</strong></div>`
+    : '';
 
   const previouslyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   gameState.racesCompleted += 1;
   if(pos === 1){ gameState.wins = (gameState.wins||0) + 1; } else { gameState.losses = (gameState.losses||0) + 1; }
   const newlyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   const newlyUnlocked = newlyUnlockedCount > previouslyUnlockedCount;
+  checkAchievements();
 
   // Nudge the persistent skill rating toward how CLOSE the race actually was,
   // not what place the player finished in. A dominant win/loss (big time or
@@ -7105,7 +7333,8 @@ function finishRace(){
     <div class="resultRow"><span>Laps coins</span><strong>${lapCoinsEarned}</strong></div>
     <div class="resultRow"><span>Finish bonus</span><strong>+${finishBonus}</strong></div>
     <div class="resultRow"><span>Position bonus</span><strong>+${bonus}</strong></div>
-    <div class="resultRow"><span>Coins earned</span><strong>${lapCoinsEarned + finishBonus + bonus + (gameState.bonusCoinsPerRace || 0)}</strong></div>
+    ${challengeSection}
+    <div class="resultRow"><span>Coins earned</span><strong>${lapCoinsEarned + finishBonus + bonus + challengeBonus + (gameState.bonusCoinsPerRace || 0)}</strong></div>
     <div class="resultRow"><span>CPU skill match</span><strong>${gameState.skillRating} (${ratingDelta>=0?'+':''}${ratingDelta})</strong></div>
     ${newlyUnlocked ? `<div class="resultRow"><span><span class="emoji" aria-hidden="true">🔓</span> New track</span><strong>Unlocked!</strong></div>` : ''}
     ${circuitSection}
