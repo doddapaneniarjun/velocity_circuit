@@ -4866,7 +4866,13 @@ function completeLap(car){
       saveState();
     }
     if(timeTrialMode){
-      if(isNewBestLap && ghostRecordBuf.length > 1) saveGhostForStage(selectedStage, ghostRecordBuf.slice());
+      // Judge this against the ghost's OWN recorded time, not the global
+      // gameState.bestLaps (which can be set from non-Time-Trial races and
+      // would otherwise block a ghost from ever being saved). If there's no
+      // ghost yet at all, this lap always qualifies — so finishing a race
+      // in Time Trial always saves a ghost the first time.
+      const beatsGhost = ghostRecordBuf.length > 1 && (!ghostFrames || lapTime < ghostLapDuration);
+      if(beatsGhost) saveGhostForStage(selectedStage, ghostRecordBuf.slice());
       ghostRecordBuf = [];
     }
     if(car.lap >= raceLaps && !car.finished){
