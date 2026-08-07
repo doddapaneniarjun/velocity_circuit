@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -430,6 +429,38 @@
   .onlineDot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
   .onlineDot.isOnline{ background:var(--good); box-shadow:0 0 6px var(--good); }
   .onlineDot.isOffline{ background:var(--muted); }
+
+  /* ---------- Friends / Rivals ---------- */
+  .friendAddRow{ display:flex; gap:8px; margin-bottom:14px; }
+  .friendAddRow input{ flex:1; }
+  .friendTypeRow{ display:flex; gap:8px; margin-bottom:14px; }
+  .friendTypeRow button{ flex:1; }
+  .friendTypeRow button.pickerActive.friend{ background:var(--good); border-color:var(--good); color:#0a0e14; }
+  .friendTypeRow button.pickerActive.rival{ background:var(--danger); border-color:var(--danger); color:#fff8ef; }
+  .friendsList{ list-style:none; margin:0; padding:0; max-height:300px; overflow-y:auto; }
+  .friendsList li{ display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--border);
+    border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .friendsList .friendName{ font-weight:700; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .friendTag{ font-size:10px; font-weight:800; letter-spacing:.4px; padding:3px 8px; border-radius:999px; text-transform:uppercase; flex:none; }
+  .friendTag.friend{ background:rgba(111,143,70,.18); color:var(--good); }
+  .friendTag.rival{ background:rgba(168,58,42,.18); color:var(--danger); }
+  .friendRowBtn{ background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; font:inherit;
+    font-size:12px; font-weight:700; padding:6px 10px; cursor:pointer; flex:none; }
+  .friendRowBtn:hover{ border-color:var(--accent); color:var(--accent); }
+  .friendRowBtn.spectateBtn{ border-color:var(--accent); color:var(--accent); }
+  .friendsEmpty{ color:var(--muted); font-size:13px; text-align:center; padding:18px 0; }
+
+  /* ---------- Spectate ---------- */
+  .spectateBoard{ list-style:none; margin:0 0 16px; padding:0; max-height:260px; overflow-y:auto; }
+  .spectateBoard li{ display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--border);
+    border-radius:10px; padding:9px 12px; margin-bottom:7px; font-size:14px; }
+  .spectateBoard .specPos{ width:22px; font-weight:800; color:var(--muted); flex:none; }
+  .spectateBoard .specName{ font-weight:700; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .spectateBoard .specLap{ color:var(--muted); font-size:12px; flex:none; }
+  .spectateBoard .specSpeed{ color:var(--accent); font-size:12px; font-weight:700; flex:none; width:56px; text-align:right; }
+  .spectateBoard li.specFinished{ opacity:.65; }
+  .spectateEmpty{ color:var(--muted); font-size:13px; text-align:center; padding:18px 0; }
+  .modeBtn.spectate{ border-color:var(--muted); color:var(--text); }
   .statsMissingNote{ color:var(--muted); font-size:12px; margin:12px 0 0; }
 
   .resultRow{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-strong); font-size:15px; }
@@ -485,6 +516,7 @@
     <h1 class="megaTitle">VELOCITY<br><span>CIRCUIT</span></h1>
     <button class="modeBtn online" id="chooseOnlineBtn" type="button">ONLINE<small>Race other people playing right now</small></button>
     <button class="modeBtn" id="choosePrivateBtn" type="button">PRIVATE<small>Race CPU rivals · tracks · garage · upgrades</small></button>
+    <button class="modeBtn spectate" id="chooseSpectateBtn" type="button">SPECTATE<small>Watch the current online race live, no racing required</small></button>
     <p class="modeFootnote" id="modeFootnote"></p>
   </section>
 
@@ -503,6 +535,20 @@
     </div>
   </section>
 
+  <!-- SPECTATE -->
+  <section id="spectateScreen" class="screen" hidden>
+    <div class="lobbyCard">
+      <h2 class="sectionTitle" style="margin-top:0;">Spectating</h2>
+      <div class="lobbyStatus" id="spectateStatus">Connecting…</div>
+      <p class="lobbySub">Live standings from the current online race, updated in real time. You're just watching — nothing you do here affects the race.</p>
+      <ul class="spectateBoard" id="spectateBoard"></ul>
+      <div class="chatLog" id="spectateChatLog" role="log" aria-live="polite" aria-label="Race chat (read-only)" style="max-height:140px;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:14px;"></div>
+      <div class="btnRow">
+        <button class="btn ghost" id="spectateBackBtn">Leave</button>
+      </div>
+    </div>
+  </section>
+
   <!-- HOME SCREEN -->
   <section id="homeScreen" class="screen" hidden>
     <div class="coinBar" aria-label="Coin balance"><span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins</div>
@@ -516,6 +562,9 @@
     <div class="accountActionsBar">
       <button class="btn secondary globalChatBtn" id="globalChatBtn" type="button">
         <span class="emoji" aria-hidden="true">💬</span> Chat<span class="chatUnreadDot" id="globalChatUnreadDot" hidden></span>
+      </button>
+      <button class="btn secondary" id="friendsBtn" type="button">
+        <span class="emoji" aria-hidden="true">👥</span> Friends
       </button>
     </div>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
@@ -598,6 +647,25 @@
         </form>
         <div class="btnRow" style="margin-top:16px;">
           <button class="btn" id="globalChatCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="friendsOverlay" hidden>
+      <div class="statsOverlayCard">
+        <h2>Friends &amp; Rivals</h2>
+        <p class="statsSub">Track players you want to keep an eye on. Friends and rivals show as online whenever they're connected to chat, and you can jump straight into spectating the current race from here.</p>
+        <div class="friendAddRow">
+          <input class="loginInput" type="text" id="friendAddInput" placeholder="Username…" autocomplete="off" maxlength="40">
+        </div>
+        <div class="friendTypeRow">
+          <button type="button" class="btn secondary pickerActive friend" id="friendAddFriendBtn">+ Add as Friend</button>
+          <button type="button" class="btn secondary pickerActive rival" id="friendAddRivalBtn">+ Add as Rival</button>
+        </div>
+        <p id="friendAddError" style="color:var(--danger);font-size:13px;margin:-8px 0 12px;min-height:16px;"></p>
+        <ul class="friendsList" id="friendsListEl"></ul>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="friendsCloseBtn">Close</button>
         </div>
       </div>
     </div>
@@ -1129,6 +1197,112 @@ function updateOwnerBadge(){
 
 function saveKeyFor(nameKey){ return 'velocityCircuit_save_' + nameKey; }
 function rollbackKeyFor(nameKey){ return 'velocityCircuit_rollback_' + nameKey; }
+function friendsKeyFor(nameKey){ return 'velocityCircuit_friends_' + nameKey; }
+
+/* ---------- Friends / Rivals ----------
+   Each profile keeps its own list of { key, name, type } entries (type is
+   'friend' or 'rival'), cached in localStorage under FRIENDS_KEY (repointed
+   per-profile in beginSession(), same pattern as SAVE_KEY) so it works
+   offline. Also best-effort mirrored to a `friends_list` jsonb column on the
+   shared Supabase `accounts` row, so the list follows the account to other
+   devices — same degrade-gracefully-if-the-column-is-missing pattern as
+   pending_cmds above. Requires this column to exist:
+     ALTER TABLE accounts ADD COLUMN IF NOT EXISTS friends_list jsonb DEFAULT '[]'::jsonb;
+   If it's missing, sync just fails silently and the feature stays local-only. */
+let FRIENDS_KEY = friendsKeyFor('guest');
+function readFriends(){
+  try{ return JSON.parse(localStorage.getItem(FRIENDS_KEY)) || []; }catch(e){ return []; }
+}
+function writeFriends(list){
+  try{ localStorage.setItem(FRIENDS_KEY, JSON.stringify(list)); }catch(e){}
+  if(currentUser){
+    sbUpsertAccount(currentUser, { friends_list: list }).catch(()=>{
+      // `friends_list` column likely doesn't exist on the shared table yet —
+      // the local copy above still works fine on this device.
+    });
+  }
+}
+// Pulls the shared copy (if any) down after login, so a friend added on
+// another device shows up here too. Best-effort — offline/missing-column
+// just leaves the local cache as-is.
+async function syncFriendsFromShared(){
+  if(!currentUser) return;
+  try{
+    const row = await sbGetAccount(currentUser);
+    if(row && Array.isArray(row.friends_list)){
+      writeFriendsLocalOnly(row.friends_list);
+    }
+  }catch(e){ /* offline or column missing — keep local cache */ }
+  renderFriendsList();
+}
+function writeFriendsLocalOnly(list){
+  try{ localStorage.setItem(FRIENDS_KEY, JSON.stringify(list)); }catch(e){}
+}
+function addFriendOrRival(rawName, type){
+  const errEl = $('friendAddError');
+  if(errEl) errEl.textContent = '';
+  const name = String(rawName||'').trim().slice(0,16);
+  if(!name){ if(errEl) errEl.textContent = 'Enter a username first.'; return; }
+  const key = name.toLowerCase();
+  if(key === (currentUser||'')){ if(errEl) errEl.textContent = 'That\u2019s you!'; return; }
+  const list = readFriends();
+  const existing = list.find(f => f.key === key);
+  if(existing){
+    existing.type = type; existing.name = name;
+  } else {
+    list.push({ key, name, type });
+  }
+  writeFriends(list);
+  renderFriendsList();
+  const input = $('friendAddInput');
+  if(input) input.value = '';
+}
+function removeFriend(key){
+  const list = readFriends().filter(f => f.key !== key);
+  writeFriends(list);
+  renderFriendsList();
+}
+function renderFriendsList(){
+  const ul = $('friendsListEl');
+  if(!ul) return;
+  const list = readFriends();
+  if(!list.length){
+    ul.innerHTML = '<li class="friendsEmpty" style="display:block;background:none;border:none;">No friends or rivals added yet — add one above.</li>';
+    return;
+  }
+  const onlineKeys = (typeof ChatNet !== 'undefined') ? ChatNet.getOnlineKeys() : new Set();
+  ul.innerHTML = list.slice().sort((a,b)=> a.name.localeCompare(b.name)).map(f=>{
+    const online = onlineKeys.has(f.key);
+    return '<li>' +
+      '<span class="onlineDot ' + (online?'isOnline':'isOffline') + '" title="' + (online?'Online now':'Offline') + '"></span>' +
+      '<span class="friendName">' + escapeHtml(f.name) + '</span>' +
+      '<span class="friendTag ' + (f.type==='rival'?'rival':'friend') + '">' + (f.type==='rival'?'Rival':'Friend') + '</span>' +
+      '<button type="button" class="friendRowBtn spectateBtn" data-spec-key="' + escapeHtml(f.key) + '">Spectate</button>' +
+      '<button type="button" class="friendRowBtn" data-remove-key="' + escapeHtml(f.key) + '">Remove</button>' +
+    '</li>';
+  }).join('');
+  ul.querySelectorAll('[data-remove-key]').forEach(btn=>{
+    btn.addEventListener('click', ()=> removeFriend(btn.getAttribute('data-remove-key')));
+  });
+  ul.querySelectorAll('[data-spec-key]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      closeFriendsOverlay();
+      showScreen('spectate');
+      Spectate.start();
+    });
+  });
+}
+let friendsRefreshTimer = null;
+function openFriendsOverlay(){
+  renderFriendsList();
+  $('friendsOverlay').hidden = false;
+  if(friendsRefreshTimer) clearInterval(friendsRefreshTimer);
+  friendsRefreshTimer = setInterval(renderFriendsList, 4000); // keep online dots fresh while open
+}
+function closeFriendsOverlay(){
+  $('friendsOverlay').hidden = true;
+  if(friendsRefreshTimer){ clearInterval(friendsRefreshTimer); friendsRefreshTimer = null; }
+}
 
 function simpleHash(str){
   let h = 5381;
@@ -1341,6 +1515,7 @@ function beginSession(nameKey, display, remember, owner){
   isOwner = !!owner;
   SAVE_KEY = saveKeyFor(nameKey);
   ROLLBACK_KEY = rollbackKeyFor(nameKey);
+  FRIENDS_KEY = friendsKeyFor(nameKey);
   if(remember){
     try{ localStorage.setItem(SESSION_KEY, nameKey); }catch(e){}
   } else {
@@ -1355,6 +1530,8 @@ function beginSession(nameKey, display, remember, owner){
   ChatNet.connect();
   deliverPendingOwnerCmds(); // apply any owner commands that arrived while this account was offline
   subscribeToAccountChanges(); // start listening for commands that arrive while we're online, live
+  renderFriendsList();
+  syncFriendsFromShared(); // pull this account's friends/rivals list from other devices, if any
   announce('Logged in as ' + display + (isOwner ? ', owner mode on.' : '.'));
 }
 
@@ -1459,6 +1636,7 @@ function logout(){
   updateOwnerBadge();
   Sound.stop();
   ChatNet.disconnect();
+  if(typeof Spectate !== 'undefined') Spectate.stop();
   $('loginPassword').value = '';
   $('loginError').textContent = '';
   showLoginScreen();
@@ -1819,6 +1997,7 @@ function coinsPerLapForStage(stage){
 const $ = id => document.getElementById(id);
 const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), upgradesScreen = $('upgradesScreen'), gameScreen = $('gameScreen');
 const modeScreen = $('modeScreen'), onlineScreen = $('onlineScreen'), circuitScreen = $('circuitScreen');
+const spectateScreen = $('spectateScreen');
 const liveRegion = $('liveRegion');
 
 function announce(text){ liveRegion.textContent = ''; requestAnimationFrame(()=>{ liveRegion.textContent = text; }); }
@@ -1827,6 +2006,7 @@ function showScreen(name){
   loginScreen.hidden = name!=='login';
   modeScreen.hidden = name!=='mode';
   onlineScreen.hidden = name!=='online';
+  spectateScreen.hidden = name!=='spectate';
   homeScreen.hidden = name!=='home';
   garageScreen.hidden = name!=='garage';
   upgradesScreen.hidden = name!=='upgrades';
@@ -4055,6 +4235,7 @@ window.addEventListener('keydown', e=>{
       // On Home itself Escape has nowhere further to go; from Garage or
       // Upgrades it steps back to Home, just like their Back buttons.
       if(!$('globalChatOverlay').hidden){ closeGlobalChat(); }
+      else if(!$('friendsOverlay').hidden){ closeFriendsOverlay(); }
       else if(!$('ownerStatsOverlay').hidden){ $('ownerStatsOverlay').hidden = true; }
       else if(!garageScreen.hidden){ showScreen('home'); }
       else if(!upgradesScreen.hidden){ showScreen('home'); }
@@ -4240,11 +4421,13 @@ const Online = {
   roster: [],                      // lobby players [{id,name,car}]
   isHost: false, searching: false, startScheduled: false,
   room: null, netCars: {},
+  spectators: {},                  // host: spectatorId -> conn (read-only viewers, not part of the 4-racer cap)
   pendingRename: null,     // { key, raw, display } while awaiting the new name after /renametarget
   lastStatsSent: 0,        // last time we broadcast our own stats snapshot
   knownStats: {},          // key -> { name, stats, updatedAt }, populated passively from everyone's broadcasts
   lastSend: 0, retryTimer: null, watchdogTimer: null,
   pingMs: null, lastPingSent: 0, pingSamples: {},
+  migrating: false, migrationWatchdog: null,   // host-migration state, see raceRelayId() below
 
   displayName(){ return ($('modeProfileName').textContent || 'Racer').slice(0,16); },
   nameKey(){ return (currentUser || 'guest').toLowerCase(); },
@@ -4328,6 +4511,11 @@ const Online = {
     conn.on('close', ()=> this.hostDrop(conn));
     conn.on('error', ()=> this.hostDrop(conn));
   },
+  // Fans a message out to every connected spectator (never counted toward
+  // the 4-racer cap, never expected to send their own 'pos' back).
+  broadcastToSpectators(msg){
+    Object.values(this.spectators).forEach(c=>{ try{ if(c.open) c.send(msg); }catch(e){} });
+  },
   hostOnMsg(conn, m){
     if(!m || typeof m !== 'object') return;
     if(m.type === 'join'){
@@ -4337,6 +4525,7 @@ const Online = {
       this.roster = this.roster.filter(p=>p.id !== m.id);
       this.roster.push({ id:m.id, name:String(m.name||'Racer').slice(0,16), key:String(m.key||'guest').toLowerCase().slice(0,40), car:m.car|0 });
       this.broadcast({ type:'lobby', players:this.roster });
+      this.broadcastToSpectators({ type:'lobby', players:this.roster });
       this.renderLobby();
       this.status('Looking for racers… (' + this.roster.length + ' in lobby)');
       if(this.roster.length >= 2 && !this.startScheduled){
@@ -4344,9 +4533,22 @@ const Online = {
         this.status('Racer found — starting soon…');
         setTimeout(()=> this.hostStartRace(), 3500);   // brief window for more joiners
       }
+    } else if(m.type === 'spectate'){
+      // Read-only viewer: doesn't join the roster or count toward the
+      // 4-racer cap, and can connect whether we're still in the lobby or
+      // already mid-race. Bring them up to speed on whatever's happening
+      // right now, then they ride along on the same broadcasts racers get.
+      conn.isSpectator = true;
+      conn.specId = String(m.id || (Math.random().toString(36).slice(2,10)));
+      this.spectators[conn.specId] = conn;
+      try{
+        conn.send({ type:'lobby', players:this.roster });
+        if(this.room) conn.send({ type:'start', room:this.room });
+      }catch(e){}
     } else if(m.type === 'pos'){
       this.applySnapshot(m);
       this.relay(m, conn);                             // pass it on to the other racers
+      this.broadcastToSpectators(m);
     } else if(m.type === 'ping'){
       try{ conn.send({ type:'pong', ts:m.ts }); }catch(e){}
     } else if(m.type === 'pong'){
@@ -4363,6 +4565,7 @@ const Online = {
         }
       } else {
         this.relay(m, conn);
+        this.broadcastToSpectators(m);
         addChatMessage(m.name, m.text, false);
       }
     } else if(m.type === 'owner_cmd'){
@@ -4374,9 +4577,21 @@ const Online = {
     } else if(m.type === 'stats_broadcast'){
       this.relay(m, conn);
       recordStatsBroadcast(m);
+    } else if(m.type === 'rejoin'){
+      // A racer reconnecting after a mid-race host migration — just wire
+      // up their connection, no lobby/start handshake needed since the
+      // race is already underway on every client independently.
+      conn.logicalId = m.id;
+      this.conns[m.id] = conn;
+      this.clearMigrationWatchdog();
+      showToast((String(m.name||'A racer').slice(0,16)) + ' reconnected');
     }
   },
   hostDrop(conn){
+    if(conn.isSpectator){
+      if(conn.specId) delete this.spectators[conn.specId];
+      return;
+    }
     if(conn.logicalId){
       delete this.conns[conn.logicalId];
       if(!this.room){
@@ -4400,11 +4615,13 @@ const Online = {
     if(this.room || !this.searching) return;
     const room = {
       roomId: this.myId + '-' + Date.now(),
+      hostId: this.myId,
       stageIndex: Math.floor(Math.random()*STAGES.length),
       startInMs: 5000,
       players: this.roster.slice(0,4)
     };
     this.broadcast({ type:'start', room });
+    this.broadcastToSpectators({ type:'start', room });
     this.enterRoom(room);
   },
   broadcast(msg, exceptConn){
@@ -4432,7 +4649,7 @@ const Online = {
       });
       conn.on('data', m => this.clientOnMsg(m));
       const lost = ()=>{
-        if(this.room){ kickFromOnlineRace('Lost connection to the race host — race ended.'); return; }
+        if(this.room){ this.beginHostMigration(); return; }
         if(!this.searching) return;
         // Host left — try to take over hosting, otherwise keep searching
         this.status('Host left — reconnecting…');
@@ -4480,6 +4697,104 @@ const Online = {
     } else if(m.type === 'stats_broadcast'){
       recordStatsBroadcast(m);
     }
+  },
+
+  /* ---------- HOST MIGRATION ----------
+     Star topology means clients only ever talk to the host, so if the host
+     drops mid-race the survivors would otherwise just have the race end
+     under them. Instead, every remaining client independently races to
+     claim a well-known PeerJS id derived from the room (not the global
+     matchmaking LOBBY_ID, so it can't collide with unrelated players still
+     searching for a new match). Exactly one of them wins that id and
+     becomes the new host; the rest get 'unavailable-id' and fall back to
+     connecting to the winner as clients — same self-resolving pattern the
+     initial tryBecomeHost()/joinAsClient() handshake already uses, just
+     scoped to this room instead of the global lobby. No coordination
+     message is needed beforehand. */
+  raceRelayId(){ return 'vc-relay-' + (this.room ? this.room.roomId : ''); },
+  clearMigrationWatchdog(){
+    if(this.migrationWatchdog){ clearTimeout(this.migrationWatchdog); this.migrationWatchdog = null; }
+  },
+  // If we win the race to become the new host but nobody ever reconnects
+  // (e.g. we were the only survivor too), don't leave the player stuck
+  // racing an empty room forever — end it the same way the original host
+  // would have if every other racer left.
+  armMigrationWatchdog(){
+    this.clearMigrationWatchdog();
+    this.migrationWatchdog = setTimeout(()=>{
+      if(this.isHost && this.room && Object.keys(this.conns).length === 0){
+        kickFromOnlineRace('Lost connection to the other racers — race ended.');
+      }
+    }, 10000);
+  },
+  beginHostMigration(){
+    if(!this.room || this.migrating) return;
+    this.migrating = true;
+    if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
+    showToast('Host disconnected — reconnecting…');
+    this.cleanupPeer();
+    const relayId = this.raceRelayId();
+    let decided = false;
+    const p = new Peer(relayId, PEER_OPTS);
+    this.peer = p;
+    p.on('open', ()=>{
+      if(decided) return; decided = true;
+      if(!this.room){ this.migrating = false; try{ p.destroy(); }catch(e){} return; }
+      this.migrating = false;
+      this.isHost = true;
+      this.conns = {};
+      p.on('connection', conn => this.hostAccept(conn));
+      this.armMigrationWatchdog();
+      showToast('You are now hosting the race.');
+      announce('Host migrated — you are now the race host.');
+    });
+    p.on('error', err => {
+      if(decided) return;
+      if(err && err.type === 'unavailable-id'){
+        decided = true;
+        this.migrating = false;
+        this.joinAsMigratedHost(relayId);
+      } else if(!this.room){
+        decided = true;
+        this.migrating = false;
+      } else {
+        // Transient failure (network hiccup, etc.) — try again shortly.
+        decided = true;
+        this.migrating = false;
+        this.retryTimer = setTimeout(()=> this.beginHostMigration(), 1500);
+      }
+    });
+  },
+  joinAsMigratedHost(relayId){
+    if(!this.room) return;
+    this.cleanupPeer();
+    let settled = false;
+    const p = new Peer(PEER_OPTS);
+    this.peer = p;
+    p.on('open', ()=>{
+      if(!this.room){ try{ p.destroy(); }catch(e){} return; }
+      const conn = p.connect(relayId);
+      this.hostConn = conn;
+      conn.on('open', ()=>{
+        if(!this.room) return;
+        settled = true;
+        conn.send({ type:'rejoin', id:this.myId, name:this.displayName(), key:this.nameKey(), car:gameState.selectedCar });
+        showToast('Reconnected to race host.');
+      });
+      conn.on('data', m => this.clientOnMsg(m));
+      const lostAgain = ()=>{ if(this.room) this.beginHostMigration(); };
+      conn.on('close', lostAgain);
+      conn.on('error', lostAgain);
+    });
+    p.on('error', err => {
+      if(settled || !this.room) return;
+      if(err && err.type === 'peer-unavailable'){
+        // New host hasn't claimed the relay id yet — give it a moment.
+        this.retryTimer = setTimeout(()=> this.beginHostMigration(), 1000);
+      } else {
+        this.retryTimer = setTimeout(()=> this.joinAsMigratedHost(relayId), 1500);
+      }
+    });
   },
 
   /* ---------- shared ---------- */
@@ -4655,6 +4970,7 @@ const Online = {
   },
 
   cleanupPeer(){
+    this.spectators = {};
     if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
     if(this.peer){ try{ this.peer.destroy(); }catch(e){} }
     this.peer = null; this.hostConn = null; this.conns = {};
@@ -4676,12 +4992,140 @@ const Online = {
     this.room = null;
     this.netCars = {};
     this.cleanupPeer();
+    this.clearMigrationWatchdog();
+    this.migrating = false;
     this.pingMs = null;
     this.pingSamples = {};
     this.lastPingSent = 0;
     clearChat();
   }
 };
+
+/* ---------- Spectate: read-only viewer of the current online race ----------
+   Uses its own Peer (independent of Online.peer, which is only for actual
+   racers) and connects to the same well-known matchmaking lobby id. The
+   host accepts it as a spectator (see Online.hostOnMsg 'spectate' case
+   above) and streams it the same lobby/start/pos/chat traffic racers get,
+   just never expects anything back except the initial 'spectate' hello. */
+const Spectate = {
+  peer: null, conn: null, connected: false,
+  myId: 'spec-' + Math.random().toString(36).slice(2,10),
+  cars: {},        // id -> { name, lap, trackIndex, speed, finished, key }
+  roomInfo: null,   // last 'start' room, once a race is underway
+  retryTimer: null,
+
+  status(msg){ const el = $('spectateStatus'); if(el) el.textContent = msg; },
+
+  start(){
+    if(!Online.available){
+      this.status('Spectating needs the PeerJS library — check your internet connection and reload.');
+      return;
+    }
+    if(this.peer) return; // already connecting/connected
+    this.cars = {};
+    this.roomInfo = null;
+    renderSpectateList();
+    $('spectateChatLog').innerHTML = '';
+    this.status('Connecting…');
+    const p = new Peer(PEER_OPTS);
+    this.peer = p;
+    p.on('open', ()=>{
+      if(!this.peer) return; // stopped while the id was being allocated
+      const conn = p.connect(Online.LOBBY_ID);
+      this.conn = conn;
+      conn.on('open', ()=>{
+        this.connected = true;
+        try{ conn.send({ type:'spectate', id:this.myId, name:Online.displayName() }); }catch(e){}
+        this.status('Connected — watching for racers…');
+      });
+      conn.on('data', m => this.onMsg(m));
+      const lost = ()=>{
+        this.connected = false;
+        this.status('Disconnected from the race host.');
+      };
+      conn.on('close', lost);
+      conn.on('error', lost);
+    });
+    p.on('error', err=>{
+      if(err && err.type === 'peer-unavailable'){
+        this.status('No online race is running right now. Try again once someone starts one.');
+      } else {
+        this.status('Couldn\u2019t connect (' + (err && err.type ? err.type : 'unknown error') + '). Check your connection and try again.');
+      }
+    });
+  },
+
+  stop(){
+    if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
+    if(this.peer){ try{ this.peer.destroy(); }catch(e){} }
+    this.peer = null; this.conn = null; this.connected = false;
+    this.cars = {}; this.roomInfo = null;
+  },
+
+  onMsg(m){
+    if(!m || typeof m !== 'object') return;
+    if(m.type === 'lobby'){
+      this.roomInfo = null;
+      this.cars = {};
+      (m.players||[]).forEach(p=>{
+        this.cars[p.id] = { name:p.name, key:p.key, lap:0, trackIndex:0, speed:0, finished:false };
+      });
+      const n = (m.players||[]).length;
+      this.status(n ? (n + ' player' + (n===1?'':'s') + ' in the matchmaking lobby, waiting for a race to start…') : 'Waiting for players to start a match…');
+      renderSpectateList();
+    } else if(m.type === 'start'){
+      this.roomInfo = m.room;
+      this.cars = {};
+      (m.room.players||[]).forEach(p=>{
+        this.cars[p.id] = { name:p.name, key:p.key, lap:0, trackIndex:0, speed:0, finished:false };
+      });
+      const stageName = (m.room && STAGES[m.room.stageIndex]) ? getStageName(m.room.stageIndex) : 'a track';
+      this.status('Race in progress on ' + stageName + '.');
+      renderSpectateList();
+    } else if(m.type === 'pos'){
+      let c = this.cars[m.id];
+      if(!c){ c = this.cars[m.id] = { name:'Racer', lap:0, trackIndex:0, speed:0, finished:false }; }
+      c.lap = m.l; c.trackIndex = m.ti; c.speed = m.s;
+      if(m.f && !c.finished) c.finished = true;
+      renderSpectateList();
+    } else if(m.type === 'chat'){
+      addSpectateChatLine(m.name, m.text);
+    }
+  }
+};
+
+function renderSpectateList(){
+  const ul = $('spectateBoard');
+  if(!ul) return;
+  const cars = Object.values(Spectate.cars);
+  if(!cars.length){
+    ul.innerHTML = '<li class="spectateEmpty" style="display:block;background:none;border:none;">No racers to show yet.</li>';
+    return;
+  }
+  const totalLaps = (Spectate.roomInfo && STAGES[Spectate.roomInfo.stageIndex] && STAGES[Spectate.roomInfo.stageIndex].laps) || DEFAULT_LAPS;
+  const sorted = cars.slice().sort((a,b)=>{
+    if(!!b.finished !== !!a.finished) return (b.finished?1:0) - (a.finished?1:0); // finished racers first
+    if(b.lap !== a.lap) return b.lap - a.lap;
+    return (b.trackIndex||0) - (a.trackIndex||0);
+  });
+  ul.innerHTML = sorted.map((c,i)=>
+    '<li' + (c.finished ? ' class="specFinished"' : '') + '>' +
+      '<span class="specPos">' + (i+1) + '</span>' +
+      '<span class="specName">' + escapeHtml(c.name||'Racer') + '</span>' +
+      '<span class="specLap">' + (c.finished ? 'Finished' : ('Lap ' + Math.min(c.lap+1, totalLaps) + '/' + totalLaps)) + '</span>' +
+      '<span class="specSpeed">' + Math.max(0, Math.round(c.speed||0)) + ' mph</span>' +
+    '</li>'
+  ).join('');
+}
+function addSpectateChatLine(name, text){
+  const log = $('spectateChatLog');
+  if(!log) return;
+  const div = document.createElement('div');
+  div.className = 'chatLine';
+  div.textContent = (name||'Racer') + ': ' + text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
 
 /* Mode select + lobby wiring */
 $('choosePrivateBtn').addEventListener('click', ()=>{ showScreen('home'); renderStageGrid(); refreshCoinDisplays(); });
@@ -4692,6 +5136,15 @@ $('chooseOnlineBtn').addEventListener('click', ()=>{
   }
   showScreen('online');
 });
+$('chooseSpectateBtn').addEventListener('click', ()=>{
+  if(!Online.available){
+    $('modeFootnote').textContent = 'Spectating couldn\u2019t load its networking library — make sure you\u2019re connected to the internet, then reload the page.';
+    return;
+  }
+  showScreen('spectate');
+  Spectate.start();
+});
+$('spectateBackBtn').addEventListener('click', ()=>{ Spectate.stop(); showScreen('mode'); });
 $('modeLogoutBtn').addEventListener('click', logout);
 $('homeMenuBtn').addEventListener('click', ()=>{ showScreen('mode'); });
 $('findMatchBtn').addEventListener('click', ()=>{ Online.startSearch(); });
@@ -7843,6 +8296,11 @@ function closeGlobalChat(){
 }
 $('globalChatBtn').addEventListener('click', openGlobalChat);
 $('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
+$('friendsBtn').addEventListener('click', openFriendsOverlay);
+$('friendsCloseBtn').addEventListener('click', closeFriendsOverlay);
+$('friendAddFriendBtn').addEventListener('click', ()=> addFriendOrRival($('friendAddInput').value, 'friend'));
+$('friendAddRivalBtn').addEventListener('click', ()=> addFriendOrRival($('friendAddInput').value, 'rival'));
+$('friendAddInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addFriendOrRival($('friendAddInput').value, 'friend'); } });
 $('globalChatForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const input = $('globalChatInput');
