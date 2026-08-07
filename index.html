@@ -3775,6 +3775,13 @@ let collisionToastCooldown = 0;
 let boostCharge = 0;
 let boosting = false;
 let boostTimer = 0;
+// The drift mini-turbo used to reuse boosting/boostTimer/boostCharge above,
+// which meant firing a mini-turbo would also zero out the manual boost meter
+// (even if it was full and hadn't been used) and made the HUD bar flash to
+// the wrong percentage. It now runs on its own independent state so the two
+// systems never stomp on each other, and can even stack.
+let driftBoosting = false;
+let driftBoostTimer = 0;
 let currentTrackDim = false;
 let currentTrackFoggedMinimap = false;
 
@@ -4603,6 +4610,8 @@ function startRace(stageIndex, onlineRoom){
   boostCharge = 0;
   boosting = false;
   boostTimer = 0;
+  driftBoosting = false;
+  driftBoostTimer = 0;
   $('boostBarFill').style.width = '0%';
   $('boostBtn').classList.remove('ready','active');
   $('boostBtn').disabled = true;
@@ -4809,7 +4818,8 @@ const BOOST_LIGHT_DISTANCE_DIM = 60;
 function updateBoostFlames(car, dt){
   const group = car.mesh.userData.flameGroup;
   if(!group) return;
-  if(boosting){
+  const boostVisualActive = boosting || (car.isPlayer && driftBoosting);
+  if(boostVisualActive){
     group.visible = true;
     group.userData.flames.forEach((cone, i)=>{
       // Flicker: jitter each tier's length/width independently every frame
@@ -4828,7 +4838,7 @@ function updateBoostFlames(car, dt){
   if(boostLight){
     const peakIntensity = currentTrackDim ? BOOST_LIGHT_INTENSITY_DIM : BOOST_LIGHT_INTENSITY;
     boostLight.distance = currentTrackDim ? BOOST_LIGHT_DISTANCE_DIM : BOOST_LIGHT_DISTANCE;
-    const targetIntensity = boosting ? peakIntensity : 0;
+    const targetIntensity = boostVisualActive ? peakIntensity : 0;
     boostLight.intensity += (targetIntensity - boostLight.intensity) * Math.min(1, dt*8);
     if(Math.abs(boostLight.intensity - targetIntensity) < 0.02) boostLight.intensity = targetIntensity;
   }
@@ -4881,12 +4891,22 @@ function updateCar(car, dt){
     maxSpeed *= 1.18;
     accel *= 1.18;
   }
-  if(car.isPlayer && boosting && !car.touchingWall){
+  if(car.isPlayer && (boosting || driftBoosting) && !car.touchingWall){
     // Boost power is nullified while wall-bouncing (car.touchingWall) —
-    // the flames/glow/HUD stay on since they read the `boosting` flag,
+    // the flames/glow/HUD stay on since they read the boosting flags,
     // but the wall eats all the extra speed and acceleration.
-    maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.013 + playerCarDef.boostPower*0.02;
-    accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.037 + playerCarDef.boostPower*0.05;
+    // Manual boost and the drift mini-turbo run on independent timers now,
+    // so if both happen to be active at once their multipliers stack —
+    // a nice payoff for chaining them rather than one silently overriding
+    // the other.
+    if(boosting){
+      maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.013 + playerCarDef.boostPower*0.02;
+      accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.037 + playerCarDef.boostPower*0.05;
+    }
+    if(driftBoosting){
+      maxSpeed *= BOOST_SPEED_MULT + gameState.upgrades.boostPower*0.013 + playerCarDef.boostPower*0.02;
+      accel *= BOOST_ACCEL_MULT + gameState.upgrades.boostPower*0.037 + playerCarDef.boostPower*0.05;
+    }
   }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
   const turnRate = (BASE_TURN
@@ -4972,8 +4992,8 @@ function updateCar(car, dt){
     if(car.driftHeld && !driftKeyDown){
       const tier = driftBoostTier(car.driftCharge||0);
       if(tier > 0){
-        boosting = true;
-        boostTimer = DRIFT_BOOST_DURATIONS[tier];
+        driftBoosting = true;
+        driftBoostTimer = DRIFT_BOOST_DURATIONS[tier];
         Sound.unlock();
         announce('Mini-turbo!');
       }
@@ -5942,6 +5962,12 @@ function updateLeaderboard(standings){
 
 /* ---------- Boost ---------- */
 function updateBoost(dt){
+  // Drift mini-turbo runs on its own timer and never touches boostCharge —
+  // firing one no longer wipes out (or interrupts) the manual meter below.
+  if(driftBoosting){
+    driftBoostTimer -= dt;
+    if(driftBoostTimer <= 0){ driftBoosting = false; driftBoostTimer = 0; }
+  }
   if(boosting){
     boostTimer -= dt;
     if(boostTimer <= 0){ boosting = false; boostTimer = 0; boostCharge = 0; }
