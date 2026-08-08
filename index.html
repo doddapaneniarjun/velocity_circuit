@@ -1050,13 +1050,6 @@
       </div>
     </div>
 
-    <div id="photoModeBar" hidden style="position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:25;
-      background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:10px 18px;
-      display:flex; align-items:center; gap:14px; font-weight:600; font-size:13px; color:var(--muted);">
-      <button class="btn" id="photoModeSaveBtn" style="padding:6px 14px; min-height:auto; font-size:13px;">Save Photo</button>
-      <button class="btn secondary" id="photoModeCloseBtn" style="padding:6px 14px; min-height:auto; font-size:13px;">Done</button>
-    </div>
-
     <div class="overlay" id="statsOverlay" hidden>
       <div class="statsOverlayCard">
         <button type="button" class="popupCloseX" id="statsCloseX" aria-label="Close (X)">✕</button>
@@ -4535,6 +4528,8 @@ window.addEventListener('keydown', e=>{
   }
   if(e.code === gameState.keyBinds.boost && appState==='racing'){ triggerBoost(); }
   if(e.code === 'Digit1' && appState === 'results'){ takePhoto(); }
+  if(e.code === 'Digit1' && PhotoMode.active){ PhotoMode.save(); }
+  if(e.code === 'Digit2' && PhotoMode.active){ PhotoMode.exit(); }
   if(e.code === 'Escape'){
     if(appState === 'racing' || appState === 'racing-countdown'){
       pauseRace();
@@ -7441,7 +7436,6 @@ const PhotoMode = {
     this.pitch = Math.asin(Math.max(-1, Math.min(1, rel.y / this.distance)));
     this.yaw = Math.atan2(rel.x, rel.z);
     $('pauseOverlay').hidden = true;
-    $('photoModeBar').hidden = false;
     $('hud').style.display = 'none';
     const c = $('canvas');
     c.style.touchAction = 'none';
@@ -7460,7 +7454,6 @@ const PhotoMode = {
     // gamepad Start press toggling straight past this), the race is what
     // should be on screen, not a pause menu popping back up over it.
     if(appState === 'paused') $('pauseOverlay').hidden = false;
-    $('photoModeBar').hidden = true;
     $('hud').style.display = '';
     const c = $('canvas');
     c.style.touchAction = '';
@@ -7519,9 +7512,6 @@ const PhotoMode = {
     downloadCanvasPhoto();
   }
 };
-$('photoModeSaveBtn').addEventListener('click', ()=> PhotoMode.save());
-$('photoModeCloseBtn').addEventListener('click', ()=> PhotoMode.exit());
-
 /* ---------- HUD ---------- */
 function ordinalSuffix(n){
   const n100 = n % 100;
@@ -8810,17 +8800,12 @@ function animate(now){
   const dt = Math.min((now - lastTime)/1000, 0.05);
   lastTime = now;
 
-  // Photo Mode's floating button bar (and its HUD-hiding side effect) only
-  // ever belongs on top of a paused race. Force it closed the moment we're
-  // anywhere else — checking the DOM directly (not just the "active" flag)
-  // so a stale/left-open bar can never linger over the live race HUD
-  // (Pause/Muted, coins, leaderboard, laps, boost, etc.) or the results
-  // screen, no matter how it ended up in that state (e.g. a gamepad Start
-  // press resuming the race straight out of Photo Mode).
+  // Photo Mode's HUD-hiding side effect only ever belongs on top of a
+  // paused race. Force it closed the moment we're anywhere else, no matter
+  // how it ended up in that state (e.g. a gamepad Start press resuming the
+  // race straight out of Photo Mode).
   if(appState !== 'paused'){
     if(PhotoMode.active) PhotoMode.exit();
-    const photoBar = $('photoModeBar');
-    if(photoBar && !photoBar.hidden) photoBar.hidden = true;
   }
 
   // The Home Screen's condensed stats box should duck out of the way the
