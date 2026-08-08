@@ -951,11 +951,20 @@
         <div class="btnRow" style="flex-direction:column; margin-top:14px;">
           <button class="btn garage" id="circuitNextBtn" hidden>Next Race</button>
           <button class="btn garage" id="raceAgainBtn">Race Again</button>
+          <button class="btn secondary" id="photoModeBtn">📷 Photo Mode</button>
           <button class="btn secondary" id="resultsGarageBtn">Garage</button>
           <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
           <button class="btn ghost" id="resultsHomeBtn">Home</button>
         </div>
       </div>
+    </div>
+
+    <div id="photoModeBar" hidden style="position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:25;
+      background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:10px 18px;
+      display:flex; align-items:center; gap:14px; font-weight:600; font-size:13px; color:var(--muted);">
+      <span>Drag to orbit &middot; Scroll/pinch to zoom</span>
+      <button class="btn" id="photoModeSaveBtn" style="padding:6px 14px; min-height:auto; font-size:13px;">Save Photo</button>
+      <button class="btn secondary" id="photoModeCloseBtn" style="padding:6px 14px; min-height:auto; font-size:13px;">Done</button>
     </div>
 
     <div class="overlay" id="statsOverlay" hidden>
@@ -1648,6 +1657,20 @@ async function attemptLogin(rawUsername, rawPassword){
     }
   } else {
     // Brand new account (not in the shared table, and nothing cached here).
+    // This used to happen silently — mistype your real username and you'd
+    // be dropped into a fresh, empty profile with zero friends/rivals/coins,
+    // which reads as "my data got deleted" even though the old profile is
+    // untouched under its real username. Require an explicit confirmation
+    // before creating one, so a typo surfaces as an obvious question instead
+    // of a silent switch.
+    const confirmMsg = remoteReachable
+      ? 'No account named "' + username + '" exists yet. Create a new profile with this username and password?'
+      : 'Can\u2019t reach the server to check whether "' + username + '" already exists (you\u2019re offline). If it\u2019s an existing account, its progress won\u2019t show up until you\u2019re back online and log in again. Create a new local profile with this username now?';
+    if(!confirm(confirmMsg)){
+      errEl.textContent = 'Double-check the username, or confirm to create a new profile.';
+      if(submitBtn) submitBtn.disabled = false;
+      return;
+    }
     users[nameKey] = { hash, display: username };
     isNewAccount = true;
   }
@@ -4381,6 +4404,7 @@ window.addEventListener('keydown', e=>{
       if(!$('settingsCard').hidden){ $('settingsBackBtn').click(); }
       else { resumeRace(); }
     } else if(appState === 'results'){
+      if(PhotoMode.active){ PhotoMode.exit(); return; } // step out of photo mode first, same as any other overlay
       $('resultsHomeBtn').click();
     } else if(appState === 'home'){
       // On Home itself Escape has nowhere further to go; from Garage or
@@ -4395,6 +4419,73 @@ window.addEventListener('keydown', e=>{
   }
 });
 window.addEventListener('keyup', e=>{ keys[e.code] = false; });
+
+/* ---------- Gamepad support ----------
+   A thin polling layer next to the keyboard/touch input above — it doesn't
+   touch the physics code. Analog steer/throttle/brake are read straight off
+   the pad each frame (poll(), called once per animate() tick) and consumed
+   at the two or three spots in updateCar() that already read `keys`/kb.*
+   for the player. Drift/boost/pause are edge-detected here the same way the
+   keydown handler above edge-detects them for the keyboard.
+   Layout (standard mapping): left stick / d-pad = steer & throttle/brake,
+   right trigger or A = throttle, left trigger or X = brake,
+   right bumper = drift, left bumper = boost, Start = pause/resume. */
+const Gamepad = {
+  index: null,
+  analogSteer: 0,      // -1..1, 0 when no analog input this frame
+  throttleHeld: false,
+  brakeHeld: false,
+  driftHeld: false,
+  boostHeld: false,
+  DEADZONE: 0.18,
+  _startWasDown: false,
+  _boostWasDown: false,
+  init(){
+    window.addEventListener('gamepadconnected', e=>{
+      this.index = e.gamepad.index;
+      announce('Gamepad connected' + (e.gamepad.id ? ': ' + e.gamepad.id : '') + '.');
+    });
+    window.addEventListener('gamepaddisconnected', e=>{
+      if(e.gamepad.index !== this.index) return;
+      this.index = null;
+      this.analogSteer = 0; this.throttleHeld = false; this.brakeHeld = false;
+      this.driftHeld = false; this.boostHeld = false;
+      announce('Gamepad disconnected.');
+    });
+  },
+  poll(){
+    if(this.index == null || !navigator.getGamepads) return;
+    const gp = navigator.getGamepads()[this.index];
+    if(!gp) return;
+    const ax = gp.axes[0] || 0;
+    let steer = Math.abs(ax) > this.DEADZONE ? -ax : 0; // stick right (+x) = steer right = negative, matching ArrowLeft-ArrowRight below
+    const dpadLeft  = !!(gp.buttons[14] && gp.buttons[14].pressed);
+    const dpadRight = !!(gp.buttons[15] && gp.buttons[15].pressed);
+    const dpadUp    = !!(gp.buttons[12] && gp.buttons[12].pressed);
+    const dpadDown  = !!(gp.buttons[13] && gp.buttons[13].pressed);
+    if(dpadLeft) steer = Math.max(steer, 1);
+    if(dpadRight) steer = Math.min(steer, -1);
+    this.analogSteer = steer;
+    const btnA = !!(gp.buttons[0] && gp.buttons[0].pressed);
+    const btnX = !!(gp.buttons[2] && gp.buttons[2].pressed);
+    const rt = gp.buttons[7] ? gp.buttons[7].value : 0;
+    const lt = gp.buttons[6] ? gp.buttons[6].value : 0;
+    this.throttleHeld = btnA || dpadUp || rt > 0.2;
+    this.brakeHeld = btnX || dpadDown || lt > 0.2;
+    this.driftHeld = !!(gp.buttons[5] && gp.buttons[5].pressed);
+    this.boostHeld = !!(gp.buttons[4] && gp.buttons[4].pressed);
+
+    const start = !!(gp.buttons[9] && gp.buttons[9].pressed);
+    if(start && !this._startWasDown){
+      if(appState === 'racing' || appState === 'racing-countdown') pauseRace();
+      else if(appState === 'paused') resumeRace();
+    }
+    this._startWasDown = start;
+    if(this.boostHeld && !this._boostWasDown && appState === 'racing'){ triggerBoost(); }
+    this._boostWasDown = this.boostHeld;
+  }
+};
+Gamepad.init();
 
 /* ---------- Touchscreen controls: dynamic joystick + M/Space keycaps ----------
    Only visible/reachable when gameState.touchControls is on (see
@@ -5749,9 +5840,10 @@ function updateCar(car, dt){
 
   if(car.isPlayer){
     const kb = gameState.keyBinds;
-    throttle = (keys['ArrowUp']||keys[kb.up]) ? 1 : 0;
-    brake = (keys['ArrowDown']||keys[kb.down]) ? 1 : 0;
+    throttle = (keys['ArrowUp']||keys[kb.up]||Gamepad.throttleHeld) ? 1 : 0;
+    brake = (keys['ArrowDown']||keys[kb.down]||Gamepad.brakeHeld) ? 1 : 0;
     steer = ((keys['ArrowLeft']||keys[kb.left])?1:0) - ((keys['ArrowRight']||keys[kb.right])?1:0);
+    if(Gamepad.analogSteer) steer = Gamepad.analogSteer; // analog stick overrides digital keys when active
     if(gameState.invertSteering) steer = -steer;
   } else {
     // Build a lane-offset waypoint: shift the centreline point laterally by
@@ -5804,7 +5896,7 @@ function updateCar(car, dt){
   let drifting = false;
   const canDrift = car.isPlayer && !car.touchingWall;
   if(canDrift){
-    const driftKeyDown = !!keys[gameState.keyBinds.drift];
+    const driftKeyDown = !!keys[gameState.keyBinds.drift] || Gamepad.driftHeld;
     drifting = driftKeyDown && Math.abs(steer) > 0.1
       && Math.abs(car.speed) > maxSpeed*DRIFT_MIN_SPEED_FRAC;
     if(drifting){
@@ -6738,6 +6830,126 @@ function updateCamera(dt){
   lookAt.y = 1.2;
   camera.lookAt(lookAt);
 }
+
+/* ---------- Photo Mode ----------
+   A freeze-frame camera for the results screen. Reuses the same global
+   `camera`/`scene`/`renderer` the race already renders with — while active
+   it just takes over positioning `camera` each frame (in place of
+   updateCamera(), which isn't called during 'results' anyway), orbiting
+   around the finished player car with drag + wheel/pinch, instead of
+   leaving it parked at whatever angle the chase cam happened to be at when
+   you crossed the line. Saving reads pixels straight off that same canvas,
+   so it's a WYSIWYG capture of exactly what's on screen. */
+const PhotoMode = {
+  active: false,
+  pivot: null,       // THREE.Vector3 — orbit centre, the finished car's position
+  yaw: 0, pitch: 0.25, distance: 12,
+  MIN_DIST: 4, MAX_DIST: 60,
+  dragging: false,
+  lastX: 0, lastY: 0,
+  pointers: new Map(), // active pointer id -> {x,y}, for drag + pinch
+  pinchStartDist: 0,
+  pinchStartZoom: 0,
+
+  enter(){
+    if(!player) return;
+    this.active = true;
+    this.pivot = player.pos.clone();
+    const target = new THREE.Vector3(this.pivot.x, this.pivot.y + 1.4, this.pivot.z);
+    const rel = camera.position.clone().sub(target);
+    this.distance = Math.max(this.MIN_DIST, Math.min(this.MAX_DIST, rel.length() || 12));
+    this.pitch = Math.asin(Math.max(-1, Math.min(1, rel.y / this.distance)));
+    this.yaw = Math.atan2(rel.x, rel.z);
+    $('resultsOverlay').hidden = true;
+    $('photoModeBar').hidden = false;
+    $('hud').style.display = 'none';
+    const c = $('canvas');
+    c.style.touchAction = 'none';
+    c.addEventListener('pointerdown', this._onDown);
+    window.addEventListener('pointermove', this._onMove);
+    window.addEventListener('pointerup', this._onUp);
+    window.addEventListener('pointercancel', this._onUp);
+    c.addEventListener('wheel', this._onWheel, { passive:false });
+  },
+  exit(){
+    this.active = false;
+    this.pointers.clear();
+    this.dragging = false;
+    $('resultsOverlay').hidden = false;
+    $('photoModeBar').hidden = true;
+    $('hud').style.display = '';
+    const c = $('canvas');
+    c.style.touchAction = '';
+    c.removeEventListener('pointerdown', this._onDown);
+    window.removeEventListener('pointermove', this._onMove);
+    window.removeEventListener('pointerup', this._onUp);
+    window.removeEventListener('pointercancel', this._onUp);
+    c.removeEventListener('wheel', this._onWheel);
+  },
+  _onDown: (e)=>{
+    PhotoMode.pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if(PhotoMode.pointers.size === 1){
+      PhotoMode.dragging = true;
+      PhotoMode.lastX = e.clientX; PhotoMode.lastY = e.clientY;
+    } else if(PhotoMode.pointers.size === 2){
+      PhotoMode.dragging = false;
+      const pts = [...PhotoMode.pointers.values()];
+      PhotoMode.pinchStartDist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y) || 1;
+      PhotoMode.pinchStartZoom = PhotoMode.distance;
+    }
+  },
+  _onMove: (e)=>{
+    if(!PhotoMode.pointers.has(e.pointerId)) return;
+    PhotoMode.pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if(PhotoMode.pointers.size === 2){
+      const pts = [...PhotoMode.pointers.values()];
+      const d = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y) || 1;
+      const ratio = PhotoMode.pinchStartDist / d;
+      PhotoMode.distance = Math.max(PhotoMode.MIN_DIST, Math.min(PhotoMode.MAX_DIST, PhotoMode.pinchStartZoom * ratio));
+      return;
+    }
+    if(!PhotoMode.dragging) return;
+    const dx = e.clientX - PhotoMode.lastX, dy = e.clientY - PhotoMode.lastY;
+    PhotoMode.lastX = e.clientX; PhotoMode.lastY = e.clientY;
+    PhotoMode.yaw -= dx * 0.006;
+    PhotoMode.pitch = Math.max(-0.15, Math.min(1.45, PhotoMode.pitch + dy * 0.006));
+  },
+  _onUp: (e)=>{
+    PhotoMode.pointers.delete(e.pointerId);
+    if(PhotoMode.pointers.size < 2) PhotoMode.pinchStartDist = 0;
+    if(PhotoMode.pointers.size === 0) PhotoMode.dragging = false;
+  },
+  _onWheel: (e)=>{
+    e.preventDefault();
+    PhotoMode.distance = Math.max(PhotoMode.MIN_DIST, Math.min(PhotoMode.MAX_DIST, PhotoMode.distance + e.deltaY * 0.02));
+  },
+  update(){
+    if(!this.active || !this.pivot) return;
+    const cosP = Math.cos(this.pitch);
+    camera.position.x = this.pivot.x + Math.sin(this.yaw) * cosP * this.distance;
+    camera.position.z = this.pivot.z + Math.cos(this.yaw) * cosP * this.distance;
+    camera.position.y = this.pivot.y + 1.4 + Math.sin(this.pitch) * this.distance;
+    camera.lookAt(this.pivot.x, this.pivot.y + 1.2, this.pivot.z);
+  },
+  save(){
+    renderer.render(scene, camera);
+    const c = $('canvas');
+    c.toBlob(blob=>{
+      if(!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'velocity-circuit-photo.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    }, 'image/png');
+  }
+};
+$('photoModeBtn').addEventListener('click', ()=> PhotoMode.enter());
+$('photoModeCloseBtn').addEventListener('click', ()=> PhotoMode.exit());
+$('photoModeSaveBtn').addEventListener('click', ()=> PhotoMode.save());
 
 /* ---------- HUD ---------- */
 function ordinalSuffix(n){
@@ -7981,6 +8193,7 @@ function kickFromOnlineRace(reason){
   announce(reason);
 }
 $('circuitNextBtn').addEventListener('click', ()=>{
+  if(PhotoMode.active) PhotoMode.exit();
   $('resultsOverlay').hidden = true;
   if(!circuit) return;
   circuit.idx++;
@@ -7992,6 +8205,7 @@ $('circuitNextBtn').addEventListener('click', ()=>{
   }
 });
 $('raceAgainBtn').addEventListener('click', ()=>{
+  if(PhotoMode.active) PhotoMode.exit();
   $('resultsOverlay').hidden = true;
   if(Online.room){
     // Can't replay the same online room — head back to the lobby to find a new match
@@ -8000,9 +8214,9 @@ $('raceAgainBtn').addEventListener('click', ()=>{
   }
   startRace(selectedStage);
 });
-$('resultsGarageBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
-$('resultsUpgradesBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
-$('resultsHomeBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
+$('resultsGarageBtn').addEventListener('click', ()=>{ if(PhotoMode.active) PhotoMode.exit(); abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
+$('resultsUpgradesBtn').addEventListener('click', ()=>{ if(PhotoMode.active) PhotoMode.exit(); abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
+$('resultsHomeBtn').addEventListener('click', ()=>{ if(PhotoMode.active) PhotoMode.exit(); const wasOnline = !!Online.room; abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
 
 /* ---------- Main loop ---------- */
 let lastTime = performance.now();
@@ -8012,6 +8226,7 @@ function animate(now){
   const dt = Math.min((now - lastTime)/1000, 0.05);
   lastTime = now;
 
+  Gamepad.poll();
   updateOceanProximity();
   updateSkyDome();
 
@@ -8095,6 +8310,7 @@ function animate(now){
       Online.updateRemoteCars(dt);
     }
     updateHUD();
+    PhotoMode.update();
     renderer.render(scene, camera);
   }
 }
