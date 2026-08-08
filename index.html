@@ -875,6 +875,17 @@
           <input type="checkbox" id="invertSteeringToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
         </div>
         <div style="margin-bottom:24px;text-align:left;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <label for="gamepadSelect" style="display:block;font-weight:700;">Active Gamepad</label>
+              <p id="gamepadStatus" style="color:var(--muted);font-size:12px;margin:4px 0 0;">No gamepad connected.</p>
+            </div>
+            <select id="gamepadSelect" style="background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;flex:none;max-width:170px;">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:24px;text-align:left;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
             <div>
               <label style="display:block;font-weight:700;">Button Controls</label>
@@ -4465,15 +4476,27 @@ window.addEventListener('keyup', e=>{ keys[e.code] = false; });
 /* ---------- Gamepad support ----------
    A thin polling layer next to the keyboard/touch input above — it doesn't
    touch the physics code. Analog steer/throttle/brake are read straight off
-   the pad each frame (poll(), called once per animate() tick) and consumed
-   at the two or three spots in updateCar() that already read `keys`/kb.*
-   for the player. Drift/boost/pause are edge-detected here the same way the
-   keydown handler above edge-detects them for the keyboard.
+   the active pad each frame (poll(), called once per animate() tick) and
+   consumed at the two or three spots in updateCar() that already read
+   `keys`/kb.* for the player. Drift/boost/pause are edge-detected here the
+   same way the keydown handler above edge-detects them for the keyboard.
    Layout (standard mapping): left stick / d-pad = steer & throttle/brake,
    right trigger or A = throttle, left trigger or X = brake,
-   right bumper = drift, left bumper = boost, Start = pause/resume. */
+   right bumper = drift, left bumper = boost, Start = pause/resume.
+
+   Multiple pads (e.g. a pair of Joy-Cons connected as two separate
+   gamepads) can be connected at once. Every connected pad is tracked in
+   `connected`; only one — `index` — actually drives the car at a time.
+   The first pad to connect becomes active automatically; from then on the
+   player can switch which connected pad is "it" via the Settings screen,
+   and if the active one disconnects, another already-connected pad (if
+   any) takes over automatically. Some browsers/controllers (notably a
+   second Joy-Con paired over Bluetooth) don't fire 'gamepadconnected'
+   until a button on them is first pressed, so poll() also re-scans
+   navigator.getGamepads() every frame to catch those late arrivals. */
 const Gamepad = {
   index: null,
+  connected: [],       // sorted array of currently-connected pad indices
   analogSteer: 0,      // -1..1, 0 when no analog input this frame
   throttleHeld: false,
   brakeHeld: false,
@@ -4482,20 +4505,93 @@ const Gamepad = {
   DEADZONE: 0.18,
   _startWasDown: false,
   _boostWasDown: false,
+  _labels: {},          // index -> display label, kept even after disconnect handling this frame
   init(){
     window.addEventListener('gamepadconnected', e=>{
-      this.index = e.gamepad.index;
+      this._labels[e.gamepad.index] = e.gamepad.id || ('Gamepad ' + e.gamepad.index);
+      this._addConnected(e.gamepad.index);
+      if(this.index == null) this._setActive(e.gamepad.index, false);
       announce('Gamepad connected' + (e.gamepad.id ? ': ' + e.gamepad.id : '') + '.');
+      this._refreshUI();
     });
     window.addEventListener('gamepaddisconnected', e=>{
-      if(e.gamepad.index !== this.index) return;
-      this.index = null;
-      this.analogSteer = 0; this.throttleHeld = false; this.brakeHeld = false;
-      this.driftHeld = false; this.boostHeld = false;
+      delete this._labels[e.gamepad.index];
+      this._removeConnected(e.gamepad.index);
+      if(e.gamepad.index === this.index){
+        this.analogSteer = 0; this.throttleHeld = false; this.brakeHeld = false;
+        this.driftHeld = false; this.boostHeld = false;
+        // Hand off to another already-connected pad, if there is one.
+        this._setActive(this.connected.length ? this.connected[0] : null, false);
+      }
       announce('Gamepad disconnected.');
+      this._refreshUI();
+    });
+    this._wireSelect();
+    this._refreshUI();
+  },
+  _addConnected(idx){
+    if(!this.connected.includes(idx)){ this.connected.push(idx); this.connected.sort((a,b)=>a-b); }
+  },
+  _removeConnected(idx){
+    this.connected = this.connected.filter(i=>i!==idx);
+  },
+  // Catches pads whose 'connected' event never fired (common for a second
+  // Joy-Con until it's first touched) by diffing against the live list.
+  _scanForNewPads(){
+    if(!navigator.getGamepads) return;
+    const live = navigator.getGamepads();
+    for(let i=0;i<live.length;i++){
+      const gp = live[i];
+      if(!gp) continue;
+      if(!this.connected.includes(gp.index)){
+        this._labels[gp.index] = gp.id || ('Gamepad ' + gp.index);
+        this._addConnected(gp.index);
+        if(this.index == null) this._setActive(gp.index, false);
+        announce('Gamepad connected' + (gp.id ? ': ' + gp.id : '') + '.');
+        this._refreshUI();
+      }
+    }
+  },
+  // Switches which connected pad drives the car. `manual` marks a
+  // player-initiated switch (from the Settings dropdown) vs. an automatic
+  // handoff after a disconnect, so we only announce it once either way.
+  _setActive(idx, manual){
+    this.index = idx;
+    this.analogSteer = 0; this.throttleHeld = false; this.brakeHeld = false;
+    this.driftHeld = false; this.boostHeld = false;
+    this._startWasDown = false; this._boostWasDown = false;
+    if(manual){
+      announce(idx == null ? 'Gamepad set to none.' : 'Switched to ' + (this._labels[idx] || ('Gamepad ' + idx)) + '.');
+    }
+  },
+  _wireSelect(){
+    const sel = document.getElementById('gamepadSelect');
+    if(!sel) return;
+    sel.addEventListener('change', ()=>{
+      const val = sel.value === '' ? null : parseInt(sel.value, 10);
+      this._setActive(val, true);
     });
   },
+  // Rebuilds the Settings dropdown + status line from current state.
+  // Cheap and safe to call every time the connected set changes; also
+  // called once when the Settings screen is opened.
+  _refreshUI(){
+    const sel = document.getElementById('gamepadSelect');
+    const status = document.getElementById('gamepadStatus');
+    if(!sel || !status) return;
+    sel.innerHTML = '<option value="">None</option>' + this.connected.map(idx=>
+      `<option value="${idx}">${escapeHtml(this._labels[idx] || ('Gamepad ' + idx))}</option>`).join('');
+    sel.value = this.index == null ? '' : String(this.index);
+    if(this.connected.length === 0){
+      status.textContent = 'No gamepad connected.';
+    } else if(this.connected.length === 1){
+      status.textContent = this.index == null ? '1 gamepad connected.' : 'Using ' + (this._labels[this.index] || 'Gamepad') + '.';
+    } else {
+      status.textContent = this.connected.length + ' gamepads connected' + (this.index != null ? ' — using ' + (this._labels[this.index] || 'Gamepad') : '') + '.';
+    }
+  },
   poll(){
+    this._scanForNewPads();
     if(this.index == null || !navigator.getGamepads) return;
     const gp = navigator.getGamepads()[this.index];
     if(!gp) return;
@@ -7892,6 +7988,7 @@ $('settingsBtn').addEventListener('click', ()=>{
   $('pauseCard').hidden = true;
   $('settingsCard').hidden = false;
   renderKeybindsList();
+  Gamepad._refreshUI();
   $('themeToggle').value = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   $('sensitivitySlider').value = gameState.sensitivity;
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
