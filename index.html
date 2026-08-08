@@ -1276,7 +1276,22 @@ async function syncFriendsFromShared(){
     const row = await sbGetAccount(forUser);
     if(currentUser !== forUser) return; // account changed mid-flight — discard, touch nothing
     if(row && Array.isArray(row.friends_list)){
-      writeFriendsLocalOnly(row.friends_list);
+      // Merge, never overwrite. A pull that returns fewer entries than what's
+      // already cached locally — because of stale/lagging server data, a
+      // previous bad write, or any other timing issue — must never silently
+      // delete entries the user can currently see. Union by key; on a
+      // conflicting key keep the local copy, since that's what's on screen.
+      const remote = row.friends_list;
+      const local = readFriends();
+      const merged = local.slice();
+      remote.forEach(rf=>{
+        if(!merged.find(lf=>lf.key===rf.key)) merged.push(rf);
+      });
+      if(merged.length !== local.length){
+        writeFriendsLocalOnly(merged);
+        // Self-heal the shared copy too, in case it was the one missing entries.
+        sbUpsertAccount(forUser, { friends_list: merged }).catch(()=>{});
+      }
     }
   }catch(e){ /* offline or column missing — keep local cache */ }
   if(currentUser !== forUser) return;
@@ -1519,7 +1534,19 @@ function subscribeToAccountChanges(){
         sbUpsertAccount(currentUser, { pending_cmds: [] }).catch(()=>{});
       }
       if(Array.isArray(payload.new.friends_list)){
-        writeFriendsLocalOnly(payload.new.friends_list);
+        // Merge, never overwrite — same reasoning as syncFriendsFromShared:
+        // a live update carrying fewer entries than what's on screen must
+        // not delete anything the user can currently see.
+        const remote = payload.new.friends_list;
+        const local = readFriends();
+        const merged = local.slice();
+        remote.forEach(rf=>{
+          if(!merged.find(lf=>lf.key===rf.key)) merged.push(rf);
+        });
+        if(merged.length !== local.length){
+          writeFriendsLocalOnly(merged);
+          sbUpsertAccount(currentUser, { friends_list: merged }).catch(()=>{});
+        }
         renderFriendsList();
       }
     })
