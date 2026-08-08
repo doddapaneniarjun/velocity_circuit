@@ -96,7 +96,10 @@
   .homeStatsBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid var(--border);
     border-radius:var(--radius); padding:10px 12px; z-index:20; color:var(--muted);
     display:flex; flex-direction:column; gap:6px; align-items:flex-start;
-    width:min(200px,calc(100vw - 32px)); transition:opacity .15s, visibility .15s; }
+    width:min(200px,calc(100vw - 32px)); transition:opacity .15s, visibility .15s;
+    cursor:grab; touch-action:none; user-select:none; }
+  .homeStatsBar.dragging{ cursor:grabbing; opacity:.92; }
+  .homeStatsBar button, .homeStatsBar a{ touch-action:auto; }
   .homeStatsBar strong{ color:var(--text); }
   .homeStatsBar.hiddenForOverlay{ opacity:0; visibility:hidden; pointer-events:none; }
   .homeStatsRow{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:12px; flex-wrap:wrap; }
@@ -408,6 +411,11 @@
 
   .overlay{ position:absolute; inset:0; background:rgba(var(--shadow-rgb),.55); display:flex; align-items:center; justify-content:center; pointer-events:all; }
   .overlay[hidden]{ display:none !important; }
+  /* The owner /stats popup can be opened from inside the Chat popup (both
+     are plain siblings in the DOM, so by default the later one — Chat —
+     would paint on top). Give it a higher stacking order so it always
+     shows above Chat instead of appearing to open "behind" it. */
+  #ownerStatsOverlay{ z-index:25; }
   .overlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius); padding:30px 34px; text-align:center; width:min(420px,88vw);
     display:flex; flex-direction:column; max-height:90vh; max-height:90dvh; position:relative; z-index:10; }
   .overlayCard h2{ margin:0 0 6px; font-size:24px; flex:none; }
@@ -8790,13 +8798,27 @@ function animate(now){
   lastTime = now;
 
   // Photo Mode's floating button bar (and its HUD-hiding side effect) only
-  // ever belongs on the post-race results screen. If a race starts while it
-  // was still showing — or its "active" flag and its DOM visibility ever
-  // drift apart for any reason — self-heal every frame instead of letting
-  // it linger and cover the live race HUD (Pause/Muted, coins, leaderboard,
-  // laps, boost, etc.).
-  if(appState !== 'results' && PhotoMode.active){
-    PhotoMode.exit();
+  // ever belongs on the post-race results screen. Force it closed the moment
+  // we're anywhere else — checking the DOM directly (not just the "active"
+  // flag) so a stale/left-open bar can never linger over the live race HUD
+  // (Pause/Muted, coins, leaderboard, laps, boost, etc.), no matter how it
+  // ended up in that state.
+  if(appState !== 'results'){
+    if(PhotoMode.active) PhotoMode.exit();
+    const photoBar = $('photoModeBar');
+    if(photoBar && !photoBar.hidden) photoBar.hidden = true;
+  }
+
+  // The Home Screen's condensed stats box should duck out of the way the
+  // instant any fullscreen popup (Chat, Friends, Achievements, Player
+  // Stats) opens above it, and reappear once they're all closed again —
+  // checked centrally here so it stays correct no matter which popup(s)
+  // opened or closed it.
+  const homeBar = $('homeStatsBar');
+  if(homeBar){
+    const popupOpen = ['achievementsOverlay','ownerStatsOverlay','globalChatOverlay','friendsOverlay']
+      .some(id => { const el = $(id); return el && !el.hidden; });
+    homeBar.classList.toggle('hiddenForOverlay', popupOpen);
   }
 
   Gamepad.poll(dt);
@@ -8895,6 +8917,64 @@ $('loginForm').addEventListener('submit', (e)=>{
   attemptLogin($('loginUsername').value, $('loginPassword').value);
 });
 $('logoutBtn').addEventListener('click', logout);
+
+/* ---------- Home stats box: draggable ----------
+   Lets the player reposition the condensed coins/rating/profile/chat box
+   anywhere on screen. Dragging starts from anywhere on the box except its
+   actual controls (Chat/Friends buttons, Log out), so those stay clickable.
+   Position persists across sessions via localStorage. */
+(function initHomeStatsBarDrag(){
+  const bar = $('homeStatsBar');
+  if(!bar) return;
+  const POS_KEY = 'velocityCircuit_homeStatsBarPos';
+  let dragging = false, moved = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+  function clamp(left, top){
+    const maxLeft = Math.max(4, window.innerWidth - bar.offsetWidth - 4);
+    const maxTop = Math.max(4, window.innerHeight - bar.offsetHeight - 4);
+    return { left: Math.max(4, Math.min(maxLeft, left)), top: Math.max(4, Math.min(maxTop, top)) };
+  }
+  function onDown(e){
+    if(e.target.closest('button, a')) return; // let controls inside the box work normally
+    dragging = true; moved = false;
+    const rect = bar.getBoundingClientRect();
+    startLeft = rect.left; startTop = rect.top;
+    startX = e.clientX; startY = e.clientY;
+    bar.classList.add('dragging');
+    try{ bar.setPointerCapture(e.pointerId); }catch(err){}
+  }
+  function onMove(e){
+    if(!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if(Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    const pos = clamp(startLeft + dx, startTop + dy);
+    bar.style.left = pos.left + 'px';
+    bar.style.top = pos.top + 'px';
+    bar.style.right = 'auto';
+  }
+  function onUp(){
+    if(!dragging) return;
+    dragging = false;
+    bar.classList.remove('dragging');
+    if(moved){
+      try{ localStorage.setItem(POS_KEY, JSON.stringify({ left: parseFloat(bar.style.left), top: parseFloat(bar.style.top) })); }catch(err){}
+    }
+  }
+  bar.addEventListener('pointerdown', onDown);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+
+  try{
+    const saved = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
+    if(saved && typeof saved.left === 'number' && typeof saved.top === 'number'){
+      const pos = clamp(saved.left, saved.top);
+      bar.style.left = pos.left + 'px';
+      bar.style.top = pos.top + 'px';
+      bar.style.right = 'auto';
+    }
+  }catch(err){}
+})();
 
 /* ---------- /stats (owner-only chat command) ----------
    Fetches every account from the shared Supabase table, so this shows every
@@ -9213,11 +9293,6 @@ function openGlobalChat(){
   const dot = $('globalChatUnreadDot');
   if(dot) dot.hidden = true;
   updateChatStatusUI();
-  // The chat overlay's close (X) button sits in the same top-left corner as
-  // the home screen's fixed stats box — hide the stats box while chat is
-  // open so the two never overlap, then restore it on close.
-  const statsBar = $('homeStatsBar');
-  if(statsBar) statsBar.classList.add('hiddenForOverlay');
   setTimeout(()=>{ const f = $('globalChatInput'); if(f) f.focus(); }, 0);
 }
 // Surfaces the chat mesh's live connection state so cross-device delivery
@@ -9239,8 +9314,6 @@ function updateChatStatusUI(){
 function closeGlobalChat(){
   globalChatOpen = false;
   $('globalChatOverlay').hidden = true;
-  const statsBar = $('homeStatsBar');
-  if(statsBar) statsBar.classList.remove('hiddenForOverlay');
 }
 $('globalChatBtn').addEventListener('click', openGlobalChat);
 $('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
