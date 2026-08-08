@@ -304,6 +304,9 @@
   .driftIndicator.tier3{ border-color:#e14fff; color:#e14fff; box-shadow:0 0 20px rgba(225,79,255,.75);
     animation:driftPulse .28s ease-in-out infinite; }
   @keyframes driftPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
+  @keyframes gamepadFlash{ 0%,100%{ opacity:1; background:var(--danger); } 50%{ opacity:.35; background:transparent; } }
+  #hudGamepadIndicator.gamepadFlashing{ animation:gamepadFlash 0.5s step-start infinite; border-radius:10px; }
+  .gamepadFocus{ outline:3px solid var(--accent) !important; outline-offset:2px; }
   .keybindRow{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
   .keybindRow:last-child{ margin-bottom:0; }
   .keybindLabel{ font-size:14px; font-weight:600; }
@@ -414,8 +417,15 @@
     .settingsScrollArea > div{ margin-bottom:16px !important; }
   }
 
-  .statsOverlayCard{ background:var(--panel); border:1px solid var(--border-strong); border-radius:var(--radius);
-    padding:26px 28px; text-align:left; width:min(680px,92vw); max-height:82vh; display:flex; flex-direction:column; position:relative; z-index:10; }
+  .statsOverlayCard{ background:var(--panel); border:none; border-radius:0;
+    padding:74px 28px 28px; text-align:left; width:100vw; height:100vh; height:100dvh;
+    max-width:100%; max-height:100%; display:flex; flex-direction:column; position:relative; z-index:10; }
+  .popupCloseX{ position:absolute; top:14px; left:14px; width:40px; height:40px; border-radius:50%;
+    border:1px solid var(--border-strong); background:var(--panel2); color:var(--text); font-size:20px;
+    font-weight:800; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    z-index:20; padding:0; }
+  .popupCloseX:hover{ background:var(--danger); color:#fff; border-color:var(--danger); }
+  .popupCloseX:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
   .statsOverlayCard h2{ margin:0 0 4px; font-size:22px; text-align:center; }
   .statsOverlayCard p.statsSub{ color:var(--muted); margin:0 0 16px; text-align:center; font-size:13px; }
   .statsTableWrap{ overflow:auto; border:1px solid var(--border); border-radius:10px; }
@@ -605,6 +615,7 @@
 
     <div class="overlay" id="achievementsOverlay" hidden>
       <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="achievementsCloseX" aria-label="Close (X)">✕</button>
         <h2>Achievements</h2>
         <p class="statsSub">Badges earned from racing, collecting, and upgrading on this profile.</p>
         <div id="achievementsGrid" style="max-height:360px;overflow-y:auto;"></div>
@@ -619,6 +630,7 @@
 
     <div class="overlay" id="ownerStatsOverlay" hidden>
       <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="ownerStatsCloseX" aria-label="Close (X)">✕</button>
         <h2>Player Stats</h2>
         <p class="statsSub">Every account ever created on any device — including deleted ones.</p>
         <p id="ownerStatsSyncWarning" hidden style="background:rgba(168,58,42,.12);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:13px;margin:0 0 12px;"></p>
@@ -647,6 +659,7 @@
 
     <div class="overlay" id="globalChatOverlay" hidden>
       <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="globalChatCloseX" aria-label="Close (X)">✕</button>
         <h2>Chat</h2>
         <p class="statsSub">Message players on this device instantly, plus anyone else currently signed in on another device — they need to be online right now to receive it.</p>
         <p id="globalChatStatus" style="font-size:12px;color:var(--muted);margin:0 0 10px;"></p>
@@ -665,6 +678,7 @@
 
     <div class="overlay" id="friendsOverlay" hidden>
       <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="friendsCloseX" aria-label="Close (X)">✕</button>
         <h2>Friends &amp; Rivals</h2>
         <p class="statsSub">Track players you want to keep an eye on. Friends and rivals show as online whenever they're connected to chat, and you can jump straight into spectating the current race from here.</p>
         <div class="friendAddRow">
@@ -697,6 +711,7 @@
 
     <div class="overlay" id="paintOverlay" hidden>
       <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="paintCloseX" aria-label="Close (X)">✕</button>
         <h2 id="paintOverlayTitle">Paint</h2>
         <p class="statsSub">Unlock a paint job with coins, then equip it. Factory is always free.</p>
         <div class="paintSwatchGrid" id="paintSwatchGrid"></div>
@@ -739,6 +754,9 @@
     <canvas id="canvas"></canvas>
     <div id="hud">
       <div class="hudTop" style="justify-content:flex-end;">
+        <div class="hudPanel" id="hudGamepadIndicator" hidden style="padding:6px 10px;" aria-live="polite">
+          <span class="hudSmall" id="hudGamepadIcon" style="font-size:14px;">🎮</span>
+        </div>
         <div class="hudPanel">
           <div class="hudSmall"><span class="coinDot" aria-hidden="true" style="display:inline-block;width:10px;height:10px;vertical-align:middle;"></span> <span id="hudCoins">0</span> coins</div>
         </div>
@@ -885,6 +903,43 @@
             </select>
           </div>
         </div>
+        <div id="gamepadOptionsGroup" style="margin-bottom:24px;text-align:left;">
+          <label style="display:block;font-weight:700;margin-bottom:8px;">
+            Stick Deadzone
+            <span id="deadzoneVal" style="color:var(--accent);margin-left:8px;">18%</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="color:var(--muted);font-size:13px;">Tight</span>
+            <input type="range" id="deadzoneSlider" min="2" max="50" value="18"
+              style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
+            <span style="color:var(--muted);font-size:13px;">Loose</span>
+          </div>
+          <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">Raise this if a worn or drifting stick creeps the car sideways at rest.</p>
+        </div>
+        <div id="gamepadVibrationRow" style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="gamepadVibrationToggle" style="display:block;font-weight:700;">Controller Vibration</label>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Rumble on collisions, boosts, and mini-turbos (if your pad supports it).</p>
+          </div>
+          <input type="checkbox" id="gamepadVibrationToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div id="joyconLayoutRow" hidden style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div>
+            <label for="joyconLayoutToggle" style="display:block;font-weight:700;">Sideways Single Joy-Con</label>
+            <p id="joyconLayoutHint" style="color:var(--muted);font-size:12px;margin:4px 0 0;">A single Joy-Con was detected — use one-stick sideways controls.</p>
+          </div>
+          <input type="checkbox" id="joyconLayoutToggle" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex:none;">
+        </div>
+        <div style="margin-bottom:24px;text-align:left;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="display:block;font-weight:700;">Gamepad Button Mapping</label>
+              <p style="color:var(--muted);font-size:12px;margin:4px 0 0;">Click a button, then press its replacement on your pad.</p>
+            </div>
+            <button class="btn ghost" id="resetGamepadBindsBtn" type="button" style="font-size:12px;padding:8px 14px;min-height:auto;flex:none;">Reset</button>
+          </div>
+          <div id="gamepadBindsList"></div>
+        </div>
         <div style="margin-bottom:24px;text-align:left;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
             <div>
@@ -980,6 +1035,7 @@
 
     <div class="overlay" id="statsOverlay" hidden>
       <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="statsCloseX" aria-label="Close (X)">✕</button>
         <h2>Race Stats</h2>
         <p class="statsSub" id="statsSub"></p>
         <div class="statsTableWrap">
@@ -1043,6 +1099,9 @@ const DEFAULT_STATE = {
   showPing: false,
   touchControls: false,
   keyBinds: { up:'KeyW', down:'KeyS', left:'KeyA', right:'KeyD', boost:'Space', drift:'ShiftLeft', mute:'KeyM' },
+  gamepadBinds: { throttle:0, brake:2, drift:5, boost:4, pause:9 }, // standard-mapping button indices (A, X, RB, LB, Start)
+  gamepadDeadzone: 18,   // 0–50, stick deadzone as a percent (18 = 0.18)
+  gamepadVibration: true, // rumble on collisions/boosts/mini-turbos, when the pad supports it
   noclipWalls: false,   // owner-only: drive straight through track barriers
   appliedOwnerCmdIds: [],  // ids of owner commands already applied, so a command
                            // delivered twice (once live, once from the offline
@@ -1107,6 +1166,9 @@ function loadState(){
       gameState.showPing       = parsed.showPing === true;
       gameState.touchControls  = parsed.touchControls === true;
       gameState.keyBinds       = Object.assign({}, DEFAULT_STATE.keyBinds, parsed.keyBinds||{});
+      gameState.gamepadBinds   = Object.assign({}, DEFAULT_STATE.gamepadBinds, parsed.gamepadBinds||{});
+      gameState.gamepadDeadzone = Number.isFinite(parsed.gamepadDeadzone) ? parsed.gamepadDeadzone : DEFAULT_STATE.gamepadDeadzone;
+      gameState.gamepadVibration = parsed.gamepadVibration !== false;
       gameState.noclipWalls    = parsed.noclipWalls === true;
       gameState.appliedOwnerCmdIds = Array.isArray(parsed.appliedOwnerCmdIds) ? parsed.appliedOwnerCmdIds : [];
       gameState.unlockedAchievements = Array.isArray(parsed.unlockedAchievements) ? parsed.unlockedAchievements : [];
@@ -4462,10 +4524,7 @@ window.addEventListener('keydown', e=>{
     } else if(appState === 'home'){
       // On Home itself Escape has nowhere further to go; from Garage or
       // Upgrades it steps back to Home, just like their Back buttons.
-      if(!$('globalChatOverlay').hidden){ closeGlobalChat(); }
-      else if(!$('friendsOverlay').hidden){ closeFriendsOverlay(); }
-      else if(!$('paintOverlay').hidden){ closePaintOverlay(); }
-      else if(!$('ownerStatsOverlay').hidden){ $('ownerStatsOverlay').hidden = true; }
+      if(closeAnyPopup()){ /* handled */ }
       else if(!garageScreen.hidden){ showScreen('home'); }
       else if(!upgradesScreen.hidden){ showScreen('home'); }
     }
@@ -4481,8 +4540,8 @@ window.addEventListener('keyup', e=>{ keys[e.code] = false; });
    `keys`/kb.* for the player. Drift/boost/pause are edge-detected here the
    same way the keydown handler above edge-detects them for the keyboard.
    Layout (standard mapping): left stick / d-pad = steer & throttle/brake,
-   right trigger or A = throttle, left trigger or X = brake,
-   right bumper = drift, left bumper = boost, Start = pause/resume.
+   throttle/brake/drift/boost/pause buttons are configurable — see
+   gameState.gamepadBinds — and default to A/X/RB/LB/Start.
 
    Multiple pads (e.g. a pair of Joy-Cons connected as two separate
    gamepads) can be connected at once. Every connected pad is tracked in
@@ -4502,9 +4561,14 @@ const Gamepad = {
   brakeHeld: false,
   driftHeld: false,
   boostHeld: false,
-  DEADZONE: 0.18,
+  isSingleJoyCon: false,  // true when the active pad looks like a lone Joy-Con, not a paired set
+  joyconSide: null,       // 'L' | 'R' | null
+  joyconModeEnabled: true, // user can turn the sideways single-stick scheme off from Settings
+  captureAction: null,    // set to an action name while a gamepad-button remap capture is in progress
   _startWasDown: false,
   _boostWasDown: false,
+  _wasConnectedThisRace: false,
+  _flashTimer: 0,         // seconds left of "just disconnected mid-race" HUD flash
   _labels: {},          // index -> display label, kept even after disconnect handling this frame
   init(){
     window.addEventListener('gamepadconnected', e=>{
@@ -4513,6 +4577,7 @@ const Gamepad = {
       if(this.index == null) this._setActive(e.gamepad.index, false);
       announce('Gamepad connected' + (e.gamepad.id ? ': ' + e.gamepad.id : '') + '.');
       this._refreshUI();
+      this._updateHudIndicator();
     });
     window.addEventListener('gamepaddisconnected', e=>{
       delete this._labels[e.gamepad.index];
@@ -4520,13 +4585,21 @@ const Gamepad = {
       if(e.gamepad.index === this.index){
         this.analogSteer = 0; this.throttleHeld = false; this.brakeHeld = false;
         this.driftHeld = false; this.boostHeld = false;
+        // If we lost the pad mid-race, flash the HUD icon for a few seconds
+        // so the player knows why the car stopped responding, rather than
+        // just quietly going unresponsive.
+        if(appState === 'racing' || appState === 'racing-countdown' || appState === 'paused'){
+          this._flashTimer = 4;
+        }
         // Hand off to another already-connected pad, if there is one.
         this._setActive(this.connected.length ? this.connected[0] : null, false);
       }
       announce('Gamepad disconnected.');
       this._refreshUI();
+      this._updateHudIndicator();
     });
     this._wireSelect();
+    this._wireJoyconToggle();
     this._refreshUI();
   },
   _addConnected(idx){
@@ -4549,8 +4622,25 @@ const Gamepad = {
         if(this.index == null) this._setActive(gp.index, false);
         announce('Gamepad connected' + (gp.id ? ': ' + gp.id : '') + '.');
         this._refreshUI();
+        this._updateHudIndicator();
       }
     }
+  },
+  // Heuristic single-Joy-Con detection. A lone Joy-Con reports an id like
+  // "Joy-Con (L)" / "Joy-Con (R)" in Chrome/Edge, vs. a paired set which
+  // reports something like "Joy-Con L+R" or two separate connected pads
+  // that together form a pair. There's no fully reliable cross-browser way
+  // to tell "one Joy-Con, used alone" from "one half of a pair whose other
+  // half just hasn't sent input yet" — this errs toward detecting it so the
+  // sideways layout is offered, and the player can dismiss it from Settings
+  // if it doesn't apply.
+  _detectJoycon(gp){
+    const id = (gp && gp.id) || '';
+    if(!/joy-?con/i.test(id)) return null;
+    if(/l\s*\+\s*r|l\/r|dual|pair/i.test(id)) return null; // looks like a combined pair, not a single unit
+    if(/\(l\)/i.test(id) || /\bleft\b/i.test(id)) return 'L';
+    if(/\(r\)/i.test(id) || /\bright\b/i.test(id)) return 'R';
+    return null;
   },
   // Switches which connected pad drives the car. `manual` marks a
   // player-initiated switch (from the Settings dropdown) vs. an automatic
@@ -4560,9 +4650,17 @@ const Gamepad = {
     this.analogSteer = 0; this.throttleHeld = false; this.brakeHeld = false;
     this.driftHeld = false; this.boostHeld = false;
     this._startWasDown = false; this._boostWasDown = false;
+    this.isSingleJoyCon = false; this.joyconSide = null;
+    if(idx != null && navigator.getGamepads){
+      const gp = navigator.getGamepads()[idx];
+      const side = this._detectJoycon(gp);
+      if(side){ this.isSingleJoyCon = true; this.joyconSide = side; }
+    }
+    this._refreshJoyconUI();
     if(manual){
       announce(idx == null ? 'Gamepad set to none.' : 'Switched to ' + (this._labels[idx] || ('Gamepad ' + idx)) + '.');
     }
+    this._updateHudIndicator();
   },
   _wireSelect(){
     const sel = document.getElementById('gamepadSelect');
@@ -4571,6 +4669,26 @@ const Gamepad = {
       const val = sel.value === '' ? null : parseInt(sel.value, 10);
       this._setActive(val, true);
     });
+  },
+  _wireJoyconToggle(){
+    const t = document.getElementById('joyconLayoutToggle');
+    if(!t) return;
+    t.addEventListener('change', ()=>{
+      this.joyconModeEnabled = t.checked;
+    });
+  },
+  // Shows/hides the "sideways single Joy-Con" row in Settings based on
+  // whether the active pad currently looks like a lone Joy-Con.
+  _refreshJoyconUI(){
+    const row = document.getElementById('joyconLayoutRow');
+    const hint = document.getElementById('joyconLayoutHint');
+    const toggle = document.getElementById('joyconLayoutToggle');
+    if(!row || !toggle) return;
+    row.hidden = !this.isSingleJoyCon;
+    if(this.isSingleJoyCon){
+      toggle.checked = this.joyconModeEnabled;
+      if(hint) hint.textContent = `A single Joy-Con (${this.joyconSide}) was detected — use one-stick sideways controls.`;
+    }
   },
   // Rebuilds the Settings dropdown + status line from current state.
   // Cheap and safe to call every time the connected set changes; also
@@ -4589,14 +4707,81 @@ const Gamepad = {
     } else {
       status.textContent = this.connected.length + ' gamepads connected' + (this.index != null ? ' — using ' + (this._labels[this.index] || 'Gamepad') : '') + '.';
     }
+    this._refreshJoyconUI();
   },
-  poll(){
+  // Small HUD icon so a player mid-race can see at a glance that a pad is
+  // connected, and gets an obvious flashing warning if it drops out.
+  _updateHudIndicator(){
+    const wrap = document.getElementById('hudGamepadIndicator');
+    if(!wrap) return;
+    const midRace = appState === 'racing' || appState === 'racing-countdown' || appState === 'paused';
+    if(this._flashTimer > 0){
+      wrap.hidden = false;
+      wrap.classList.add('gamepadFlashing');
+      wrap.title = 'Gamepad disconnected!';
+    } else {
+      wrap.classList.remove('gamepadFlashing');
+      wrap.hidden = !(midRace && this.index != null);
+      wrap.title = this.index != null ? 'Gamepad connected' : '';
+    }
+  },
+  // Rumble feedback for collisions/boosts/mini-turbos, when the active pad
+  // exposes the (still non-standard, Chromium-only) vibrationActuator API.
+  // Silently does nothing on pads/browsers that don't support it.
+  rumble(strongMag, weakMag, durationMs){
+    if(!gameState.gamepadVibration || this.index == null || !navigator.getGamepads) return;
+    try{
+      const gp = navigator.getGamepads()[this.index];
+      const actuator = gp && gp.vibrationActuator;
+      if(actuator && typeof actuator.playEffect === 'function'){
+        actuator.playEffect('dual-rumble', {
+          duration: durationMs, startDelay: 0,
+          strongMagnitude: strongMag, weakMagnitude: weakMag
+        });
+      }
+    }catch(e){ /* unsupported — ignore */ }
+  },
+  poll(dt){
     this._scanForNewPads();
+    if(this._flashTimer > 0){
+      this._flashTimer = Math.max(0, this._flashTimer - (dt||0.016));
+    }
+    this._updateHudIndicator();
+    if(typeof GamepadMenuNav !== 'undefined' && GamepadMenuNav) GamepadMenuNav.poll();
     if(this.index == null || !navigator.getGamepads) return;
     const gp = navigator.getGamepads()[this.index];
     if(!gp) return;
+
+    // Mid-remap capture: the very next pressed button on the active pad
+    // becomes the new binding for `captureAction`, mirroring how keyboard
+    // rebinding captures the next keydown.
+    if(this.captureAction){
+      for(let i=0;i<gp.buttons.length;i++){
+        if(gp.buttons[i] && gp.buttons[i].pressed){
+          gameState.gamepadBinds[this.captureAction] = i;
+          saveState();
+          const action = this.captureAction;
+          this.captureAction = null;
+          renderGamepadBindsList();
+          announce('Gamepad ' + action + ' set to button ' + i + '.');
+          return;
+        }
+      }
+      return; // don't drive the car while waiting for a capture
+    }
+
+    if(this.isSingleJoyCon && this.joyconModeEnabled){
+      this._pollSingleJoycon(gp);
+    } else {
+      this._pollStandard(gp);
+    }
+  },
+  // Normal dual-stick / full-pad polling, using the configurable button
+  // binds from Settings instead of hardcoded indices.
+  _pollStandard(gp){
+    const dz = Math.max(0.02, (Number(gameState.gamepadDeadzone) || 18) / 100);
     const ax = gp.axes[0] || 0;
-    let steer = Math.abs(ax) > this.DEADZONE ? -ax : 0; // stick right (+x) = steer right = negative, matching ArrowLeft-ArrowRight below
+    let steer = Math.abs(ax) > dz ? -ax : 0; // stick right (+x) = steer right = negative, matching ArrowLeft-ArrowRight below
     const dpadLeft  = !!(gp.buttons[14] && gp.buttons[14].pressed);
     const dpadRight = !!(gp.buttons[15] && gp.buttons[15].pressed);
     const dpadUp    = !!(gp.buttons[12] && gp.buttons[12].pressed);
@@ -4604,16 +4789,48 @@ const Gamepad = {
     if(dpadLeft) steer = Math.max(steer, 1);
     if(dpadRight) steer = Math.min(steer, -1);
     this.analogSteer = steer;
-    const btnA = !!(gp.buttons[0] && gp.buttons[0].pressed);
-    const btnX = !!(gp.buttons[2] && gp.buttons[2].pressed);
+
+    const binds = gameState.gamepadBinds || DEFAULT_STATE.gamepadBinds;
+    const btnPressed = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
     const rt = gp.buttons[7] ? gp.buttons[7].value : 0;
     const lt = gp.buttons[6] ? gp.buttons[6].value : 0;
-    this.throttleHeld = btnA || dpadUp || rt > 0.2;
-    this.brakeHeld = btnX || dpadDown || lt > 0.2;
-    this.driftHeld = !!(gp.buttons[5] && gp.buttons[5].pressed);
-    this.boostHeld = !!(gp.buttons[4] && gp.buttons[4].pressed);
+    this.throttleHeld = btnPressed(binds.throttle) || dpadUp || rt > 0.2;
+    this.brakeHeld = btnPressed(binds.brake) || dpadDown || lt > 0.2;
+    this.driftHeld = btnPressed(binds.drift);
+    this.boostHeld = btnPressed(binds.boost);
 
-    const start = !!(gp.buttons[9] && gp.buttons[9].pressed);
+    const start = btnPressed(binds.pause);
+    if(start && !this._startWasDown){
+      if(appState === 'racing' || appState === 'racing-countdown') pauseRace();
+      else if(appState === 'paused') resumeRace();
+    }
+    this._startWasDown = start;
+    if(this.boostHeld && !this._boostWasDown && appState === 'racing'){ triggerBoost(); }
+    this._boostWasDown = this.boostHeld;
+  },
+  // Experimental one-handed layout for a lone Joy-Con held sideways. A
+  // single Joy-Con only exposes one analog stick and a handful of face
+  // buttons, and — held sideways — that stick's "up" axis becomes the
+  // player's left/right, so it drives steering here instead of the usual
+  // axes[0]. There's no separate accelerator on a lone Joy-Con, so throttle
+  // auto-holds and the one easily-reachable face button acts as a brake;
+  // the other two double up for drift/boost. Exact button indices vary
+  // across browsers/OSes for single Joy-Cons more than for standard pads,
+  // so this is a best-effort layout — turn it off in Settings to fall back
+  // to the standard mapping if it doesn't match your setup.
+  _pollSingleJoycon(gp){
+    const dz = Math.max(0.02, (Number(gameState.gamepadDeadzone) || 18) / 100);
+    const tilt = gp.axes[1] || 0; // the stick's vertical axis becomes horizontal once the pad is rotated 90°
+    const sign = this.joyconSide === 'L' ? 1 : -1;
+    this.analogSteer = Math.abs(tilt) > dz ? sign * tilt : 0;
+
+    const btnPressed = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+    this.brakeHeld = btnPressed(0);
+    this.boostHeld = btnPressed(1);
+    this.driftHeld = btnPressed(2);
+    this.throttleHeld = !this.brakeHeld; // auto-forward — no dedicated accelerator on a lone Joy-Con
+
+    const start = btnPressed(9) || btnPressed(8);
     if(start && !this._startWasDown){
       if(appState === 'racing' || appState === 'racing-countdown') pauseRace();
       else if(appState === 'paused') resumeRace();
@@ -4624,6 +4841,171 @@ const Gamepad = {
   }
 };
 Gamepad.init();
+
+/* ---------- Gamepad button remapping ---------- */
+const GAMEPAD_BIND_ACTIONS = [
+  { action:'throttle', label:'Throttle' },
+  { action:'brake',    label:'Brake' },
+  { action:'drift',    label:'Drift' },
+  { action:'boost',    label:'Boost' },
+  { action:'pause',    label:'Pause' },
+];
+function gamepadButtonLabel(i){
+  if(i == null || i === '') return '—';
+  const NAMES = { 0:'A / ✕', 1:'B / ○', 2:'X / □', 3:'Y / △', 4:'LB', 5:'RB', 6:'LT', 7:'RT', 8:'Select', 9:'Start' };
+  return NAMES[i] || ('Button ' + i);
+}
+function renderGamepadBindsList(){
+  const list = $('gamepadBindsList');
+  if(!list) return;
+  list.innerHTML = GAMEPAD_BIND_ACTIONS.map(({action,label})=>`
+    <div class="keybindRow">
+      <span class="keybindLabel">${label}</span>
+      <button type="button" class="keybindBtn" id="gb_${action}" data-action="${action}">${gamepadButtonLabel(gameState.gamepadBinds[action])}</button>
+    </div>`).join('');
+  GAMEPAD_BIND_ACTIONS.forEach(({action})=>{
+    $('gb_'+action).addEventListener('click', ()=> startGamepadBindListen(action));
+  });
+}
+// Mirrors startKeybindListen() for keyboard, but the actual capture happens
+// inside Gamepad.poll() each frame since the Gamepad API has no button-press
+// event — we just flip a flag here and poll() does the rest.
+function startGamepadBindListen(action){
+  if(Gamepad.captureAction) return;
+  Gamepad.captureAction = action;
+  const btn = $('gb_'+action);
+  btn.textContent = 'Press a button…';
+  btn.classList.add('listening');
+}
+if($('resetGamepadBindsBtn')) $('resetGamepadBindsBtn').addEventListener('click', ()=>{
+  gameState.gamepadBinds = Object.assign({}, DEFAULT_STATE.gamepadBinds);
+  saveState();
+  renderGamepadBindsList();
+});
+
+/* ---------- Controller menu navigation ----------
+   A generic, DOM-driven focus system so a gamepad can drive any menu
+   (home, garage, upgrades, stage select, settings, pause, results, login)
+   without each screen needing its own wiring. It finds the currently
+   visible screen/overlay, builds a list of focusable controls in DOM
+   order, and lets d-pad up/down move between them, left/right nudge
+   sliders and cycle <select> options, A activates, and B backs out.
+   Only active outside of actual driving (racing/racing-countdown), so it
+   never interferes with the car controls above. */
+const GamepadMenuNav = {
+  els: [],
+  idx: -1,
+  _dpadWas: { up:false, down:false, left:false, right:false },
+  _aWas: false, _bWas: false,
+  _repeatT: 0,
+  container(){
+    // Prefer the visible child of a visible overlay (pause/settings/results
+    // etc. layer their cards inside one .overlay wrapper); otherwise fall
+    // back to whichever top-level <section class="screen"> is showing.
+    const overlays = Array.from(document.querySelectorAll('.overlay')).filter(o=>!o.hidden && o.offsetParent !== null);
+    for(const ov of overlays){
+      const card = Array.from(ov.children).find(c=>c.nodeType===1 && !c.hidden && c.offsetParent !== null);
+      if(card) return card;
+      if(ov.offsetParent !== null) return ov;
+    }
+    return document.querySelector('.screen:not([hidden])');
+  },
+  refresh(){
+    const root = this.container();
+    if(!root){ this.els = []; this.idx = -1; return; }
+    const nodes = Array.from(root.querySelectorAll('button, select, input, a[href], [tabindex]'));
+    this.els = nodes.filter(el=>{
+      if(el.disabled || el.hidden) return false;
+      if(el.getAttribute('aria-hidden') === 'true') return false;
+      if(el.offsetParent === null) return false;
+      const style = getComputedStyle(el);
+      return style.visibility !== 'hidden' && style.display !== 'none';
+    });
+    if(this.idx >= this.els.length) this.idx = this.els.length - 1;
+  },
+  focusEl(el){
+    this.els.forEach(e=>e.classList.remove('gamepadFocus'));
+    if(!el) return;
+    el.classList.add('gamepadFocus');
+    if(typeof el.focus === 'function') el.focus({ preventScroll:true });
+    if(typeof el.scrollIntoView === 'function') el.scrollIntoView({ block:'nearest', behavior:'smooth' });
+  },
+  move(delta){
+    this.refresh();
+    if(!this.els.length) return;
+    if(this.idx < 0) this.idx = 0;
+    else this.idx = (this.idx + delta + this.els.length) % this.els.length;
+    this.focusEl(this.els[this.idx]);
+  },
+  // A on the focused control: click buttons/checkboxes/links, open selects.
+  activate(){
+    this.refresh();
+    const el = this.els[this.idx];
+    if(!el) return;
+    if(el.tagName === 'SELECT'){ el.focus(); return; }
+    if(typeof el.click === 'function') el.click();
+  },
+  // Left/right nudge the focused range/select instead of moving focus,
+  // matching how those controls behave with a keyboard.
+  adjust(dir){
+    const el = this.els[this.idx];
+    if(!el) return false;
+    if(el.tagName === 'INPUT' && el.type === 'range'){
+      const step = Number(el.step) || 1;
+      el.value = Math.max(Number(el.min)||0, Math.min(Number(el.max)||100, Number(el.value) + step*dir));
+      el.dispatchEvent(new Event('input', { bubbles:true }));
+      return true;
+    }
+    if(el.tagName === 'SELECT'){
+      const next = el.selectedIndex + dir;
+      if(next >= 0 && next < el.options.length){
+        el.selectedIndex = next;
+        el.dispatchEvent(new Event('change', { bubbles:true }));
+      }
+      return true;
+    }
+    return false;
+  },
+  // B backs out of the current screen/overlay via whatever "back"-ish
+  // control is present — best-effort since screens don't share one API.
+  back(){
+    const root = this.container();
+    if(!root) return;
+    const candidate = root.querySelector('#settingsBackBtn, #quitBtn, .btn.ghost, [id$="BackBtn"], [id*="Home"]');
+    if(candidate && typeof candidate.click === 'function') candidate.click();
+  },
+  poll(){
+    if(this.captureSkip()) return;
+    if(Gamepad.index == null || !navigator.getGamepads) return;
+    const gp = navigator.getGamepads()[Gamepad.index];
+    if(!gp) return;
+    const dz = 0.5;
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    const dpadUp    = !!(gp.buttons[12] && gp.buttons[12].pressed) || ay < -dz;
+    const dpadDown  = !!(gp.buttons[13] && gp.buttons[13].pressed) || ay > dz;
+    const dpadLeft  = !!(gp.buttons[14] && gp.buttons[14].pressed) || ax < -dz;
+    const dpadRight = !!(gp.buttons[15] && gp.buttons[15].pressed) || ax > dz;
+    const a = !!(gp.buttons[0] && gp.buttons[0].pressed);
+    const b = !!(gp.buttons[1] && gp.buttons[1].pressed);
+
+    if(dpadUp && !this._dpadWas.up) this.move(-1);
+    else if(dpadDown && !this._dpadWas.down) this.move(1);
+    else if(dpadLeft && !this._dpadWas.left){ if(!this.adjust(-1)) this.move(-1); }
+    else if(dpadRight && !this._dpadWas.right){ if(!this.adjust(1)) this.move(1); }
+    this._dpadWas = { up:dpadUp, down:dpadDown, left:dpadLeft, right:dpadRight };
+
+    if(a && !this._aWas) this.activate();
+    this._aWas = a;
+    if(b && !this._bWas) this.back();
+    this._bWas = b;
+  },
+  // Menu navigation and the remap-capture flow both want the next button
+  // press for themselves — bail out while a rebind capture is in progress.
+  captureSkip(){
+    return !!rebindingAction || !!Gamepad.captureAction
+      || appState === 'racing' || appState === 'racing-countdown';
+  }
+};
 
 /* ---------- Touchscreen controls: dynamic joystick + M/Space keycaps ----------
    Only visible/reachable when gameState.touchControls is on (see
@@ -6058,6 +6440,7 @@ function updateCar(car, dt){
         driftBoostTimer = DRIFT_BOOST_DURATIONS[tier];
         Sound.unlock();
         announce('Mini-turbo!');
+        Gamepad.rumble(0.3 + tier*0.2, 0.5, 220);
       }
       car.driftCharge = 0;
     }
@@ -6255,6 +6638,7 @@ function resolveCollisions(dt){
               if(!wasTouchingPlayer[cars.indexOf(rem)]) playerCollisions++;
               rem._touchingPlayer = true;
               if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
+              Gamepad.rumble(0.5, 0.3, 180);
             }
           }
           continue;
@@ -6302,6 +6686,7 @@ function resolveCollisions(dt){
             if(!wasTouchingPlayer[cars.indexOf(rival)]) playerCollisions++;
             rival._touchingPlayer = true;
             if(gameState.cameraShake !== false) cameraShakeTime = 0.35;
+            Gamepad.rumble(0.5, 0.3, 180);
           }
         }
       }
@@ -7174,6 +7559,7 @@ function triggerBoost(){
   boostCharge = 0;
   Sound.unlock();
   announce('Boost activated!');
+  Gamepad.rumble(0.7, 0.4, 260);
 }
 $('boostBtn').addEventListener('click', triggerBoost);
 
@@ -7988,12 +8374,16 @@ $('settingsBtn').addEventListener('click', ()=>{
   $('pauseCard').hidden = true;
   $('settingsCard').hidden = false;
   renderKeybindsList();
+  renderGamepadBindsList();
   Gamepad._refreshUI();
   $('themeToggle').value = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   $('sensitivitySlider').value = gameState.sensitivity;
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
   $('volumeSlider').value = gameState.volume;
   $('volumeVal').textContent = Math.round(gameState.volume);
+  $('deadzoneSlider').value = gameState.gamepadDeadzone;
+  $('deadzoneVal').textContent = Math.round(gameState.gamepadDeadzone) + '%';
+  $('gamepadVibrationToggle').checked = gameState.gamepadVibration !== false;
   $('invertSteeringToggle').checked = !!gameState.invertSteering;
   $('emojiToggle').checked = gameState.showEmojis !== false;
   $('minimapToggle').checked = gameState.showMinimap !== false;
@@ -8018,6 +8408,15 @@ $('volumeSlider').addEventListener('input', ()=>{
   gameState.volume = Number($('volumeSlider').value);
   $('volumeVal').textContent = Math.round(gameState.volume);
   Sound.applyVolume();
+  saveState();
+});
+$('deadzoneSlider').addEventListener('input', ()=>{
+  gameState.gamepadDeadzone = Number($('deadzoneSlider').value);
+  $('deadzoneVal').textContent = Math.round(gameState.gamepadDeadzone) + '%';
+  saveState();
+});
+$('gamepadVibrationToggle').addEventListener('change', ()=>{
+  gameState.gamepadVibration = $('gamepadVibrationToggle').checked;
   saveState();
 });
 $('invertSteeringToggle').addEventListener('change', ()=>{
@@ -8365,7 +8764,7 @@ function animate(now){
   const dt = Math.min((now - lastTime)/1000, 0.05);
   lastTime = now;
 
-  Gamepad.poll();
+  Gamepad.poll(dt);
   updateOceanProximity();
   updateSkyDome();
 
@@ -8806,6 +9205,38 @@ $('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
 $('friendsBtn').addEventListener('click', openFriendsOverlay);
 $('friendsCloseBtn').addEventListener('click', closeFriendsOverlay);
 $('paintOverlayCloseBtn').addEventListener('click', closePaintOverlay);
+
+/* ---------- Fullscreen popup close-X buttons ----------
+   Achievements/Player Stats/Chat/Friends & Rivals/Paint/Race Stats all
+   share the .statsOverlayCard layout and now render fullscreen, each with
+   an X button pinned to the top-left in addition to their existing
+   bottom "Close" button. closeAnyPopup() also backs the global X-key
+   shortcut below, closing whichever one of these happens to be open. */
+$('achievementsCloseX').addEventListener('click', closeAchievements);
+$('ownerStatsCloseX').addEventListener('click', ()=>{ $('ownerStatsOverlay').hidden = true; });
+$('globalChatCloseX').addEventListener('click', closeGlobalChat);
+$('friendsCloseX').addEventListener('click', closeFriendsOverlay);
+$('paintCloseX').addEventListener('click', closePaintOverlay);
+$('statsCloseX').addEventListener('click', ()=>{ $('statsOverlay').hidden = true; });
+function closeAnyPopup(){
+  if(!$('achievementsOverlay').hidden){ closeAchievements(); return true; }
+  if(!$('ownerStatsOverlay').hidden){ $('ownerStatsOverlay').hidden = true; return true; }
+  if(!$('globalChatOverlay').hidden){ closeGlobalChat(); return true; }
+  if(!$('friendsOverlay').hidden){ closeFriendsOverlay(); return true; }
+  if(!$('paintOverlay').hidden){ closePaintOverlay(); return true; }
+  if(!$('statsOverlay').hidden){ $('statsOverlay').hidden = true; return true; }
+  return false;
+}
+// Pressing X closes whichever fullscreen popup is open — but not while the
+// player is actually typing (a username, search, or chat message might
+// contain the letter x), so this only fires when focus isn't in a field.
+window.addEventListener('keydown', e=>{
+  if(e.code !== 'KeyX') return;
+  const typingInField = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+  if(typingInField) return;
+  if(closeAnyPopup()) e.preventDefault();
+});
+
 $('friendAddFriendBtn').addEventListener('click', ()=> addFriendOrRival($('friendAddInput').value, 'friend'));
 $('friendAddRivalBtn').addEventListener('click', ()=> addFriendOrRival($('friendAddInput').value, 'rival'));
 $('friendAddInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addFriendOrRival($('friendAddInput').value, 'friend'); } });
