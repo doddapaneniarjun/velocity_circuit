@@ -1265,12 +1265,21 @@ function writeFriends(list){
 // just leaves the local cache as-is.
 async function syncFriendsFromShared(){
   if(!currentUser) return;
+  // Capture which account this fetch is for. currentUser/FRIENDS_KEY are
+  // global and get repointed the moment the user switches profiles — if
+  // that happens while sbGetAccount() below is still in flight, this fetch
+  // must NOT be allowed to write into whatever profile happens to be active
+  // when it finally resolves (that silently wipes/corrupts the *other*
+  // profile's friends list with stale or unrelated data).
+  const forUser = currentUser;
   try{
-    const row = await sbGetAccount(currentUser);
+    const row = await sbGetAccount(forUser);
+    if(currentUser !== forUser) return; // account changed mid-flight — discard, touch nothing
     if(row && Array.isArray(row.friends_list)){
       writeFriendsLocalOnly(row.friends_list);
     }
   }catch(e){ /* offline or column missing — keep local cache */ }
+  if(currentUser !== forUser) return;
   renderFriendsList();
 }
 function writeFriendsLocalOnly(list){
@@ -1297,10 +1306,16 @@ async function addFriendOrRival(rawName, type){
   if(!name){ if(errEl) errEl.textContent = 'Enter a username first.'; return; }
   const key = name.toLowerCase();
   if(key === (currentUser||'')){ if(errEl) errEl.textContent = 'That\u2019s you!'; return; }
+  // Capture which profile this add is for. If the user switches accounts
+  // while the exists-check below is in flight, currentUser/FRIENDS_KEY will
+  // have moved on by the time we get an answer — writing at that point would
+  // silently drop this friend into the wrong (now-active) profile's list.
+  const forUser = currentUser;
   if(errEl) errEl.textContent = 'Checking that account exists…';
   let row = null;
   try{ row = await sbGetAccount(key); }catch(e){ /* handled by accountExists below */ }
   const exists = row ? true : await accountExists(key);
+  if(currentUser !== forUser) return; // switched accounts mid-check — abandon silently, nothing to write
   if(!exists){ if(errEl) errEl.textContent = 'No account named "' + name + '" exists.'; return; }
   const targetDisplay = (row && row.display) ? row.display : name;
   const list = readFriends();
