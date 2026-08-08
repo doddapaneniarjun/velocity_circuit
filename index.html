@@ -637,6 +637,7 @@
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
       <button class="btn secondary" id="openCircuitBtn"><span class="emoji" aria-hidden="true">🏆</span> Championships</button>
       <button class="btn secondary" id="homeAchievementsBtn">🏅 Achievements</button>
+      <button class="btn secondary" id="homeLeaderboardBtn">🏁 Leaderboard</button>
     </div>
 
     <div class="overlay" id="achievementsOverlay" hidden>
@@ -653,6 +654,29 @@
 
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Shift</strong> to drift. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
+
+    <div class="overlay" id="leaderboardOverlay" hidden>
+      <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="leaderboardCloseX" aria-label="Close (X)">✕</button>
+        <h2>Leaderboard</h2>
+        <p class="statsSub">Synced across every device — everyone who's played sees the same list.</p>
+        <div class="btnRow" style="margin-bottom:12px;">
+          <button class="btn secondary" id="leaderboardTabRacersBtn" type="button" aria-pressed="true">🏁 Top Racers</button>
+          <button class="btn secondary" id="leaderboardTabTracksBtn" type="button" aria-pressed="false">⏱️ Track Records</button>
+          <button class="btn secondary" id="leaderboardTabFriendsBtn" type="button" aria-pressed="false">🧑‍🤝‍🧑 Friends</button>
+        </div>
+        <p id="leaderboardSyncWarning" hidden style="background:rgba(168,58,42,.12);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:13px;margin:0 0 12px;"></p>
+        <div class="statsTableWrap">
+          <table class="statsTable" id="leaderboardTable">
+            <thead id="leaderboardTableHead"></thead>
+            <tbody id="leaderboardTableBody"></tbody>
+          </table>
+        </div>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="leaderboardCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
 
     <div class="overlay" id="ownerStatsOverlay" hidden>
       <div class="statsOverlayCard">
@@ -746,6 +770,30 @@
         </div>
       </div>
     </div>
+
+    <div class="overlay" id="tireOverlay" hidden>
+      <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="tireCloseX" aria-label="Close (X)">✕</button>
+        <h2 id="tireOverlayTitle">Tires</h2>
+        <p class="statsSub">Cosmetic rim colors only — doesn't change grip or stats. Factory is always free.</p>
+        <div class="paintSwatchGrid" id="tireSwatchGrid"></div>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="tireOverlayCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="engineOverlay" hidden>
+      <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="engineCloseX" aria-label="Close (X)">✕</button>
+        <h2 id="engineOverlayTitle">Engine Tune</h2>
+        <p class="statsSub">Cosmetic boost-flame color and engine note only — doesn't change stats. Factory is always free.</p>
+        <div class="paintSwatchGrid" id="engineSwatchGrid"></div>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="engineOverlayCloseBtn">Close</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- UPGRADES SCREEN -->
@@ -809,6 +857,7 @@
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
       <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="posLabel" id="posLabel">st</div></div>
+      <div class="hudPanel" id="weatherChip" hidden style="position:absolute;top:60px;left:50%;transform:translateX(-50%);padding:6px 14px;font-weight:800;font-size:14px;"></div>
       <div class="hudPanel leaderboardPanel" id="leaderboardPanel">
         <div class="leaderboardTitle">LEADERBOARD</div>
         <div id="leaderboardList"></div>
@@ -1140,7 +1189,11 @@ const DEFAULT_STATE = {
   weeklyChallengeKey: '',   // the week this profile's weekly challenge was generated for
   weeklyChallengeDone: false,
   unlockedColorIds: [0],    // ids into PAINT_COLORS this profile has bought; 0 (Factory) is always free
-  carColors: {}             // { [carIndex]: colorId } — equipped paint per car; absent = stock color
+  carColors: {},            // { [carIndex]: colorId } — equipped paint per car; absent = stock color
+  unlockedTireIds: [0],     // ids into TIRE_STYLES this profile has bought; 0 (Factory) is always free
+  carTires: {},             // { [carIndex]: tireId } — equipped rim/tire style per car; absent = stock
+  unlockedEngineIds: [0],   // ids into ENGINE_TUNES this profile has bought; 0 (Factory) is always free
+  carEngines: {}            // { [carIndex]: engineId } — equipped engine tune per car; absent = stock
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -1208,6 +1261,14 @@ function loadState(){
         ? parsed.unlockedColorIds.slice() : DEFAULT_STATE.unlockedColorIds.slice();
       if(!gameState.unlockedColorIds.includes(0)) gameState.unlockedColorIds.push(0); // Factory paint is always free
       gameState.carColors = parsed.carColors && typeof parsed.carColors === 'object' ? Object.assign({}, parsed.carColors) : {};
+      gameState.unlockedTireIds = Array.isArray(parsed.unlockedTireIds) && parsed.unlockedTireIds.length
+        ? parsed.unlockedTireIds.slice() : DEFAULT_STATE.unlockedTireIds.slice();
+      if(!gameState.unlockedTireIds.includes(0)) gameState.unlockedTireIds.push(0); // Factory tires are always free
+      gameState.carTires = parsed.carTires && typeof parsed.carTires === 'object' ? Object.assign({}, parsed.carTires) : {};
+      gameState.unlockedEngineIds = Array.isArray(parsed.unlockedEngineIds) && parsed.unlockedEngineIds.length
+        ? parsed.unlockedEngineIds.slice() : DEFAULT_STATE.unlockedEngineIds.slice();
+      if(!gameState.unlockedEngineIds.includes(0)) gameState.unlockedEngineIds.push(0); // Factory engine tune is always free
+      gameState.carEngines = parsed.carEngines && typeof parsed.carEngines === 'object' ? Object.assign({}, parsed.carEngines) : {};
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -1310,20 +1371,52 @@ function saveTheme(t){
 let currentUser = null;
 let isOwner = false;
 
-// Owner accounts: logging in with one of these username+password pairs grants
-// owner status (free purchases/upgrades, all stages unlocked). See
-// isStageUnlocked() and the garage purchase handlers below. Both the username
-// AND the password must match — matching the username alone is not enough,
-// since simpleHash() is not real cryptographic security and this list lives
-// in client-side code that anyone can view.
-const OWNER_CREDENTIALS = {
-  'velocityanand': simpleHash('trollsarereallytroll123'),
-  'velocityvihan': simpleHash('trollsarereallytroll123'),
-  'velocityarjun': simpleHash('trollsarereallytroll123'),
-  'velocityowner': simpleHash('velocityowner')
-};
-function isOwnerUsername(nameKey){ return Object.prototype.hasOwnProperty.call(OWNER_CREDENTIALS, nameKey); }
-function checkOwner(nameKey, hash){ return isOwnerUsername(nameKey) && OWNER_CREDENTIALS[nameKey] === hash; }
+// Owner accounts: logging in with one of these usernames — and the right
+// password — grants owner status (free purchases/upgrades, all stages
+// unlocked). See isStageUnlocked() and the garage purchase handlers below.
+//
+// Only the USERNAMES live here. The actual passwords used to sit right in
+// this file as simpleHash() output — readable by anyone who opened dev
+// tools, since there's no way to keep a secret in code that ships to the
+// browser. The real credentials now live only as a secret in a Supabase
+// Edge Function (deploy/supabase/functions/verify-owner — see the comment
+// on checkOwner() below for the deployment steps), which this file calls
+// over the network instead of checking locally. A username alone still
+// never grants owner status — the Edge Function always requires the
+// password hash to match too.
+const OWNER_USERNAMES = ['velocityanand', 'velocityvihan', 'velocityarjun', 'velocityowner'];
+function isOwnerUsername(nameKey){ return OWNER_USERNAMES.includes(nameKey); }
+// Verifies a username + password hash against the real owner credentials by
+// calling the verify-owner Edge Function (SUPABASE_URL/SUPABASE_KEY are
+// defined further down this file, but that's fine — this only ever runs
+// later, after the whole script has loaded). Requires that function to be
+// deployed:
+//   1. supabase functions new verify-owner
+//      (paste in the matching server-side code — see the project notes)
+//   2. supabase secrets set OWNER_CREDENTIALS_JSON='{"velocityanand":"<hash>", ...}'
+//      using the SAME simpleHash() output these accounts used to check
+//      against locally, so behavior is unchanged — only WHERE the check
+//      happens moves.
+//   3. supabase functions deploy verify-owner
+// Until that's deployed, every owner login will fail closed (nobody gets
+// owner status) rather than silently trusting the client, which is the
+// correct failure mode for an auth check.
+async function checkOwner(nameKey, hash){
+  if(!isOwnerUsername(nameKey)) return false;
+  try{
+    const res = await fetch(SUPABASE_URL + '/functions/v1/verify-owner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ nameKey, hash })
+    });
+    if(!res.ok) return false;
+    const data = await res.json();
+    return !!(data && data.isOwner);
+  }catch(e){
+    console.warn('[VelocityCircuit] Could not reach the owner-verification server — treating this login as not-owner for now.', e);
+    return false;
+  }
+}
 
 function updateOwnerBadge(){
   const badge = $('ownerBadge');
@@ -1562,6 +1655,72 @@ async function sbUpsertAccount(nameKey, fields){
   });
 }
 
+/* ---------- Synced ghost replays ----------
+   Time Trial ghosts used to be purely local — only ever your own past best
+   lap on this device. This adds a small shared `stage_ghosts` table (one
+   row per stage, holding whoever currently has the fastest recorded lap
+   for it) so Time Trial can pit you against another real player's best
+   run instead of only your own. Requires this table to exist:
+     CREATE TABLE IF NOT EXISTS stage_ghosts (
+       stage_index integer PRIMARY KEY,
+       lap_time double precision NOT NULL,
+       owner_key text,
+       owner_display text,
+       frames jsonb NOT NULL,
+       updated_at timestamptz DEFAULT now()
+     );
+   If it's missing, every call below fails silently (caught) and Time Trial
+   just falls back to the local-only ghost, exactly like before. */
+async function sbGetStageGhost(stageIndex){
+  const rows = await sbFetch('stage_ghosts?stage_index=eq.' + stageIndex + '&select=*');
+  return (rows && rows[0]) || null;
+}
+async function sbUpsertStageGhost(stageIndex, fields){
+  const body = Object.assign({ stage_index: stageIndex }, fields);
+  return sbFetch('stage_ghosts?on_conflict=stage_index', {
+    method: 'POST',
+    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([body])
+  });
+}
+// stageIndex -> {lapTime, frames, ownerDisplay} once fetched, or null once
+// checked and nothing usable was found (also doubles as an "in flight" flag
+// so concurrent calls for the same stage don't fire duplicate requests).
+// Left undefined for a stage that hasn't been checked yet this session.
+const remoteGhostCache = {};
+// Kicks off a background fetch of the current fastest synced ghost for a
+// stage, caching the result so it can be read synchronously later (from
+// startRace() and the stage grid). Safe to call repeatedly.
+async function prefetchRemoteGhost(stageIndex){
+  if(remoteGhostCache[stageIndex] !== undefined) return;
+  remoteGhostCache[stageIndex] = null; // mark in-flight
+  try{
+    const row = await sbGetStageGhost(stageIndex);
+    if(row && Array.isArray(row.frames) && row.frames.length > 1){
+      remoteGhostCache[stageIndex] = { lapTime: row.lap_time, frames: row.frames, ownerDisplay: row.owner_display || 'Someone' };
+    }
+  }catch(e){
+    // Table missing, offline, etc. — leave cached as null (local-only fallback).
+  }
+  // The stage grid caption depends on this — refresh it now that we know,
+  // but only if Time Trial is actually the mode showing right now.
+  if(timeTrialMode && appState !== 'racing' && appState !== 'racing-countdown') renderStageGrid();
+}
+// Picks whichever ghost is faster between this device's local best and the
+// synced global best for a stage, or null if neither exists yet.
+function bestGhostInfoForStage(stageIndex){
+  const local = loadGhostForStage(stageIndex);
+  const localTime = local ? (local[local.length-1].t || 0) : null;
+  const remote = remoteGhostCache[stageIndex];
+  if(remote && (localTime === null || remote.lapTime < localTime)){
+    return { frames: remote.frames, lapTime: remote.lapTime, label: remote.ownerDisplay, isOwn: false };
+  }
+  if(local){
+    return { frames: local, lapTime: localTime, label: 'You', isOwn: true };
+  }
+  return null;
+}
+
 /* ---------- Offline delivery for owner commands ----------
    Owner commands (+coins, /rename, /reset, etc.) used to only reach a
    target who happened to be connected to the same WebRTC race mesh at the
@@ -1768,17 +1927,20 @@ async function attemptLogin(rawUsername, rawPassword){
   const users = readUsers();
   let isNewAccount = false;
 
-  // Owner usernames are locked to their fixed password. The username alone
-  // never grants owner status — if it's an owner username, the password
-  // must match too, no matter what (if anything) is already saved locally
-  // or remotely under that name.
-  if(isOwnerUsername(nameKey) && hash !== OWNER_CREDENTIALS[nameKey]){
+  // Owner usernames are locked to their fixed password, verified against the
+  // Edge Function (see checkOwner() above) so the real credentials are never
+  // in this file. The username alone never grants owner status — if it's an
+  // owner username, the password must verify too, no matter what (if
+  // anything) is already saved locally or remotely under that name.
+  const ownerCandidate = isOwnerUsername(nameKey);
+  const ownerVerified = ownerCandidate ? await checkOwner(nameKey, hash) : false;
+  if(ownerCandidate && !ownerVerified){
     errEl.textContent = 'Incorrect password for that username.';
     if(submitBtn) submitBtn.disabled = false;
     return;
   }
 
-  if(isOwnerUsername(nameKey)){
+  if(ownerCandidate){
     // Fixed password above is the only thing that matters — just overwrite
     // the cached entry so it's back in sync.
     users[nameKey] = { hash, display: username };
@@ -1818,7 +1980,7 @@ async function attemptLogin(rawUsername, rawPassword){
   // Owner status is derived from the fixed username+password pair, not a
   // stored flag, so it stays correct even for accounts created before this
   // list existed.
-  const owner = checkOwner(nameKey, hash);
+  const owner = ownerVerified;
   if(owner){ users[nameKey].isOwner = true; } else { delete users[nameKey].isOwner; }
   writeUsers(users);
   recordAccountSeen(nameKey, users[nameKey].display);
@@ -1921,6 +2083,50 @@ function carColorFor(carIndex){
   return def.color;
 }
 
+/* ---------- Tire styles (cosmetic) ----------
+   Purely visual rim/tire color swaps, same unlock-and-equip pattern as
+   PAINT_COLORS above. Id 0 ("Factory") means the stock black wheel and is
+   always free. These never touch physics/grip — see WEATHER_DEFS below for
+   the (also new) mechanic that actually affects grip. */
+const TIRE_STYLES = [
+  { name:'Factory',        hex:null,     price:0 },
+  { name:'Red Rims',       hex:0xe63946, price:400 },
+  { name:'Gold Rims',      hex:0xffd23f, price:400 },
+  { name:'White Rims',     hex:0xf4f4f9, price:600 },
+  { name:'Cyan Rims',      hex:0x4fd8ff, price:800 },
+  { name:'Neon Green Rims',hex:0x8ac926, price:800 },
+  { name:'Chrome Rims',    hex:0xc9d1d9, price:1200 }
+];
+function tireColorFor(carIndex){
+  const tireId = gameState.carTires ? gameState.carTires[carIndex] : null;
+  if(tireId != null){
+    const tire = TIRE_STYLES[tireId];
+    if(tire && tire.hex != null && (gameState.unlockedTireIds||[]).includes(tireId)) return tire.hex;
+  }
+  return 0x111318; // stock wheel color, matches createCarMesh's previous hardcoded default
+}
+
+/* ---------- Engine tunes (cosmetic) ----------
+   Purely visual/audible re-skins of the boost flame + a small engine pitch
+   flavor — never changes maxSpeed/accel/etc, so it can't be mistaken for a
+   pay-to-win stat upgrade (that's still what the Upgrades screen is for).
+   Same unlock-and-equip pattern as paint/tires. */
+const ENGINE_TUNES = [
+  { name:'Factory',      flameColors:null,                          pitch:1.00, price:0 },
+  { name:'Cyan Blaze',   flameColors:[0x1ea7ff,0x4fd8ff,0xbfe6ff],   pitch:1.05, price:900 },
+  { name:'Violet Surge', flameColors:[0x6a2ee0,0x9b5cff,0xd9c2ff],   pitch:0.94, price:900 },
+  { name:'Toxic Green',  flameColors:[0x1f9e4a,0x3ddc84,0xc6ffdf],   pitch:1.08, price:1400 },
+  { name:'White Fire',   flameColors:[0xd9d9e6,0xf4f4f9,0xffffff],   pitch:1.00, price:1800 }
+];
+function engineTuneFor(carIndex){
+  const engineId = gameState.carEngines ? gameState.carEngines[carIndex] : null;
+  if(engineId != null){
+    const tune = ENGINE_TUNES[engineId];
+    if(tune && tune.flameColors && (gameState.unlockedEngineIds||[]).includes(engineId)) return tune;
+  }
+  return ENGINE_TUNES[0];
+}
+
 const BASE_MAX_SPEED = 42;
 const BASE_ACCEL = 30;
 const BASE_TURN = 2.5;
@@ -1967,25 +2173,46 @@ const MAX_UPGRADE_LEVEL = 12;
 function upgradeCost(level){ return Math.round(50 * Math.pow(1.55, level)); }
 
 const STAGES = [
-  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0, laps:5 },
-  { name:'Redwood Straightaway', type:'redwood', desc:'A fast, forgiving loop through tall trees.', grad:['#4a90d9','#c8ecff'], difficulty:1, width:20, unlockRaces:0, laps:5 },
-  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:1, laps:5 },
-  { name:'Harbor Sprint', type:'harbor', desc:'A short, tight loop around the docks.', grad:['#4a7fa0','#cfe3ee'], difficulty:1, width:20, unlockRaces:2, laps:5 },
-  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:3, laps:5 },
-  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:4, laps:4 },
-  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:3, width:21, unlockRaces:6, laps:4 },
-  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:3, width:21, unlockRaces:8, laps:4 },
-  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:10, laps:4 },
-  { name:'Glacier Circuit', type:'glacier', desc:'A sprawling, wide-open ribbon of ice.', grad:['#7fb8e0','#eaf6ff'], difficulty:4, width:20, unlockRaces:13, laps:3 },
-  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:16, laps:3 },
-  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:5, width:19, unlockRaces:19, laps:3 },
-  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:22, laps:3 },
-  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:3 },
-  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:3 },
-  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3, coinsPerLap:90 }
+  { name:'Sunset Oval', type:'oval', desc:'A classic high-speed loop.', grad:['#1b2a52','#ff9a5c'], difficulty:1, width:22, unlockRaces:0, laps:5, weather:'clear' },
+  { name:'Redwood Straightaway', type:'redwood', desc:'A fast, forgiving loop through tall trees.', grad:['#4a90d9','#c8ecff'], difficulty:1, width:20, unlockRaces:0, laps:5, weather:'clear' },
+  { name:'Stadium Sprint', type:'stadium', desc:'Tight corners, long straights.', grad:['#2f7fd9','#bfe3ff'], difficulty:1, width:20, unlockRaces:1, laps:5, weather:'clear' },
+  { name:'Harbor Sprint', type:'harbor', desc:'A short, tight loop around the docks, salt spray slicking the tarmac.', grad:['#4a7fa0','#cfe3ee'], difficulty:1, width:20, unlockRaces:2, laps:5, weather:'rain' },
+  { name:'Frost Ribbon', type:'iceRibbon', desc:'A long icy straightaway into tight hairpins.', grad:['#7fb8e0','#eaf6ff'], difficulty:2, width:19, unlockRaces:3, laps:5, weather:'snow' },
+  { name:'Coastal Curves', type:'wavy', desc:'Flowing curves reward handling — rain rolling in off the water.', grad:['#2f83c4','#bdeeff'], difficulty:2, width:19, unlockRaces:4, laps:4, weather:'rain' },
+  { name:'Canyon Run', type:'canyon', desc:'Wide switchbacks carved through red rock.', grad:['#3f7fd0','#bfe6ff'], difficulty:3, width:21, unlockRaces:6, laps:4, weather:'clear' },
+  { name:'Ember Caldera', type:'volcano', desc:'Racing the rim of an active volcano, ash falling.', grad:['#170a08','#ff8a3d'], difficulty:3, width:21, unlockRaces:8, laps:4, weather:'ash' },
+  { name:'Switchback Pass', type:'switchback', desc:'Hairpin after hairpin — brake early.', grad:['#4a86c9','#d7ecff'], difficulty:3, width:21, unlockRaces:10, laps:4, weather:'clear' },
+  { name:'Glacier Circuit', type:'glacier', desc:'A sprawling, wide-open ribbon of ice.', grad:['#7fb8e0','#eaf6ff'], difficulty:4, width:20, unlockRaces:13, laps:3, weather:'snow' },
+  { name:'Serpent Circuit', type:'serpent', desc:'A relentless high-speed serpentine through the woods.', grad:['#4a90d9','#c8ecff'], difficulty:4, width:20, unlockRaces:16, laps:3, weather:'clear' },
+  { name:'Neon Serpent', type:'neonSerpent', desc:'A tighter, faster serpentine lit up at night.', grad:['#160a2e','#ff4fd8'], difficulty:5, width:19, unlockRaces:19, laps:3, weather:'clear' },
+  { name:'Downtown Gauntlet', type:'citygrid', desc:'Sharp near-90° corners, no room for error.', grad:['#4a90d9','#cfe9ff'], difficulty:5, width:19, unlockRaces:22, laps:3, weather:'clear' },
+  { name:'Crystal Hollow', type:'cavern', desc:'A glowing underground cave riddled with crystal.', grad:['#0a0612','#2c1a44'], difficulty:6, width:20, unlockRaces:26, laps:3, weather:'clear' },
+  { name:'Lunar Basin', type:'lunar', desc:'Low-gravity racing across a crater-pocked moonscape.', grad:['#000000','#070818'], difficulty:6, width:22, unlockRaces:30, laps:3, weather:'clear' },
+  { name:'Foggy Mansion', type:'foggyMansion', desc:'A winding old estate cloaked in thick fog — you can barely see past your own hood.', grad:['#050409','#2a2432'], difficulty:6, width:19, unlockRaces:34, laps:3, coinsPerLap:90, weather:'fog' }
 ];
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
+
+/* ---------- Weather ----------
+   Each stage carries a fixed `weather` tag (see STAGES above). WEATHER_DEFS
+   maps that tag to: a uniform grip multiplier applied to every car equally
+   (see updateCar — this is a track condition, not a stat, so it never
+   favors the player or the AI), a short HUD label, and the look of the
+   particle/fog effect layered into the 3D scene (see applyWeatherToScene /
+   updateWeatherFX). gripMult also nudges brakePower via WEATHER_BRAKE_MULT
+   below, since braking distance is the part of "slippery track" players
+   feel first. */
+const WEATHER_DEFS = {
+  clear: { label:'Clear',     emoji:'☀️', gripMult:1.00, brakeMult:1.00, particle:null,   fogBoost:0 },
+  rain:  { label:'Rain',      emoji:'🌧️', gripMult:0.88, brakeMult:0.85, particle:'rain', fogBoost:0.15 },
+  snow:  { label:'Snow',      emoji:'❄️', gripMult:0.80, brakeMult:0.78, particle:'snow', fogBoost:0.10 },
+  ash:   { label:'Ashfall',   emoji:'🌋', gripMult:0.92, brakeMult:0.90, particle:'ash',  fogBoost:0.30 },
+  fog:   { label:'Fog',       emoji:'🌫️', gripMult:1.00, brakeMult:1.00, particle:null,   fogBoost:0.55 }
+};
+function weatherForStage(stageIndex){
+  const s = STAGES[stageIndex];
+  return WEATHER_DEFS[(s && s.weather) || 'clear'] || WEATHER_DEFS.clear;
+}
 
 /* ---------- Championship / circuit mode ----------
    Groups of 3-5 stages, roughly banded by difficulty, raced back-to-back
@@ -2175,6 +2402,106 @@ function openAchievements(){
 }
 function closeAchievements(){ $('achievementsOverlay').hidden = true; }
 
+/* ---------- Leaderboard ----------
+   Three tabs, all read from tables that already exist for other features:
+   "Top Racers" reads accounts.rating (kept fresh by syncCurrentUserToSupabase,
+   the same field the owner's Player Stats table shows), "Track Records"
+   reads stage_ghosts (see prefetchRemoteGhost above), and "Friends" reuses
+   the same accounts query as Top Racers but filtered down to this profile's
+   own Friends/Rivals list (see readFriends() above) plus itself — so it adds
+   no new backend either, just a client-side filter on the same data. */
+let leaderboardTab = 'racers';
+async function openLeaderboard(){
+  $('leaderboardOverlay').hidden = false;
+  await renderLeaderboard();
+}
+function closeLeaderboard(){ $('leaderboardOverlay').hidden = true; }
+function setLeaderboardTab(tab){
+  leaderboardTab = tab;
+  $('leaderboardTabRacersBtn').setAttribute('aria-pressed', String(tab==='racers'));
+  $('leaderboardTabTracksBtn').setAttribute('aria-pressed', String(tab==='tracks'));
+  $('leaderboardTabFriendsBtn').setAttribute('aria-pressed', String(tab==='friends'));
+  renderLeaderboard();
+}
+async function renderLeaderboard(){
+  const warnEl = $('leaderboardSyncWarning');
+  const head = $('leaderboardTableHead');
+  const body = $('leaderboardTableBody');
+  warnEl.hidden = true;
+  body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Loading…</td></tr>';
+  if(leaderboardTab === 'racers'){
+    head.innerHTML = '<tr><th>#</th><th>Racer</th><th>Driver Rating</th><th>Coins</th></tr>';
+    let rows = [];
+    try{
+      rows = await sbFetch('accounts?deleted=eq.false&select=name_key,display,rating,coins&order=rating.desc.nullslast&limit=25') || [];
+    }catch(e){
+      body.innerHTML = '';
+      warnEl.hidden = false;
+      warnEl.textContent = "Can't reach the shared leaderboard right now — check your connection and try again.";
+      return;
+    }
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);">No ranked racers yet.</td></tr>'; return; }
+    body.innerHTML = rows.map((r,i)=>{
+      const isMe = currentUser && r.name_key === currentUser;
+      return '<tr' + (isMe ? ' class="statsRowMe"' : '') + '>'
+        + '<td>' + (i+1) + '</td>'
+        + '<td>' + escapeHtml(r.display || r.name_key) + (isMe ? ' (you)' : '') + '</td>'
+        + '<td>' + Math.round(r.rating != null ? r.rating : 50) + '</td>'
+        + '<td>' + Math.round(r.coins || 0) + '</td>'
+        + '</tr>';
+    }).join('');
+  } else if(leaderboardTab === 'friends'){
+    head.innerHTML = '<tr><th>#</th><th>Racer</th><th>Driver Rating</th><th>Coins</th></tr>';
+    const friendKeys = readFriends().map(f=>f.key);
+    const keys = Array.from(new Set(friendKeys.concat(currentUser ? [currentUser] : [])));
+    if(!keys.length){
+      body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);">Add some friends to compare rankings — see the 🧑‍🤝‍🧑 Friends & Rivals list.</td></tr>';
+      return;
+    }
+    let rows = [];
+    try{
+      const inList = keys.map(k=> encodeURIComponent(k)).join(',');
+      rows = await sbFetch('accounts?deleted=eq.false&name_key=in.(' + inList + ')&select=name_key,display,rating,coins&order=rating.desc.nullslast') || [];
+    }catch(e){
+      body.innerHTML = '';
+      warnEl.hidden = false;
+      warnEl.textContent = "Can't reach the shared leaderboard right now — check your connection and try again.";
+      return;
+    }
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);">None of your friends have a ranked account yet.</td></tr>'; return; }
+    body.innerHTML = rows.map((r,i)=>{
+      const isMe = currentUser && r.name_key === currentUser;
+      return '<tr' + (isMe ? ' class="statsRowMe"' : '') + '>'
+        + '<td>' + (i+1) + '</td>'
+        + '<td>' + escapeHtml(r.display || r.name_key) + (isMe ? ' (you)' : '') + '</td>'
+        + '<td>' + Math.round(r.rating != null ? r.rating : 50) + '</td>'
+        + '<td>' + Math.round(r.coins || 0) + '</td>'
+        + '</tr>';
+    }).join('');
+  } else {
+    head.innerHTML = '<tr><th>Track</th><th>Holder</th><th>Best Lap</th></tr>';
+    let rows = [];
+    try{
+      rows = await sbFetch('stage_ghosts?select=stage_index,owner_key,owner_display,lap_time&order=stage_index.asc') || [];
+    }catch(e){
+      body.innerHTML = '';
+      warnEl.hidden = false;
+      warnEl.textContent = "Can't reach the shared leaderboard right now — check your connection and try again.";
+      return;
+    }
+    if(!rows.length){ body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);">No synced track records yet — set one in Time Trial mode.</td></tr>'; return; }
+    body.innerHTML = rows.map(r=>{
+      const isMe = currentUser && r.owner_key === currentUser;
+      const trackName = (STAGES[r.stage_index]) ? getStageName(r.stage_index) : ('Track ' + r.stage_index);
+      return '<tr' + (isMe ? ' class="statsRowMe"' : '') + '>'
+        + '<td>' + escapeHtml(trackName) + '</td>'
+        + '<td>' + escapeHtml(r.owner_display || 'Unknown') + (isMe ? ' (you)' : '') + '</td>'
+        + '<td>' + formatTime(r.lap_time) + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+}
+
 // Track name overrides. Names are stored separately from STAGES (which
 // stays the source of truth for everything else about a track) and shared
 // globally across all local profiles, since a rename is meant to relabel the
@@ -2305,18 +2632,24 @@ function renderStageGrid(){
     const best = gameState.bestLaps[i];
     const stars = '★'.repeat(s.difficulty) + '☆'.repeat(6-s.difficulty);
     const racesLeft = Math.max(1, s.unlockRaces - gameState.racesCompleted);
+    let ghostCaption = '';
+    if(unlocked && timeTrialMode){
+      prefetchRemoteGhost(i);
+      const ghostInfo = bestGhostInfoForStage(i);
+      const ghostWho = ghostInfo ? (ghostInfo.isOwn ? 'your best' : escapeHtml(ghostInfo.label) + '\u2019s best') : '';
+      ghostCaption = `<p class="stageMeta">${emo('👻')} ${ghostInfo ? 'Ghost ready — ' + ghostWho + ' (' + formatTime(ghostInfo.lapTime) + ')' : 'No ghost yet — you\'ll set the first one'}</p>`;
+    }
     card.innerHTML = `
       <canvas class="stageThumb" data-stage="${i}" width="376" height="180" aria-hidden="true"></canvas>
       <p class="stageName">${unlocked ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
+      ${s.weather && s.weather !== 'clear' ? `<p class="stageMeta">${WEATHER_DEFS[s.weather].emoji} ${WEATHER_DEFS[s.weather].label} — reduced grip</p>` : ''}
       <p class="stageMeta">${coinsPerLapForStage(s)} coins/lap &middot; ${s.laps || DEFAULT_LAPS} laps</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
         : `<p class="lockNote"><span class="emoji" aria-hidden="true">🔒</span> Finish ${racesLeft} more race${racesLeft===1?'':'s'} to unlock</p>`}
-      ${unlocked && timeTrialMode
-        ? `<p class="stageMeta">${emo('👻')} ${loadGhostForStage(i) ? 'Ghost ready — race against it' : 'No ghost yet — you\'ll set the first one'}</p>`
-        : ''}
+      ${ghostCaption}
     `;
     if(unlocked){ card.addEventListener('click', ()=>{ selectedStage = i; startRace(i); }); }
     wrap.appendChild(card);
@@ -2453,6 +2786,11 @@ $('timeTrialToggle').addEventListener('change', (e)=>{ timeTrialMode = e.target.
 $('openCircuitBtn').addEventListener('click', ()=>{ showScreen('circuit'); renderCircuitScreen(); });
 $('homeAchievementsBtn').addEventListener('click', openAchievements);
 $('achievementsCloseBtn').addEventListener('click', closeAchievements);
+$('homeLeaderboardBtn').addEventListener('click', openLeaderboard);
+$('leaderboardCloseBtn').addEventListener('click', closeLeaderboard);
+$('leaderboardTabRacersBtn').addEventListener('click', ()=> setLeaderboardTab('racers'));
+$('leaderboardTabTracksBtn').addEventListener('click', ()=> setLeaderboardTab('tracks'));
+$('leaderboardTabFriendsBtn').addEventListener('click', ()=> setLeaderboardTab('friends'));
 $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 
 /* ---------- Championship screen ---------- */
@@ -2554,13 +2892,18 @@ function renderCarGrid(){
     } else {
       buttonHtml = `<button class="btn" data-buy="${i}" ${(!isOwner && gameState.coins < c.price) ? 'disabled' : ''}>Buy — ${isOwner ? 'Free (Owner)' : c.price + ' coins'}</button>`;
     }
-    const paintButtonHtml = owned ? `<button class="btn secondary" data-paint="${i}" style="margin-top:6px;">🎨 Paint</button>` : '';
+    const custButtonsHtml = owned ? `
+      <div class="btnRow" style="margin-top:6px; gap:6px;">
+        <button class="btn secondary" data-paint="${i}" style="flex:1; font-size:12px; padding:8px 4px;">🎨 Paint</button>
+        <button class="btn secondary" data-tire="${i}" style="flex:1; font-size:12px; padding:8px 4px;">🛞 Tires</button>
+        <button class="btn secondary" data-engine="${i}" style="flex:1; font-size:12px; padding:8px 4px;">🔥 Engine</button>
+      </div>` : '';
     card.innerHTML = `
       <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
       <p class="carName">${owned ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
       <div class="carStatsWrap" role="img" aria-label="${statsAria}">${statBars}</div>
       ${buttonHtml}
-      ${paintButtonHtml}
+      ${custButtonsHtml}
     `;
     wrap.appendChild(card);
 
@@ -2594,6 +2937,12 @@ function renderCarGrid(){
   });
   carGrid.querySelectorAll('button[data-paint]').forEach(btn=>{
     btn.addEventListener('click', ()=> openPaintOverlay(Number(btn.getAttribute('data-paint'))));
+  });
+  carGrid.querySelectorAll('button[data-tire]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openTireOverlay(Number(btn.getAttribute('data-tire'))));
+  });
+  carGrid.querySelectorAll('button[data-engine]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openEngineOverlay(Number(btn.getAttribute('data-engine'))));
   });
 }
 
@@ -2654,6 +3003,110 @@ function equipOrBuyPaint(colorId){
   announce(paint.name + ' equipped on ' + getCarName(paintCarIndex) + '.');
 }
 
+/* ---------- Tire picker ---------- (mirrors the paint picker above) */
+let tireCarIndex = 0;
+function openTireOverlay(carIndex){
+  tireCarIndex = carIndex;
+  $('tireOverlayTitle').textContent = 'Tires — ' + getCarName(carIndex);
+  renderTireSwatches();
+  $('tireOverlay').hidden = false;
+}
+function closeTireOverlay(){ $('tireOverlay').hidden = true; }
+function renderTireSwatches(){
+  const grid = $('tireSwatchGrid');
+  if(!grid) return;
+  const equippedId = (gameState.carTires && gameState.carTires[tireCarIndex] != null) ? gameState.carTires[tireCarIndex] : 0;
+  grid.innerHTML = TIRE_STYLES.map((t,id)=>{
+    const owned = (gameState.unlockedTireIds||[]).includes(id);
+    const equipped = id === equippedId;
+    const swatchHex = t.hex != null ? t.hex : 0x111318;
+    const hexStr = '#' + swatchHex.toString(16).padStart(6,'0');
+    const label = owned
+      ? (equipped ? 'Equipped' : 'Equip')
+      : (isOwner ? 'Free (Owner)' : t.price + ' coins');
+    const unaffordable = !owned && !isOwner && gameState.coins < t.price;
+    return '<button type="button" class="paintSwatch' + (equipped ? ' equipped' : '') + '" ' +
+      'data-tire-id="' + id + '"' + ((equipped || unaffordable) ? ' disabled' : '') + '>' +
+      '<span class="swatchDot" style="background:' + hexStr + ';"></span>' +
+      '<span class="swatchName">' + escapeHtml(t.name) + '</span>' +
+      '<span class="swatchState">' + (owned ? label : '🔒 ' + label) + '</span>' +
+    '</button>';
+  }).join('');
+  grid.querySelectorAll('[data-tire-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=> equipOrBuyTire(Number(btn.getAttribute('data-tire-id'))));
+  });
+}
+function equipOrBuyTire(tireId){
+  const tire = TIRE_STYLES[tireId];
+  if(!tire) return;
+  const owned = (gameState.unlockedTireIds||[]).includes(tireId);
+  if(!owned){
+    if(!isOwner && gameState.coins < tire.price) return;
+    if(!isOwner) gameState.coins -= tire.price;
+    gameState.unlockedTireIds = (gameState.unlockedTireIds||[]).concat(tireId);
+    announce(tire.name + ' unlocked.');
+  }
+  gameState.carTires = gameState.carTires || {};
+  gameState.carTires[tireCarIndex] = tireId;
+  saveState();
+  refreshCoinDisplays();
+  renderTireSwatches();
+  startGaragePreviews();
+  announce(tire.name + ' equipped on ' + getCarName(tireCarIndex) + '.');
+}
+
+/* ---------- Engine tune picker ---------- (mirrors the paint picker above) */
+let engineCarIndex = 0;
+function openEngineOverlay(carIndex){
+  engineCarIndex = carIndex;
+  $('engineOverlayTitle').textContent = 'Engine Tune — ' + getCarName(carIndex);
+  renderEngineSwatches();
+  $('engineOverlay').hidden = false;
+}
+function closeEngineOverlay(){ $('engineOverlay').hidden = true; }
+function renderEngineSwatches(){
+  const grid = $('engineSwatchGrid');
+  if(!grid) return;
+  const equippedId = (gameState.carEngines && gameState.carEngines[engineCarIndex] != null) ? gameState.carEngines[engineCarIndex] : 0;
+  grid.innerHTML = ENGINE_TUNES.map((t,id)=>{
+    const owned = (gameState.unlockedEngineIds||[]).includes(id);
+    const equipped = id === equippedId;
+    const swatchHex = t.flameColors ? t.flameColors[1] : 0xffb43f;
+    const hexStr = '#' + swatchHex.toString(16).padStart(6,'0');
+    const label = owned
+      ? (equipped ? 'Equipped' : 'Equip')
+      : (isOwner ? 'Free (Owner)' : t.price + ' coins');
+    const unaffordable = !owned && !isOwner && gameState.coins < t.price;
+    return '<button type="button" class="paintSwatch' + (equipped ? ' equipped' : '') + '" ' +
+      'data-engine-id="' + id + '"' + ((equipped || unaffordable) ? ' disabled' : '') + '>' +
+      '<span class="swatchDot" style="background:' + hexStr + ';"></span>' +
+      '<span class="swatchName">' + escapeHtml(t.name) + '</span>' +
+      '<span class="swatchState">' + (owned ? label : '🔒 ' + label) + '</span>' +
+    '</button>';
+  }).join('');
+  grid.querySelectorAll('[data-engine-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=> equipOrBuyEngine(Number(btn.getAttribute('data-engine-id'))));
+  });
+}
+function equipOrBuyEngine(engineId){
+  const tune = ENGINE_TUNES[engineId];
+  if(!tune) return;
+  const owned = (gameState.unlockedEngineIds||[]).includes(engineId);
+  if(!owned){
+    if(!isOwner && gameState.coins < tune.price) return;
+    if(!isOwner) gameState.coins -= tune.price;
+    gameState.unlockedEngineIds = (gameState.unlockedEngineIds||[]).concat(engineId);
+    announce(tune.name + ' unlocked.');
+  }
+  gameState.carEngines = gameState.carEngines || {};
+  gameState.carEngines[engineCarIndex] = engineId;
+  saveState();
+  refreshCoinDisplays();
+  renderEngineSwatches();
+  startGaragePreviews();
+  announce(tune.name + ' equipped on ' + getCarName(engineCarIndex) + '.');
+}
+
 /* ---------- Garage 3D previews ----------
    One small shared WebGL renderer draws every car's real race mesh
    (createCarMesh) onto its card's 2D canvas each frame, so we never get
@@ -2701,7 +3154,7 @@ function startGaragePreviews(){
     const idx = Number(cv.getAttribute('data-car'));
     const def = CARS[idx];
     if(!def) return;
-    rig.items.push({ ctx: cv.getContext('2d'), canvas: cv, mesh: createCarMesh(carColorFor(idx)), idx });
+    rig.items.push({ ctx: cv.getContext('2d'), canvas: cv, mesh: createCarMesh(carColorFor(idx), tireColorFor(idx), engineTuneFor(idx).flameColors), idx });
   });
   drawGaragePreviews(rig); // always paint one frame so cards are never blank
   rig.last = performance.now();
@@ -2796,6 +3249,12 @@ let player = null;
 let track = null; // {points, normals, N, width}
 let raceClock = 0;
 let countdown = 0;
+// Current stage's weather condition (see WEATHER_DEFS) — set in startRace(),
+// read by updateCar() for the uniform grip/brake multiplier and by the
+// weather particle FX below. Defaults to clear so nothing changes before a
+// race has actually started.
+let currentWeather = WEATHER_DEFS.clear;
+let weatherFX = null; // { points, velocities, type } — active rain/snow/ash particle system, or null
 let appState = 'login'; // login | home | garage | racing | paused | results
 let playerCarDef = CARS[0];
 
@@ -4326,13 +4785,15 @@ function buildFinishLine(points, normals, width){
 }
 
 /* ---------- Car mesh ---------- */
-function createFlameGroup(){
+function createFlameGroup(flameColors){
   const group = new THREE.Group();
   const coneGeo = new THREE.ConeGeometry(0.34, 1.0, 8);
+  const stock = [0xff6a1e, 0xffb43f, 0xfff2b0];
+  const palette = (Array.isArray(flameColors) && flameColors.length === 3) ? flameColors : stock;
   const tiers = [
-    { color:0xff6a1e, opacity:0.85, scale:1.00 },
-    { color:0xffb43f, opacity:0.9,  scale:0.72 },
-    { color:0xfff2b0, opacity:0.95, scale:0.42 }
+    { color:palette[0], opacity:0.85, scale:1.00 },
+    { color:palette[1], opacity:0.9,  scale:0.72 },
+    { color:palette[2], opacity:0.95, scale:0.42 }
   ];
   const flames = tiers.map((t,i)=>{
     const mat = new THREE.MeshBasicMaterial({ color:t.color, transparent:true, opacity:t.opacity, depthWrite:false, fog:false });
@@ -4348,14 +4809,14 @@ function createFlameGroup(){
   group.userData.flames = flames;
   return group;
 }
-function createCarMesh(colorHex){
+function createCarMesh(colorHex, rimHex, flameColors){
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(2,0.6,4), new THREE.MeshStandardMaterial({ color: colorHex, roughness:0.5 }));
   body.position.y = 0.6; g.add(body);
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.3,0.5,1.8), new THREE.MeshStandardMaterial({ color:0x1c2230, roughness:0.4 }));
   cabin.position.set(0,1.05,-0.2); g.add(cabin);
   const wheelGeo = new THREE.CylinderGeometry(0.45,0.45,0.4,12);
-  const wheelMat = new THREE.MeshStandardMaterial({ color:0x111318 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: (rimHex != null ? rimHex : 0x111318) });
   const wheelPos = [[-1.05,0.45,1.3],[1.05,0.45,1.3],[-1.05,0.45,-1.3],[1.05,0.45,-1.3]];
   const wheels = [];
   wheelPos.forEach(p=>{
@@ -4365,7 +4826,7 @@ function createCarMesh(colorHex){
     g.add(w); wheels.push(w);
   });
   g.userData.wheels = wheels;
-  const flameGroup = createFlameGroup();
+  const flameGroup = createFlameGroup(flameColors);
   g.add(flameGroup);
   g.userData.flameGroup = flameGroup;
   // Off by default; lit up while boosting (see updateBoostFlames) so the
@@ -4378,9 +4839,9 @@ function createCarMesh(colorHex){
 }
 
 /* ---------- Car state ---------- */
-function makeCar(isPlayer, colorHex, aiSkill){
+function makeCar(isPlayer, colorHex, aiSkill, rimHex, flameColors){
   return {
-    isPlayer, mesh: createCarMesh(colorHex),
+    isPlayer, mesh: createCarMesh(colorHex, rimHex, flameColors),
     pos: new THREE.Vector3(), heading: 0, speed: 0,
     lap: 0, trackIndex: 0, prevIndex: 0, aiTarget: 0,
     finished: false, finishTime: null,
@@ -4404,6 +4865,8 @@ let ghostLapDuration = 0;        // seconds — length of ghostFrames, for loopi
 let ghostMesh = null;            // translucent car mesh following ghostFrames
 let ghostIdx = 0;                // playback cursor into ghostFrames
 let ghostPrevT = 0;
+let ghostRaceLabel = '';         // 'You', or another racer's display name — whose recording is currently loaded
+let ghostRaceIsOwn = true;
 
 function ghostStorageKey(stageIndex){
   return 'velocityCircuit_ghost_' + (currentUser || 'guest') + '_' + stageIndex;
@@ -6013,6 +6476,7 @@ function startRace(stageIndex, onlineRoom){
   $('minimap').classList.toggle('ownerTeleport', isOwner); // hints the click-to-teleport trick below
 
   if(trackGroup){ scene && disposeObject(trackGroup); }
+  teardownWeatherFX();
   currentOceanMesh = null;
   currentSkyDome = null;
   propColliders = [];
@@ -6023,6 +6487,7 @@ function startRace(stageIndex, onlineRoom){
   currentTrackFoggedMinimap = !!theme.foggyMinimap;
 
   scene = createStageScene(theme);
+  applyWeatherForStage(stageIndex);
 
   const built = buildTrack(stageIndex);
   trackGroup = built.group;
@@ -6039,7 +6504,7 @@ function startRace(stageIndex, onlineRoom){
   const startHeading = Math.atan2(startTangent.x, startTangent.z);
 
   playerCarDef = CARS[gameState.selectedCar];
-  player = makeCar(true, carColorFor(gameState.selectedCar), 1);
+  player = makeCar(true, carColorFor(gameState.selectedCar), 1, tireColorFor(gameState.selectedCar), engineTuneFor(gameState.selectedCar).flameColors);
   player.label = 'You';
   player.carName = playerCarDef.name;
   player.colorHex = carColorFor(gameState.selectedCar);
@@ -6161,11 +6626,14 @@ function startRace(stageIndex, onlineRoom){
   // starts clean regardless of mode.
   clearGhostPlayback();
   ghostRecordBuf = [];
+  ghostRaceLabel = '';
   if(timeTrialMode && !onlineRoom){
-    const loaded = loadGhostForStage(stageIndex);
-    if(loaded){
-      ghostFrames = loaded;
+    const ghostInfo = bestGhostInfoForStage(stageIndex);
+    if(ghostInfo){
+      ghostFrames = ghostInfo.frames;
       ghostLapDuration = ghostFrames[ghostFrames.length-1].t || 0;
+      ghostRaceLabel = ghostInfo.label;
+      ghostRaceIsOwn = ghostInfo.isOwn;
       ghostMesh = createCarMesh(0xffffff);
       ghostMesh.traverse(o=>{
         if(o.isMesh && o.material){
@@ -6178,6 +6646,9 @@ function startRace(stageIndex, onlineRoom){
       ghostMesh.position.copy(player.pos);
       ghostMesh.rotation.y = player.heading;
       scene.add(ghostMesh);
+      if(!ghostInfo.isOwn){
+        showToast(emo('👻') + ' Racing against ' + ghostInfo.label + '\u2019s ghost (' + formatTime(ghostInfo.lapTime) + ')', 'lap');
+      }
     }
   }
 
@@ -6235,6 +6706,100 @@ function giveCrashBoost(crasher){
 function updateSkyDome(){
   if(!currentSkyDome || !camera) return;
   currentSkyDome.position.copy(camera.position);
+}
+
+/* ---------- Weather particle FX ----------
+   A single THREE.Points cloud of a few hundred sprites, boxed around the
+   camera and recycled (wrapped) as they fall past it — so it always reads
+   as "weather everywhere" without ever needing more than one box's worth
+   of particles alive at once. Purely cosmetic; the actual grip effect is
+   the WEATHER_DEFS.gripMult/brakeMult applied in updateCar(). */
+const WEATHER_FX_BOX = 70;   // half-width of the particle volume around the camera, world units
+const WEATHER_FX_HEIGHT = 40;
+function createWeatherFX(type){
+  if(!type || !scene) return null;
+  const COUNTS = { rain:420, snow:260, ash:200 };
+  const count = COUNTS[type] || 250;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count*3);
+  const speeds = new Float32Array(count);
+  for(let i=0;i<count;i++){
+    positions[i*3]   = (Math.random()*2-1)*WEATHER_FX_BOX;
+    positions[i*3+1] = Math.random()*WEATHER_FX_HEIGHT;
+    positions[i*3+2] = (Math.random()*2-1)*WEATHER_FX_BOX;
+    speeds[i] = 0.7 + Math.random()*0.6;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const LOOKS = {
+    rain: { color:0xbcd6e8, size:0.5, opacity:0.55, fallMult:26 },
+    snow: { color:0xffffff, size:0.9, opacity:0.85, fallMult:5 },
+    ash:  { color:0xff9a5c, size:0.7, opacity:0.55, fallMult:4 }
+  };
+  const look = LOOKS[type] || LOOKS.rain;
+  const mat = new THREE.PointsMaterial({
+    color: look.color, size: look.size, transparent:true, opacity: look.opacity,
+    depthWrite:false, sizeAttenuation:true
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  scene.add(points);
+  return { points, geo, speeds, type, fallMult: look.fallMult, drift: type==='snow' || type==='ash' };
+}
+function teardownWeatherFX(){
+  if(weatherFX){
+    try{ scene && scene.remove(weatherFX.points); }catch(e){}
+    try{ weatherFX.geo.dispose(); weatherFX.points.material.dispose(); }catch(e){}
+  }
+  weatherFX = null;
+}
+function updateWeatherFX(dt){
+  if(!weatherFX || !camera) return;
+  const pos = weatherFX.geo.attributes.position;
+  const arr = pos.array;
+  const cx = camera.position.x, cz = camera.position.z;
+  for(let i=0;i<weatherFX.speeds.length;i++){
+    const iy = i*3+1;
+    arr[iy] -= weatherFX.fallMult * weatherFX.speeds[i] * dt;
+    if(weatherFX.drift){
+      arr[i*3]   += Math.sin(raceClock*0.6 + i) * 0.35 * dt;
+      arr[i*3+2] += Math.cos(raceClock*0.5 + i) * 0.35 * dt;
+    }
+    if(arr[iy] < -2){
+      arr[iy] = WEATHER_FX_HEIGHT;
+      arr[i*3]   = cx + (Math.random()*2-1)*WEATHER_FX_BOX;
+      arr[i*3+2] = cz + (Math.random()*2-1)*WEATHER_FX_BOX;
+    }
+    // Keep the volume centred on the camera so it always looks like
+    // weather is falling everywhere, not just around the world origin.
+    if(arr[i*3] - cx > WEATHER_FX_BOX) arr[i*3] -= WEATHER_FX_BOX*2;
+    if(arr[i*3] - cx < -WEATHER_FX_BOX) arr[i*3] += WEATHER_FX_BOX*2;
+    if(arr[i*3+2] - cz > WEATHER_FX_BOX) arr[i*3+2] -= WEATHER_FX_BOX*2;
+    if(arr[i*3+2] - cz < -WEATHER_FX_BOX) arr[i*3+2] += WEATHER_FX_BOX*2;
+  }
+  pos.needsUpdate = true;
+}
+// Applies the current stage's weather: sets currentWeather, (re)builds the
+// particle cloud if it has one, thickens scene.fog for low-visibility
+// conditions, and refreshes the HUD weather chip. Called once from
+// startRace() after createStageScene() so `scene` already exists.
+function applyWeatherForStage(stageIndex){
+  teardownWeatherFX();
+  currentWeather = weatherForStage(stageIndex);
+  if(currentWeather.particle) weatherFX = createWeatherFX(currentWeather.particle);
+  if(scene && scene.fog && currentWeather.fogBoost > 0){
+    const shrink = 1 - currentWeather.fogBoost;
+    scene.fog.near *= shrink;
+    scene.fog.far  *= shrink;
+  }
+  const chip = $('weatherChip');
+  if(chip){
+    if(currentWeather === WEATHER_DEFS.clear){
+      chip.hidden = true;
+    } else {
+      chip.hidden = false;
+      chip.textContent = currentWeather.emoji + ' ' + currentWeather.label;
+    }
+  }
 }
 
 // Harbor Sprint / Coastal Curves only: the ocean plane shifts toward a
@@ -6395,10 +6960,29 @@ function completeLap(car){
       // in Time Trial always saves a ghost the first time.
       const beatsGhost = ghostRecordBuf.length > 1 && (!ghostFrames || lapTime < ghostLapDuration);
       if(beatsGhost){
-        saveGhostForStage(selectedStage, ghostRecordBuf.slice());
+        const recordedFrames = ghostRecordBuf.slice();
+        saveGhostForStage(selectedStage, recordedFrames);
         if(ghostFrames){ // only counts as "beating" one that already existed, not setting the first ever ghost
           gameState.ghostBeatsCount = (gameState.ghostBeatsCount||0) + 1;
           checkAchievements();
+        }
+        // Also offer it up to the shared table if it beats the synced global
+        // best for this stage (or there isn't one yet) — best effort, and
+        // the local save above already happened regardless of this outcome.
+        const remoteBest = remoteGhostCache[selectedStage];
+        if(!remoteBest || lapTime < remoteBest.lapTime){
+          const ownerDisplay = Online.myName();
+          sbUpsertStageGhost(selectedStage, {
+            lap_time: lapTime,
+            owner_key: currentUser || 'guest',
+            owner_display: ownerDisplay,
+            frames: recordedFrames,
+            updated_at: new Date().toISOString()
+          }).then(()=>{
+            remoteGhostCache[selectedStage] = { lapTime, frames: recordedFrames, ownerDisplay };
+          }).catch(e=>{
+            console.warn('[VelocityCircuit] Could not sync this ghost to the shared table (falls back to local-only):', e);
+          });
         }
       }
       ghostRecordBuf = [];
@@ -6444,8 +7028,8 @@ function updateCar(car, dt){
   }
   const sensMult = car.isPlayer ? (0.4 + (gameState.sensitivity / 100) * 1.2) : 1;
   const turnRate = (BASE_TURN
-    + (car.isPlayer ? gameState.upgrades.handling*0.12 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult;
-  const brakePower = BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*3.0 : 0);
+    + (car.isPlayer ? gameState.upgrades.handling*0.12 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult * currentWeather.gripMult;
+  const brakePower = (BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*3.0 : 0)) * currentWeather.brakeMult;
 
   let throttle=0, brake=0, steer=0;
 
@@ -6912,7 +7496,7 @@ function addSystemChatMessage(text){
    /renametarget           — asks for a new display name, then applies it
    IMPORTANT CAVEAT: like the owner login itself, this has no real server
    behind it. Everyone's client independently agrees on the same 4 owner
-   usernames (see OWNER_CREDENTIALS above) and trusts whatever username a
+   usernames (see OWNER_USERNAMES above) and trusts whatever username a
    peer claims for itself when it joins a race — the same trust level the
    rest of this local, serverless multiplayer already runs on. Someone who
    edits their own client's code could forge these messages; this stops
@@ -8013,14 +8597,16 @@ const Sound = (function(){
     } else {
       out.connect(engineBus); // older Safari: mono fallback
     }
-    return { out, osc, og, pre, peak, lp, nf, ng, panner, jit:0, nodes:[noise, osc] };
+    return { out, osc, og, pre, peak, lp, nf, ng, panner, jit:0, nodes:[noise, osc], pitchMult: cfg.pitch || 1 };
   }
 
   function setVoice(v, rpm, load, level, doppler, pan){
     // 4-stroke: one full cycle is two crank revolutions, so the wave (which
     // holds all 8 firing events) runs at rpm/120. Firing rate falls out at the
     // 8th harmonic — 6300rpm -> 52.5Hz cycle -> 420Hz of exhaust pulses.
-    const cycle = clamp(rpm/120 * doppler, 3, 90);
+    // v.pitchMult is a small cosmetic offset from the equipped Engine Tune
+    // (see ENGINE_TUNES) — 1 for Factory, so stock cars sound unchanged.
+    const cycle = clamp(rpm/120 * doppler * (v.pitchMult || 1), 3, 90);
     glide(v.osc.frequency, cycle, 0.02);
 
     // No engine holds a perfectly even rpm — combustion varies cylinder to
@@ -8241,7 +8827,7 @@ const Sound = (function(){
       engineBus.gain.value = 0.50;
       fanBus.gain.cancelScheduledValues(ctx.currentTime);
       fanBus.gain.value = 0.125;
-      playerVoice = createEngineVoice({ drive:0.42, body:1 });
+      playerVoice = createEngineVoice({ drive:0.42, body:1, pitch: engineTuneFor(gameState.selectedCar).pitch });
       rivalVoices = cars.filter(c=>!c.isPlayer).map(()=> createEngineVoice({ drive:0.22, body:0.75 }));
       fan = createFan();
       crowd = createCrowd();
@@ -8716,7 +9302,8 @@ function finishRace(){
   if(timeTrialMode && ghostFrames){
     const ghostLapTime = ghostLapDuration;
     const delta = player.bestLap - ghostLapTime;
-    ghostSection = `<div class="resultRow"><span>${emo('👻')} Ghost's lap</span><strong>${formatTime(ghostLapTime)} (${delta<=0?'-':'+'}${formatTime(Math.abs(delta))})</strong></div>`;
+    const ghostHeading = ghostRaceIsOwn ? "Ghost's lap" : escapeHtml(ghostRaceLabel) + '\u2019s ghost lap';
+    ghostSection = `<div class="resultRow"><span>${emo('👻')} ${ghostHeading}</span><strong>${formatTime(ghostLapTime)} (${delta<=0?'-':'+'}${formatTime(Math.abs(delta))})</strong></div>`;
   }
   const challengeSection = challengeBonus > 0
     ? `<div class="resultRow"><span>${emo('🎯')} Challenge bonus</span><strong>+${challengeBonus}</strong></div>`
@@ -8902,7 +9489,7 @@ function animate(now){
   // opened or closed it.
   const homeBar = $('homeStatsBar');
   if(homeBar){
-    const popupOpen = ['achievementsOverlay','ownerStatsOverlay','globalChatOverlay','friendsOverlay']
+    const popupOpen = ['achievementsOverlay','leaderboardOverlay','ownerStatsOverlay','globalChatOverlay','friendsOverlay']
       .some(id => { const el = $(id); return el && !el.hidden; });
     homeBar.classList.toggle('hiddenForOverlay', popupOpen);
   }
@@ -8910,6 +9497,7 @@ function animate(now){
   Gamepad.poll(dt);
   updateOceanProximity();
   updateSkyDome();
+  updateWeatherFX(dt);
 
   if(gameState.showFps === true){
     fpsFrameCount++;
@@ -9406,6 +9994,8 @@ $('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
 $('friendsBtn').addEventListener('click', openFriendsOverlay);
 $('friendsCloseBtn').addEventListener('click', closeFriendsOverlay);
 $('paintOverlayCloseBtn').addEventListener('click', closePaintOverlay);
+$('tireOverlayCloseBtn').addEventListener('click', closeTireOverlay);
+$('engineOverlayCloseBtn').addEventListener('click', closeEngineOverlay);
 
 /* ---------- Fullscreen popup close-X buttons ----------
    Achievements/Player Stats/Chat/Friends & Rivals/Paint/Race Stats all
@@ -9414,17 +10004,23 @@ $('paintOverlayCloseBtn').addEventListener('click', closePaintOverlay);
    bottom "Close" button. closeAnyPopup() also backs the global X-key
    shortcut below, closing whichever one of these happens to be open. */
 $('achievementsCloseX').addEventListener('click', closeAchievements);
+$('leaderboardCloseX').addEventListener('click', closeLeaderboard);
 $('ownerStatsCloseX').addEventListener('click', ()=>{ $('ownerStatsOverlay').hidden = true; });
 $('globalChatCloseX').addEventListener('click', closeGlobalChat);
 $('friendsCloseX').addEventListener('click', closeFriendsOverlay);
 $('paintCloseX').addEventListener('click', closePaintOverlay);
+$('tireCloseX').addEventListener('click', closeTireOverlay);
+$('engineCloseX').addEventListener('click', closeEngineOverlay);
 $('statsCloseX').addEventListener('click', ()=>{ $('statsOverlay').hidden = true; });
 function closeAnyPopup(){
   if(!$('achievementsOverlay').hidden){ closeAchievements(); return true; }
+  if(!$('leaderboardOverlay').hidden){ closeLeaderboard(); return true; }
   if(!$('ownerStatsOverlay').hidden){ $('ownerStatsOverlay').hidden = true; return true; }
   if(!$('globalChatOverlay').hidden){ closeGlobalChat(); return true; }
   if(!$('friendsOverlay').hidden){ closeFriendsOverlay(); return true; }
   if(!$('paintOverlay').hidden){ closePaintOverlay(); return true; }
+  if(!$('tireOverlay').hidden){ closeTireOverlay(); return true; }
+  if(!$('engineOverlay').hidden){ closeEngineOverlay(); return true; }
   if(!$('statsOverlay').hidden){ $('statsOverlay').hidden = true; return true; }
   return false;
 }
@@ -9766,11 +10362,14 @@ const ChatNet = {
 
 
 /* ============================= INIT ============================= */
-function init(){
+async function init(){
   loadTheme();
   initThree();
   renderStageGrid();
   refreshSoundBtn();
+  // Start the render loop right away — it shouldn't wait on the network
+  // round-trip the "stay logged in" owner check below now makes.
+  requestAnimationFrame(animate);
 
   // "Stay logged in" resumes the last profile automatically; otherwise land
   // on the login screen so progress is saved to the right person's slot.
@@ -9778,17 +10377,16 @@ function init(){
   try{ remembered = localStorage.getItem(SESSION_KEY); }catch(e){}
   const rememberedUsers = readUsers();
   if(remembered && rememberedUsers[remembered]){
-    // Recompute owner status from the username+password each time, so it
-    // stays in sync with OWNER_CREDENTIALS rather than trusting a stored flag.
-    const owner = checkOwner(remembered, rememberedUsers[remembered].hash);
+    // Recompute owner status from the username+password each time (against
+    // the Edge Function — see checkOwner() above), so it stays correct
+    // rather than trusting a stored flag.
+    const owner = await checkOwner(remembered, rememberedUsers[remembered].hash);
     if(owner){ rememberedUsers[remembered].isOwner = true; } else { delete rememberedUsers[remembered].isOwner; }
     writeUsers(rememberedUsers);
     beginSession(remembered, rememberedUsers[remembered].display, true, owner);
   } else {
     showLoginScreen();
   }
-
-  requestAnimationFrame(animate);
 }
 // Approximate playtime tracker — ticks while a profile is signed in,
 // regardless of which screen is open. Not frame-precise, but good enough
