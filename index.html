@@ -1372,51 +1372,20 @@ let currentUser = null;
 let isOwner = false;
 
 // Owner accounts: logging in with one of these usernames — and the right
-// password — grants owner status (free purchases/upgrades, all stages
-// unlocked). See isStageUnlocked() and the garage purchase handlers below.
+// password for that account — grants owner status (free purchases/
+// upgrades, all stages unlocked). See isStageUnlocked() and the garage
+// purchase handlers below.
 //
-// Only the USERNAMES live here. The actual passwords used to sit right in
-// this file as simpleHash() output — readable by anyone who opened dev
-// tools, since there's no way to keep a secret in code that ships to the
-// browser. The real credentials now live only as a secret in a Supabase
-// Edge Function (deploy/supabase/functions/verify-owner — see the comment
-// on checkOwner() below for the deployment steps), which this file calls
-// over the network instead of checking locally. A username alone still
-// never grants owner status — the Edge Function always requires the
-// password hash to match too.
+// The password itself is checked the exact same way as any other account's
+// (see attemptLogin): against whatever hash is on record for that username
+// in the shared Supabase `accounts` table, or this browser's local cache if
+// offline. There's no separate server-side secret — the verify-owner Edge
+// Function this used to call was removed, so the owner password hash lives
+// in the same place every other account's password lives (readable by
+// anyone with dev tools open while logged in as owner). Treat these
+// usernames' passwords with that in mind.
 const OWNER_USERNAMES = ['velocityanand', 'velocityvihan', 'velocityarjun', 'velocityowner'];
 function isOwnerUsername(nameKey){ return OWNER_USERNAMES.includes(nameKey); }
-// Verifies a username + password hash against the real owner credentials by
-// calling the verify-owner Edge Function (SUPABASE_URL/SUPABASE_KEY are
-// defined further down this file, but that's fine — this only ever runs
-// later, after the whole script has loaded). Requires that function to be
-// deployed:
-//   1. supabase functions new verify-owner
-//      (paste in the matching server-side code — see the project notes)
-//   2. supabase secrets set OWNER_CREDENTIALS_JSON='{"velocityanand":"<hash>", ...}'
-//      using the SAME simpleHash() output these accounts used to check
-//      against locally, so behavior is unchanged — only WHERE the check
-//      happens moves.
-//   3. supabase functions deploy verify-owner
-// Until that's deployed, every owner login will fail closed (nobody gets
-// owner status) rather than silently trusting the client, which is the
-// correct failure mode for an auth check.
-async function checkOwner(nameKey, hash){
-  if(!isOwnerUsername(nameKey)) return false;
-  try{
-    const res = await fetch(SUPABASE_URL + '/functions/v1/verify-owner', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({ nameKey, hash })
-    });
-    if(!res.ok) return false;
-    const data = await res.json();
-    return !!(data && data.isOwner);
-  }catch(e){
-    console.warn('[VelocityCircuit] Could not reach the owner-verification server — treating this login as not-owner for now.', e);
-    return false;
-  }
-}
 
 function updateOwnerBadge(){
   const badge = $('ownerBadge');
@@ -1927,24 +1896,17 @@ async function attemptLogin(rawUsername, rawPassword){
   const users = readUsers();
   let isNewAccount = false;
 
-  // Owner usernames are locked to their fixed password, verified against the
-  // Edge Function (see checkOwner() above) so the real credentials are never
-  // in this file. The username alone never grants owner status — if it's an
-  // owner username, the password must verify too, no matter what (if
-  // anything) is already saved locally or remotely under that name.
+  // Owner status now comes purely from the username: if it's one of
+  // OWNER_USERNAMES and the password matches whatever's on record for that
+  // account (checked the exact same way as any other account, just below),
+  // the login is treated as owner. There is no separate server-side secret
+  // anymore — the verify-owner Edge Function call was removed. That means
+  // the owner password hash lives in the same shared accounts table and
+  // local cache as every other account's password, same as any account
+  // here, so treat it with the same care you'd give any shared login.
   const ownerCandidate = isOwnerUsername(nameKey);
-  const ownerVerified = ownerCandidate ? await checkOwner(nameKey, hash) : false;
-  if(ownerCandidate && !ownerVerified){
-    errEl.textContent = 'Incorrect password for that username.';
-    if(submitBtn) submitBtn.disabled = false;
-    return;
-  }
 
-  if(ownerCandidate){
-    // Fixed password above is the only thing that matters — just overwrite
-    // the cached entry so it's back in sync.
-    users[nameKey] = { hash, display: username };
-  } else if(remoteReachable && remoteRow){
+  if(remoteReachable && remoteRow){
     if(remoteRow.hash !== hash){
       errEl.textContent = 'Incorrect password for that username.';
       if(submitBtn) submitBtn.disabled = false;
@@ -1977,10 +1939,10 @@ async function attemptLogin(rawUsername, rawPassword){
     users[nameKey] = { hash, display: username };
     isNewAccount = true;
   }
-  // Owner status is derived from the fixed username+password pair, not a
-  // stored flag, so it stays correct even for accounts created before this
-  // list existed.
-  const owner = ownerVerified;
+  // Owner status is derived purely from logging in successfully under one
+  // of OWNER_USERNAMES (see the comment above) — not a stored flag, so it
+  // stays correct even for accounts created before this list existed.
+  const owner = ownerCandidate;
   if(owner){ users[nameKey].isOwner = true; } else { delete users[nameKey].isOwner; }
   writeUsers(users);
   recordAccountSeen(nameKey, users[nameKey].display);
@@ -10367,8 +10329,7 @@ async function init(){
   initThree();
   renderStageGrid();
   refreshSoundBtn();
-  // Start the render loop right away — it shouldn't wait on the network
-  // round-trip the "stay logged in" owner check below now makes.
+  // Start the render loop right away.
   requestAnimationFrame(animate);
 
   // "Stay logged in" resumes the last profile automatically; otherwise land
@@ -10377,10 +10338,10 @@ async function init(){
   try{ remembered = localStorage.getItem(SESSION_KEY); }catch(e){}
   const rememberedUsers = readUsers();
   if(remembered && rememberedUsers[remembered]){
-    // Recompute owner status from the username+password each time (against
-    // the Edge Function — see checkOwner() above), so it stays correct
-    // rather than trusting a stored flag.
-    const owner = await checkOwner(remembered, rememberedUsers[remembered].hash);
+    // Owner status is just "is this one of the owner usernames" — the
+    // password itself was already checked when this login was first cached
+    // (see attemptLogin), so re-deriving it here needs no network call.
+    const owner = isOwnerUsername(remembered);
     if(owner){ rememberedUsers[remembered].isOwner = true; } else { delete rememberedUsers[remembered].isOwner; }
     writeUsers(rememberedUsers);
     beginSession(remembered, rememberedUsers[remembered].display, true, owner);
