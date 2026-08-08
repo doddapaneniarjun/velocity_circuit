@@ -866,7 +866,7 @@
           <button class="btn garage" id="resumeBtn">Resume</button>
           <button class="btn secondary" id="settingsBtn"><span class="emoji" aria-hidden="true">⚙️</span> Settings</button>
           <button class="btn secondary" id="restartBtn">Restart Race</button>
-          <button class="btn secondary" id="photoModePauseBtn">Photo Mode</button>
+          <button class="btn secondary" id="photoModePauseBtn">📷 Photo Mode</button>
           <button class="btn ghost" id="quitBtn">Quit to Home</button>
         </div>
       </div>
@@ -1051,7 +1051,9 @@
           <button class="btn garage" id="raceAgainBtn">Race Again</button>
           <button class="btn secondary" id="resultsGarageBtn">Garage</button>
           <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
-          <button class="btn secondary" id="photoModeResultsBtn">Photo Mode</button>
+          <div style="width:100%;border-top:1px solid var(--border);padding-top:14px;">
+            <button class="btn secondary" id="photoModeResultsBtn" style="width:100%;">📷 Photo Mode</button>
+          </div>
           <button class="btn ghost" id="resultsHomeBtn">Home</button>
         </div>
       </div>
@@ -4843,6 +4845,33 @@ const Gamepad = {
     this._startWasDown = start;
     if(this.boostHeld && !this._boostWasDown && appState === 'racing'){ triggerBoost(); }
     this._boostWasDown = this.boostHeld;
+    this._pollPhotoModeButtons(btnPressed);
+  },
+  // Photo Mode has no keyboard/mouse equivalent for controller-only
+  // players — Start only pauses/resumes. Y is a free button on the pause
+  // and results screens (nothing else claims it there) and toggles Photo
+  // Mode open/closed; once inside, A/B mirror the keyboard's Digit1 (save)
+  // and Digit2 (done) shortcuts. Not user-remappable, same as those
+  // keyboard shortcuts aren't — this just gives gamepad players the same
+  // three entry points everyone else already has.
+  _pollPhotoModeButtons(btnPressed){
+    const photoToggle = btnPressed(3); // Y / △
+    if(photoToggle && !this._photoToggleWasDown){
+      if(PhotoMode.active) PhotoMode.exit();
+      else if(appState === 'paused' || appState === 'results') PhotoMode.enter();
+    }
+    this._photoToggleWasDown = photoToggle;
+    if(PhotoMode.active){
+      const photoSave = btnPressed(0); // A / ✕ — Save
+      if(photoSave && !this._photoSaveWasDown) PhotoMode.save();
+      this._photoSaveWasDown = photoSave;
+      const photoExit = btnPressed(1); // B / ○ — Done
+      if(photoExit && !this._photoExitWasDown) PhotoMode.exit();
+      this._photoExitWasDown = photoExit;
+    } else {
+      this._photoSaveWasDown = false;
+      this._photoExitWasDown = false;
+    }
   },
   // Experimental one-handed layout for a lone Joy-Con held sideways. A
   // single Joy-Con only exposes one analog stick and a handful of face
@@ -4874,6 +4903,10 @@ const Gamepad = {
     this._startWasDown = start;
     if(this.boostHeld && !this._boostWasDown && appState === 'racing'){ triggerBoost(); }
     this._boostWasDown = this.boostHeld;
+    // Buttons 0/1 double as brake/boost, but only matter mid-race — Photo
+    // Mode is only ever entered from paused/results, so reusing them here
+    // is safe. See _pollPhotoModeButtons above for the reasoning.
+    this._pollPhotoModeButtons(btnPressed);
   }
 };
 Gamepad.init();
@@ -5038,8 +5071,13 @@ const GamepadMenuNav = {
   // Menu navigation and the remap-capture flow both want the next button
   // press for themselves — bail out while a rebind capture is in progress.
   captureSkip(){
+    // Photo Mode has its own A/B bindings (save/done, see
+    // Gamepad._pollPhotoModeButtons) and isn't a menu — skip so this
+    // doesn't also try to click whatever it finds behind the hidden
+    // pause/results overlay on the same button press.
     return !!rebindingAction || !!Gamepad.captureAction
-      || appState === 'racing' || appState === 'racing-countdown';
+      || appState === 'racing' || appState === 'racing-countdown'
+      || PhotoMode.active;
   }
 };
 
@@ -7478,6 +7516,15 @@ const PhotoMode = {
     window.addEventListener('pointerup', this._onUp);
     window.addEventListener('pointercancel', this._onUp);
     c.addEventListener('wheel', this._onWheel, { passive:false });
+    // First-time (or just-forgot) players dropping in via Esc never see
+    // the pause/results button, so there's nothing on screen telling them
+    // 1/2 (or A/B on a gamepad) do anything. A one-shot toast + live-region
+    // announcement covers that without bringing back a persistent bar.
+    const hint = Gamepad.index != null
+      ? 'Photo Mode — A: Save · B: Done'
+      : 'Photo Mode — 1: Save · 2: Done';
+    showGlobalToast(hint);
+    announce(hint);
   },
   exit(){
     this.active = false;
