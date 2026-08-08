@@ -852,6 +852,11 @@
       </div>
     </div>
 
+    <div class="touchKeys" id="photoModeTouchKeys" hidden style="position:fixed; bottom:100px; right:18px; z-index:26;">
+      <button class="keycapBtn" id="keyPhotoOne" type="button" aria-label="Save Photo (1)">1</button>
+      <button class="keycapBtn" id="keyPhotoTwo" type="button" aria-label="Done (2)">2</button>
+    </div>
+
     <div class="overlay" id="pauseOverlay" hidden>
       <!-- Pause menu -->
       <div class="overlayCard" id="pauseCard">
@@ -861,6 +866,7 @@
           <button class="btn garage" id="resumeBtn">Resume</button>
           <button class="btn secondary" id="settingsBtn"><span class="emoji" aria-hidden="true">⚙️</span> Settings</button>
           <button class="btn secondary" id="restartBtn">Restart Race</button>
+          <button class="btn secondary" id="photoModePauseBtn">Photo Mode</button>
           <button class="btn ghost" id="quitBtn">Quit to Home</button>
         </div>
       </div>
@@ -1045,6 +1051,7 @@
           <button class="btn garage" id="raceAgainBtn">Race Again</button>
           <button class="btn secondary" id="resultsGarageBtn">Garage</button>
           <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
+          <button class="btn secondary" id="photoModeResultsBtn">Photo Mode</button>
           <button class="btn ghost" id="resultsHomeBtn">Home</button>
         </div>
       </div>
@@ -4527,19 +4534,26 @@ window.addEventListener('keydown', e=>{
     e.preventDefault(); openGlobalChat();
   }
   if(e.code === gameState.keyBinds.boost && appState==='racing'){ triggerBoost(); }
-  if(e.code === 'Digit1' && appState === 'results'){ takePhoto(); }
+  // On the results screen, Digit1 is a straight freeze-frame download when
+  // Photo Mode isn't open; once Photo Mode is open it belongs to
+  // PhotoMode.save() instead, so the two don't both fire off a download.
+  if(e.code === 'Digit1' && appState === 'results' && !PhotoMode.active){ takePhoto(); }
   if(e.code === 'Digit1' && PhotoMode.active){ PhotoMode.save(); }
   if(e.code === 'Digit2' && PhotoMode.active){ PhotoMode.exit(); }
   if(e.code === 'Escape'){
-    if(appState === 'racing' || appState === 'racing-countdown'){
+    // Photo Mode can now be opened from the pause menu, the results screen,
+    // or dropped straight into from Esc mid-race — wherever it's open,
+    // Escape closes it first before falling through to that screen's own
+    // Escape behavior.
+    if(PhotoMode.active){
+      PhotoMode.exit();
+    } else if(appState === 'racing' || appState === 'racing-countdown'){
       pauseRace();
       PhotoMode.enter(); // Esc drops straight into Photo Mode instead of the plain pause menu
     } else if(appState === 'paused'){
-      // Step back one level at a time: out of Photo Mode to the pause menu
-      // first, out of Settings to the pause menu next, then Resume on a
+      // Step out of Settings to the pause menu first, then Resume on a
       // further press, same as tapping the buttons.
-      if(PhotoMode.active){ PhotoMode.exit(); }
-      else if(!$('settingsCard').hidden){ $('settingsBackBtn').click(); }
+      if(!$('settingsCard').hidden){ $('settingsBackBtn').click(); }
       else { resumeRace(); }
     } else if(appState === 'results'){
       $('resultsHomeBtn').click();
@@ -5104,6 +5118,19 @@ const GamepadMenuNav = {
     e.preventDefault();
     keys[gameState.keyBinds.drift] = false;
   }, { passive:false }));
+
+  // Photo Mode's own touch keycaps — mirror the 1/Save and 2/Done keyboard
+  // shortcuts. Only ever visible while Photo Mode is active AND touch
+  // controls are on (see PhotoMode.enter/exit), same gating as the rest of
+  // this touch control set.
+  $('keyPhotoOne').addEventListener('touchstart', e=>{
+    e.preventDefault();
+    if(PhotoMode.active) PhotoMode.save();
+  }, { passive:false });
+  $('keyPhotoTwo').addEventListener('touchstart', e=>{
+    e.preventDefault();
+    if(PhotoMode.active) PhotoMode.exit();
+  }, { passive:false });
 })();
 
 /* ---------- Race setup ---------- */
@@ -7417,6 +7444,7 @@ function takePhoto(){
    to be at when you paused. */
 const PhotoMode = {
   active: false,
+  returnState: null, // 'paused' or 'results' — which screen to restore on exit
   pivot: null,       // THREE.Vector3 — orbit centre, the player's car position
   yaw: 0, pitch: 0.25, distance: 12,
   MIN_DIST: 4, MAX_DIST: 60,
@@ -7429,6 +7457,10 @@ const PhotoMode = {
   enter(){
     if(!player) return;
     this.active = true;
+    // Remember which screen we were shown over (pause menu vs results),
+    // entered straight into via Esc/Digit2 style entries. exit() uses this
+    // to know which overlay to bring back.
+    this.returnState = appState;
     this.pivot = player.pos.clone();
     const target = new THREE.Vector3(this.pivot.x, this.pivot.y + 1.4, this.pivot.z);
     const rel = camera.position.clone().sub(target);
@@ -7436,7 +7468,9 @@ const PhotoMode = {
     this.pitch = Math.asin(Math.max(-1, Math.min(1, rel.y / this.distance)));
     this.yaw = Math.atan2(rel.x, rel.z);
     $('pauseOverlay').hidden = true;
+    $('resultsOverlay').hidden = true;
     $('hud').style.display = 'none';
+    if(gameState.touchControls === true) $('photoModeTouchKeys').hidden = false;
     const c = $('canvas');
     c.style.touchAction = 'none';
     c.addEventListener('pointerdown', this._onDown);
@@ -7449,12 +7483,15 @@ const PhotoMode = {
     this.active = false;
     this.pointers.clear();
     this.dragging = false;
-    // Only re-reveal the pause menu if we're still actually paused — if
-    // something already resumed the race out from under Photo Mode (e.g. a
-    // gamepad Start press toggling straight past this), the race is what
-    // should be on screen, not a pause menu popping back up over it.
-    if(appState === 'paused') $('pauseOverlay').hidden = false;
+    // Only re-reveal the screen we came from if we're still actually in
+    // that state — if something already moved us out from under Photo
+    // Mode (e.g. a gamepad Start press resuming the race, or the online
+    // room ending the match), that new screen is what should be on
+    // screen, not a stale pause/results card popping back up over it.
+    if(this.returnState === 'paused' && appState === 'paused') $('pauseOverlay').hidden = false;
+    else if(this.returnState === 'results' && appState === 'results') $('resultsOverlay').hidden = false;
     $('hud').style.display = '';
+    $('photoModeTouchKeys').hidden = true;
     const c = $('canvas');
     c.style.touchAction = '';
     c.removeEventListener('pointerdown', this._onDown);
@@ -8325,6 +8362,7 @@ $('pauseBtn').addEventListener('click', ()=>{
   if(appState === 'racing' || appState === 'racing-countdown') pauseRace();
 });
 $('resumeBtn').addEventListener('click', resumeRace);
+$('photoModePauseBtn').addEventListener('click', ()=> PhotoMode.enter());
 function applyEmojiVisibility(){
   document.body.classList.toggle('hide-emojis', gameState.showEmojis === false);
 }
@@ -8790,6 +8828,7 @@ $('raceAgainBtn').addEventListener('click', ()=>{
 });
 $('resultsGarageBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
 $('resultsUpgradesBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
+$('photoModeResultsBtn').addEventListener('click', ()=> PhotoMode.enter());
 $('resultsHomeBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
 
 /* ---------- Main loop ---------- */
@@ -8801,10 +8840,11 @@ function animate(now){
   lastTime = now;
 
   // Photo Mode's HUD-hiding side effect only ever belongs on top of a
-  // paused race. Force it closed the moment we're anywhere else, no matter
-  // how it ended up in that state (e.g. a gamepad Start press resuming the
-  // race straight out of Photo Mode).
-  if(appState !== 'paused'){
+  // paused race or the results screen (its two entry points). Force it
+  // closed the moment we're anywhere else, no matter how it ended up in
+  // that state (e.g. a gamepad Start press resuming the race, or the
+  // online room ending the match, straight out of Photo Mode).
+  if(appState !== 'paused' && appState !== 'results'){
     if(PhotoMode.active) PhotoMode.exit();
   }
 
