@@ -89,6 +89,12 @@
   .ratingBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid var(--border);
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .ratingBar strong{ color:var(--text); }
+  .homeStatsBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid var(--border);
+    padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px;
+    z-index:20; color:var(--muted); transition:opacity .15s, visibility .15s; }
+  .homeStatsBar strong{ color:var(--text); }
+  .homeStatsBar .statsDivider{ opacity:.5; }
+  .homeStatsBar.hiddenForOverlay{ opacity:0; visibility:hidden; pointer-events:none; }
 
   .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid var(--border);
     padding:8px 14px; border-radius:999px; font-weight:600; font-size:13px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
@@ -573,8 +579,9 @@
 
   <!-- HOME SCREEN -->
   <section id="homeScreen" class="screen" hidden>
-    <div class="coinBar" aria-label="Coin balance"><span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins</div>
-    <div class="ratingBar" aria-label="Driver rating, determines CPU difficulty">
+    <div class="homeStatsBar" id="homeStatsBar" aria-label="Coin balance and driver rating">
+      <span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins
+      <span class="statsDivider" aria-hidden="true">&bull;</span>
       Driver Rating <strong id="homeRatingText">50</strong>
     </div>
 
@@ -663,8 +670,8 @@
         <h2>Chat</h2>
         <p class="statsSub">Message players on this device instantly, plus anyone else currently signed in on another device — they need to be online right now to receive it.</p>
         <p id="globalChatStatus" style="font-size:12px;color:var(--muted);margin:0 0 10px;"></p>
-        <div class="chatLog" id="globalChatLog" role="log" aria-live="polite" aria-label="Chat messages" style="max-height:280px;min-height:160px;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:12px;"></div>
-        <form class="chatForm" id="globalChatForm" style="padding:0;border-top:none;">
+        <div class="chatLog" id="globalChatLog" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;min-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:12px;"></div>
+        <form class="chatForm" id="globalChatForm" style="padding:0;border-top:none;flex:none;">
           <button type="button" class="btn chatEmojiBtn" id="globalChatEmojiBtn" aria-label="Insert emoji" aria-haspopup="true" aria-expanded="false">🙂</button>
           <div class="emojiPicker" id="globalChatEmojiPicker" role="menu" aria-label="Emoji picker" hidden></div>
           <input class="chatInputField" id="globalChatInput" type="text" maxlength="200" placeholder="Message everyone…" autocomplete="off" aria-label="Chat message" />
@@ -5914,6 +5921,13 @@ $('findMatchBtn').addEventListener('click', ()=>{ Online.startSearch(); });
 $('lobbyBackBtn').addEventListener('click', ()=>{ Online.stopSearch(); showScreen('mode'); });
 
 function startRace(stageIndex, onlineRoom){
+  // Defensive cleanup: no matter which path led here (results buttons,
+  // a stage card click, restarting from pause, an online match starting,
+  // etc.), Photo Mode and its floating button bar must never carry over
+  // into a fresh race.
+  if(typeof PhotoMode !== 'undefined' && PhotoMode.active) PhotoMode.exit();
+  const photoBar = $('photoModeBar');
+  if(photoBar) photoBar.hidden = true;
   if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
   if(!onlineRoom) Online.leaveRace();
   // Snapshot current state before the race modifies coins / racesCompleted.
@@ -9178,6 +9192,11 @@ function openGlobalChat(){
   const dot = $('globalChatUnreadDot');
   if(dot) dot.hidden = true;
   updateChatStatusUI();
+  // The chat overlay's close (X) button sits in the same top-left corner as
+  // the home screen's fixed stats box — hide the stats box while chat is
+  // open so the two never overlap, then restore it on close.
+  const statsBar = $('homeStatsBar');
+  if(statsBar) statsBar.classList.add('hiddenForOverlay');
   setTimeout(()=>{ const f = $('globalChatInput'); if(f) f.focus(); }, 0);
 }
 // Surfaces the chat mesh's live connection state so cross-device delivery
@@ -9199,6 +9218,8 @@ function updateChatStatusUI(){
 function closeGlobalChat(){
   globalChatOpen = false;
   $('globalChatOverlay').hidden = true;
+  const statsBar = $('homeStatsBar');
+  if(statsBar) statsBar.classList.remove('hiddenForOverlay');
 }
 $('globalChatBtn').addEventListener('click', openGlobalChat);
 $('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
