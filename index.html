@@ -449,7 +449,18 @@
   .friendRowBtn:hover{ border-color:var(--accent); color:var(--accent); }
   .friendRowBtn.spectateBtn{ border-color:var(--accent); color:var(--accent); }
   .friendsEmpty{ color:var(--muted); font-size:13px; text-align:center; padding:18px 0; }
-  #friendInvitesSection{ margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+
+  /* ---------- Paint picker ---------- */
+  .paintSwatchGrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px; max-height:360px; overflow-y:auto; margin-bottom:6px; }
+  .paintSwatch{ display:flex; flex-direction:column; align-items:center; gap:6px; background:var(--panel2); border:1px solid var(--border);
+    border-radius:10px; padding:12px 8px; cursor:pointer; font:inherit; color:var(--text); }
+  .paintSwatch:hover:not(:disabled){ border-color:var(--accent); }
+  .paintSwatch:disabled{ cursor:default; opacity:.85; }
+  .paintSwatch.equipped{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .paintSwatch .swatchDot{ width:34px; height:34px; border-radius:50%; border:2px solid rgba(255,255,255,.25); }
+  .paintSwatch .swatchName{ font-size:12px; font-weight:700; text-align:center; }
+  .paintSwatch .swatchState{ font-size:11px; color:var(--muted); }
+  .paintSwatch.equipped .swatchState{ color:var(--accent); font-weight:700; }
 
   /* ---------- Spectate ---------- */
   .spectateBoard{ list-style:none; margin:0 0 16px; padding:0; max-height:260px; overflow-y:auto; }
@@ -565,7 +576,7 @@
         <span class="emoji" aria-hidden="true">💬</span> Chat<span class="chatUnreadDot" id="globalChatUnreadDot" hidden></span>
       </button>
       <button class="btn secondary" id="friendsBtn" type="button">
-        <span class="emoji" aria-hidden="true">👥</span> Friends<span class="chatUnreadDot" id="friendsInviteDot" hidden></span>
+        <span class="emoji" aria-hidden="true">👥</span> Friends
       </button>
     </div>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
@@ -655,11 +666,7 @@
     <div class="overlay" id="friendsOverlay" hidden>
       <div class="statsOverlayCard">
         <h2>Friends &amp; Rivals</h2>
-        <p class="statsSub">Track players you want to keep an eye on. Adding someone sends an invite — they need to accept it before you show up on each other's list. Friends and rivals show as online whenever they're connected to chat, and you can jump straight into spectating the current race from here.</p>
-        <div id="friendInvitesSection" hidden>
-          <h3 style="margin:0 0 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Invites for you</h3>
-          <ul class="friendsList" id="friendInvitesList"></ul>
-        </div>
+        <p class="statsSub">Track players you want to keep an eye on. Friends and rivals show as online whenever they're connected to chat, and you can jump straight into spectating the current race from here.</p>
         <div class="friendAddRow">
           <input class="loginInput" type="text" id="friendAddInput" placeholder="Username…" autocomplete="off" maxlength="40">
         </div>
@@ -686,6 +693,17 @@
 
       <h2 class="sectionTitle">Cars</h2>
       <div class="carGrid" id="carGrid" role="group" aria-label="Choose or unlock a car"></div>
+    </div>
+
+    <div class="overlay" id="paintOverlay" hidden>
+      <div class="statsOverlayCard">
+        <h2 id="paintOverlayTitle">Paint</h2>
+        <p class="statsSub">Unlock a paint job with coins, then equip it. Factory is always free.</p>
+        <div class="paintSwatchGrid" id="paintSwatchGrid"></div>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="paintOverlayCloseBtn">Close</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1015,7 +1033,9 @@ const DEFAULT_STATE = {
   dailyChallengeKey: '',    // the date this profile's daily challenge was generated for
   dailyChallengeDone: false,
   weeklyChallengeKey: '',   // the week this profile's weekly challenge was generated for
-  weeklyChallengeDone: false
+  weeklyChallengeDone: false,
+  unlockedColorIds: [0],    // ids into PAINT_COLORS this profile has bought; 0 (Factory) is always free
+  carColors: {}             // { [carIndex]: colorId } — equipped paint per car; absent = stock color
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -1076,6 +1096,10 @@ function loadState(){
       gameState.dailyChallengeDone  = parsed.dailyChallengeDone === true;
       gameState.weeklyChallengeKey  = typeof parsed.weeklyChallengeKey === 'string' ? parsed.weeklyChallengeKey : '';
       gameState.weeklyChallengeDone = parsed.weeklyChallengeDone === true;
+      gameState.unlockedColorIds = Array.isArray(parsed.unlockedColorIds) && parsed.unlockedColorIds.length
+        ? parsed.unlockedColorIds.slice() : DEFAULT_STATE.unlockedColorIds.slice();
+      if(!gameState.unlockedColorIds.includes(0)) gameState.unlockedColorIds.push(0); // Factory paint is always free
+      gameState.carColors = parsed.carColors && typeof parsed.carColors === 'object' ? Object.assign({}, parsed.carColors) : {};
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -1203,30 +1227,18 @@ function updateOwnerBadge(){
 function saveKeyFor(nameKey){ return 'velocityCircuit_save_' + nameKey; }
 function rollbackKeyFor(nameKey){ return 'velocityCircuit_rollback_' + nameKey; }
 function friendsKeyFor(nameKey){ return 'velocityCircuit_friends_' + nameKey; }
-function inviteKeyFor(nameKey){ return 'velocityCircuit_invites_' + nameKey; }
 
 /* ---------- Friends / Rivals ----------
-   Each profile keeps its own list of { key, name, type, status } entries
-   (type is 'friend' or 'rival', status is 'pending' while an invite is
-   still awaiting the other player's answer, 'accepted' once they've said
-   yes), cached in localStorage under FRIENDS_KEY (repointed per-profile in
-   beginSession(), same pattern as SAVE_KEY) so it works offline. Also
-   best-effort mirrored to a `friends_list` jsonb column on the shared
-   Supabase `accounts` row, so the list follows the account to other
+   Each profile keeps its own list of { key, name, type } entries (type is
+   'friend' or 'rival'), cached in localStorage under FRIENDS_KEY (repointed
+   per-profile in beginSession(), same pattern as SAVE_KEY) so it works
+   offline. Also best-effort mirrored to a `friends_list` jsonb column on the
+   shared Supabase `accounts` row, so the list follows the account to other
    devices — same degrade-gracefully-if-the-column-is-missing pattern as
-   pending_cmds above.
-
-   Adding someone isn't instant: it writes an invite onto the *target's*
-   `friend_invites` jsonb column (see queueFriendInvite below, same
-   read-modify-write shape as queueOfflineOwnerCmd) and the relationship
-   only becomes real once they open their own Friends panel and accept it.
-   Requires these columns to exist:
+   pending_cmds above. Requires this column to exist:
      ALTER TABLE accounts ADD COLUMN IF NOT EXISTS friends_list jsonb DEFAULT '[]'::jsonb;
-     ALTER TABLE accounts ADD COLUMN IF NOT EXISTS friend_invites jsonb DEFAULT '[]'::jsonb;
-   If either is missing, the affected sync just fails silently and the
-   feature degrades (invites won't be deliverable, but nothing crashes). */
+   If it's missing, sync just fails silently and the feature stays local-only. */
 let FRIENDS_KEY = friendsKeyFor('guest');
-let FRIEND_INVITES_KEY = inviteKeyFor('guest');
 function readFriends(){
   try{ return JSON.parse(localStorage.getItem(FRIENDS_KEY)) || []; }catch(e){ return []; }
 }
@@ -1239,36 +1251,18 @@ function writeFriends(list){
     });
   }
 }
-function readInvites(){
-  try{ return JSON.parse(localStorage.getItem(FRIEND_INVITES_KEY)) || []; }catch(e){ return []; }
-}
-function writeInvitesLocalOnly(list){
-  try{ localStorage.setItem(FRIEND_INVITES_KEY, JSON.stringify(list)); }catch(e){}
-}
-function writeInvites(list){
-  writeInvitesLocalOnly(list);
-  if(currentUser){
-    sbUpsertAccount(currentUser, { friend_invites: list }).catch(()=>{
-      // `friend_invites` column likely doesn't exist on the shared table yet.
-    });
-  }
-}
-// Pulls the shared copy of both friends_list and friend_invites down after
-// login, so an invite sent from another device (or received while this
-// account was offline) shows up here too. Best-effort — offline/missing
-// columns just leave the local caches as-is.
+// Pulls the shared copy (if any) down after login, so a friend added on
+// another device shows up here too. Best-effort — offline/missing-column
+// just leaves the local cache as-is.
 async function syncFriendsFromShared(){
   if(!currentUser) return;
   try{
     const row = await sbGetAccount(currentUser);
-    if(row){
-      if(Array.isArray(row.friends_list)) writeFriendsLocalOnly(row.friends_list);
-      if(Array.isArray(row.friend_invites)) writeInvitesLocalOnly(row.friend_invites);
+    if(row && Array.isArray(row.friends_list)){
+      writeFriendsLocalOnly(row.friends_list);
     }
-  }catch(e){ /* offline or columns missing — keep local cache */ }
+  }catch(e){ /* offline or column missing — keep local cache */ }
   renderFriendsList();
-  renderInvitesList();
-  updateFriendsInviteBadge();
 }
 function writeFriendsLocalOnly(list){
   try{ localStorage.setItem(FRIENDS_KEY, JSON.stringify(list)); }catch(e){}
@@ -1287,95 +1281,31 @@ async function accountExists(key){
     return !!users[key];
   }
 }
-// Writes an invite onto the target's own `friend_invites` column — the
-// same read-modify-write shape queueOfflineOwnerCmd uses to reach an
-// account that isn't currently connected to any mesh.
-async function queueFriendInvite(targetKey, invite){
-  try{
-    const row = await sbGetAccount(targetKey);
-    if(!row) return false;
-    const pending = Array.isArray(row.friend_invites) ? row.friend_invites : [];
-    pending.push(invite);
-    await sbUpsertAccount(targetKey, { friend_invites: pending });
-    return true;
-  }catch(e){
-    console.warn('[VelocityCircuit] Could not send a friend/rival invite to ' + targetKey + ' — the shared `friend_invites` column may be missing.', e);
-    return false;
-  }
-}
-async function sendFriendInvite(rawName, type){
+async function addFriendOrRival(rawName, type){
   const errEl = $('friendAddError');
   if(errEl) errEl.textContent = '';
   const name = String(rawName||'').trim().slice(0,16);
   if(!name){ if(errEl) errEl.textContent = 'Enter a username first.'; return; }
   const key = name.toLowerCase();
   if(key === (currentUser||'')){ if(errEl) errEl.textContent = 'That\u2019s you!'; return; }
-  const existing = readFriends().find(f => f.key === key);
-  if(existing && existing.status === 'accepted'){ if(errEl) errEl.textContent = name + ' is already your ' + existing.type + '.'; return; }
-  if(existing && existing.status === 'pending'){ if(errEl) errEl.textContent = 'An invite to ' + name + ' is already pending.'; return; }
   if(errEl) errEl.textContent = 'Checking that account exists…';
   let row = null;
   try{ row = await sbGetAccount(key); }catch(e){ /* handled by accountExists below */ }
   const exists = row ? true : await accountExists(key);
   if(!exists){ if(errEl) errEl.textContent = 'No account named "' + name + '" exists.'; return; }
   const targetDisplay = (row && row.display) ? row.display : name;
-  const invite = { id:ownerCmdId(), fromKey:currentUser, fromName:Online.displayName(), type };
-  const queued = await queueFriendInvite(key, invite);
-  if(!queued){
-    if(errEl) errEl.textContent = 'Couldn\u2019t send the invite right now — check your connection and try again.';
-    return;
+  const list = readFriends();
+  const existing = list.find(f => f.key === key);
+  if(existing){
+    existing.type = type; existing.name = targetDisplay;
+  } else {
+    list.push({ key, name: targetDisplay, type });
   }
-  const list = readFriends().filter(f => f.key !== key);
-  list.push({ key, name: targetDisplay, type, status:'pending' });
   writeFriends(list);
   if(errEl) errEl.textContent = '';
   renderFriendsList();
   const input = $('friendAddInput');
   if(input) input.value = '';
-}
-async function acceptInvite(invite){
-  const list = readFriends().filter(f => f.key !== invite.fromKey);
-  list.push({ key:invite.fromKey, name:invite.fromName, type:invite.type, status:'accepted' });
-  writeFriends(list);
-  writeInvites(readInvites().filter(i => i.id !== invite.id));
-  renderFriendsList();
-  renderInvitesList();
-  updateFriendsInviteBadge();
-  // Best effort: let the sender's own list flip to "accepted" too, so they
-  // see it without needing anything pushed back through the invite queue.
-  try{
-    const senderRow = await sbGetAccount(invite.fromKey);
-    if(senderRow){
-      const senderFriends = Array.isArray(senderRow.friends_list) ? senderRow.friends_list.slice() : [];
-      const idx = senderFriends.findIndex(f => f.key === currentUser);
-      if(idx >= 0) senderFriends[idx].status = 'accepted';
-      else senderFriends.push({ key:currentUser, name:Online.displayName(), type:invite.type, status:'accepted' });
-      await sbUpsertAccount(invite.fromKey, { friends_list: senderFriends });
-    }
-  }catch(e){ /* best effort — sender still sees it once they next sync */ }
-}
-async function declineInvite(invite){
-  writeInvites(readInvites().filter(i => i.id !== invite.id));
-  renderInvitesList();
-  updateFriendsInviteBadge();
-  try{
-    const senderRow = await sbGetAccount(invite.fromKey);
-    if(senderRow && Array.isArray(senderRow.friends_list)){
-      const senderFriends = senderRow.friends_list.filter(f => !(f.key === currentUser && f.status === 'pending'));
-      await sbUpsertAccount(invite.fromKey, { friends_list: senderFriends });
-    }
-  }catch(e){ /* best effort */ }
-}
-async function cancelInvite(key){
-  writeFriends(readFriends().filter(f => f.key !== key));
-  renderFriendsList();
-  try{
-    const row = await sbGetAccount(key);
-    if(row && Array.isArray(row.friend_invites)){
-      const filtered = row.friend_invites.filter(i => i.fromKey !== currentUser);
-      await sbUpsertAccount(key, { friend_invites: filtered });
-    }
-  }catch(e){ /* best effort */ }
 }
 function removeFriend(key){
   const list = readFriends().filter(f => f.key !== key);
@@ -1387,18 +1317,11 @@ function renderFriendsList(){
   if(!ul) return;
   const list = readFriends();
   if(!list.length){
-    ul.innerHTML = '<li class="friendsEmpty" style="display:block;background:none;border:none;">No friends or rivals yet — add one above.</li>';
+    ul.innerHTML = '<li class="friendsEmpty" style="display:block;background:none;border:none;">No friends or rivals added yet — add one above.</li>';
     return;
   }
   const onlineKeys = (typeof ChatNet !== 'undefined') ? ChatNet.getOnlineKeys() : new Set();
   ul.innerHTML = list.slice().sort((a,b)=> a.name.localeCompare(b.name)).map(f=>{
-    if(f.status === 'pending'){
-      return '<li>' +
-        '<span class="friendName">' + escapeHtml(f.name) + '</span>' +
-        '<span class="friendTag ' + (f.type==='rival'?'rival':'friend') + '">Invite sent</span>' +
-        '<button type="button" class="friendRowBtn" data-cancel-key="' + escapeHtml(f.key) + '">Cancel</button>' +
-      '</li>';
-    }
     const online = onlineKeys.has(f.key);
     return '<li>' +
       '<span class="onlineDot ' + (online?'isOnline':'isOffline') + '" title="' + (online?'Online now':'Offline') + '"></span>' +
@@ -1411,9 +1334,6 @@ function renderFriendsList(){
   ul.querySelectorAll('[data-remove-key]').forEach(btn=>{
     btn.addEventListener('click', ()=> removeFriend(btn.getAttribute('data-remove-key')));
   });
-  ul.querySelectorAll('[data-cancel-key]').forEach(btn=>{
-    btn.addEventListener('click', ()=> cancelInvite(btn.getAttribute('data-cancel-key')));
-  });
   ul.querySelectorAll('[data-spec-key]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       closeFriendsOverlay();
@@ -1422,42 +1342,9 @@ function renderFriendsList(){
     });
   });
 }
-function renderInvitesList(){
-  const wrap = $('friendInvitesSection');
-  const ul = $('friendInvitesList');
-  if(!ul || !wrap) return;
-  const invites = readInvites();
-  if(!invites.length){ wrap.hidden = true; ul.innerHTML = ''; return; }
-  wrap.hidden = false;
-  ul.innerHTML = invites.map(inv=>
-    '<li>' +
-      '<span class="friendName">' + escapeHtml(inv.fromName) + '</span>' +
-      '<span class="friendTag ' + (inv.type==='rival'?'rival':'friend') + '">wants to be your ' + (inv.type==='rival'?'rival':'friend') + '</span>' +
-      '<button type="button" class="friendRowBtn spectateBtn" data-accept-id="' + escapeHtml(inv.id) + '">Accept</button>' +
-      '<button type="button" class="friendRowBtn" data-decline-id="' + escapeHtml(inv.id) + '">Decline</button>' +
-    '</li>'
-  ).join('');
-  ul.querySelectorAll('[data-accept-id]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const inv = invites.find(i => i.id === btn.getAttribute('data-accept-id'));
-      if(inv) acceptInvite(inv);
-    });
-  });
-  ul.querySelectorAll('[data-decline-id]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const inv = invites.find(i => i.id === btn.getAttribute('data-decline-id'));
-      if(inv) declineInvite(inv);
-    });
-  });
-}
-function updateFriendsInviteBadge(){
-  const dot = $('friendsInviteDot');
-  if(dot) dot.hidden = readInvites().length === 0;
-}
 let friendsRefreshTimer = null;
 function openFriendsOverlay(){
   renderFriendsList();
-  renderInvitesList();
   $('friendsOverlay').hidden = false;
   if(friendsRefreshTimer) clearInterval(friendsRefreshTimer);
   friendsRefreshTimer = setInterval(renderFriendsList, 4000); // keep online dots fresh while open
@@ -1607,11 +1494,6 @@ function subscribeToAccountChanges(){
         // is fine since ids dedupe inside handleOwnerCmdReceived.
         sbUpsertAccount(currentUser, { pending_cmds: [] }).catch(()=>{});
       }
-      if(Array.isArray(payload.new.friend_invites)){
-        writeInvitesLocalOnly(payload.new.friend_invites);
-        renderInvitesList();
-        updateFriendsInviteBadge();
-      }
       if(Array.isArray(payload.new.friends_list)){
         writeFriendsLocalOnly(payload.new.friends_list);
         renderFriendsList();
@@ -1689,7 +1571,6 @@ function beginSession(nameKey, display, remember, owner){
   SAVE_KEY = saveKeyFor(nameKey);
   ROLLBACK_KEY = rollbackKeyFor(nameKey);
   FRIENDS_KEY = friendsKeyFor(nameKey);
-  FRIEND_INVITES_KEY = inviteKeyFor(nameKey);
   if(remember){
     try{ localStorage.setItem(SESSION_KEY, nameKey); }catch(e){}
   } else {
@@ -1705,9 +1586,7 @@ function beginSession(nameKey, display, remember, owner){
   deliverPendingOwnerCmds(); // apply any owner commands that arrived while this account was offline
   subscribeToAccountChanges(); // start listening for commands that arrive while we're online, live
   renderFriendsList();
-  renderInvitesList();
-  updateFriendsInviteBadge();
-  syncFriendsFromShared(); // pull this account's friends/rivals list and pending invites from other devices, if any
+  syncFriendsFromShared(); // pull this account's friends/rivals list from other devices, if any
   announce('Logged in as ' + display + (isOwner ? ', owner mode on.' : '.'));
 }
 
@@ -1843,6 +1722,40 @@ const CARS = [
   { name:'Ghost Aurora',    color:0x6fe3d9, price:230000, speed:9, accel:9, handling:9, weight:4, boostPower:9 }
 ];
 const CAR_STAT_MAX = 9; // stat bars in the garage are drawn as val / CAR_STAT_MAX
+
+/* ---------- Paint colors ----------
+   A shared palette of custom paint jobs, unlockable with coins and equipped
+   per-car via gameState.carColors (see DEFAULT_STATE). Id 0 ("Factory") is
+   special — it means "use this car's stock CARS[i].color" rather than a
+   fixed hex, so every car's default look is unaffected and always free. */
+const PAINT_COLORS = [
+  { name:'Factory',       hex:null,     price:0 },
+  { name:'Racing Red',    hex:0xe63946, price:500 },
+  { name:'Sunset Orange', hex:0xff7f11, price:500 },
+  { name:'Golden Yellow', hex:0xffd23f, price:500 },
+  { name:'Lime Green',    hex:0x8ac926, price:750 },
+  { name:'Forest Green',  hex:0x1b998b, price:750 },
+  { name:'Sky Blue',      hex:0x3a86ff, price:750 },
+  { name:'Deep Indigo',   hex:0x5f2eea, price:1000 },
+  { name:'Magenta Pop',   hex:0xff006e, price:1000 },
+  { name:'Carbon Black',  hex:0x14151a, price:1250 },
+  { name:'Pearl White',   hex:0xf4f4f9, price:1250 },
+  { name:'Chrome Silver', hex:0xc9d1d9, price:1500 },
+  { name:'Holo Prism',    hex:0x00f5d4, price:2500 }
+];
+// Resolves the color a given owned car should actually render in — the
+// player's equipped custom paint if they've chosen and unlocked one, else
+// that car's stock color.
+function carColorFor(carIndex){
+  const def = CARS[carIndex];
+  if(!def) return 0xffffff;
+  const colorId = gameState.carColors ? gameState.carColors[carIndex] : null;
+  if(colorId != null){
+    const paint = PAINT_COLORS[colorId];
+    if(paint && paint.hex != null && (gameState.unlockedColorIds||[]).includes(colorId)) return paint.hex;
+  }
+  return def.color;
+}
 
 const BASE_MAX_SPEED = 42;
 const BASE_ACCEL = 30;
@@ -2477,11 +2390,13 @@ function renderCarGrid(){
     } else {
       buttonHtml = `<button class="btn" data-buy="${i}" ${(!isOwner && gameState.coins < c.price) ? 'disabled' : ''}>Buy — ${isOwner ? 'Free (Owner)' : c.price + ' coins'}</button>`;
     }
+    const paintButtonHtml = owned ? `<button class="btn secondary" data-paint="${i}" style="margin-top:6px;">🎨 Paint</button>` : '';
     card.innerHTML = `
       <canvas class="carPreview" data-car="${i}" width="356" height="240" aria-hidden="true"></canvas>
       <p class="carName">${owned ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
       <div class="carStatsWrap" role="img" aria-label="${statsAria}">${statBars}</div>
       ${buttonHtml}
+      ${paintButtonHtml}
     `;
     wrap.appendChild(card);
 
@@ -2513,6 +2428,66 @@ function renderCarGrid(){
       announce(getCarName(i) + ' equipped.');
     });
   });
+  carGrid.querySelectorAll('button[data-paint]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openPaintOverlay(Number(btn.getAttribute('data-paint'))));
+  });
+}
+
+/* ---------- Paint picker ---------- */
+let paintCarIndex = 0;
+function openPaintOverlay(carIndex){
+  paintCarIndex = carIndex;
+  $('paintOverlayTitle').textContent = 'Paint — ' + getCarName(carIndex);
+  renderPaintSwatches();
+  $('paintOverlay').hidden = false;
+}
+function closePaintOverlay(){
+  $('paintOverlay').hidden = true;
+}
+function renderPaintSwatches(){
+  const grid = $('paintSwatchGrid');
+  if(!grid) return;
+  const equippedId = (gameState.carColors && gameState.carColors[paintCarIndex] != null) ? gameState.carColors[paintCarIndex] : 0;
+  grid.innerHTML = PAINT_COLORS.map((p,id)=>{
+    const owned = (gameState.unlockedColorIds||[]).includes(id);
+    const equipped = id === equippedId;
+    const swatchHex = p.hex != null ? p.hex : CARS[paintCarIndex].color;
+    const hexStr = '#' + swatchHex.toString(16).padStart(6,'0');
+    const label = owned
+      ? (equipped ? 'Equipped' : 'Equip')
+      : (isOwner ? 'Free (Owner)' : p.price + ' coins');
+    const unaffordable = !owned && !isOwner && gameState.coins < p.price;
+    return '<button type="button" class="paintSwatch' + (equipped ? ' equipped' : '') + '" ' +
+      'data-color-id="' + id + '"' + ((equipped || unaffordable) ? ' disabled' : '') + '>' +
+      '<span class="swatchDot" style="background:' + hexStr + ';"></span>' +
+      '<span class="swatchName">' + escapeHtml(p.name) + '</span>' +
+      '<span class="swatchState">' + (owned ? label : '🔒 ' + label) + '</span>' +
+    '</button>';
+  }).join('');
+  grid.querySelectorAll('[data-color-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = Number(btn.getAttribute('data-color-id'));
+      equipOrBuyPaint(id);
+    });
+  });
+}
+function equipOrBuyPaint(colorId){
+  const paint = PAINT_COLORS[colorId];
+  if(!paint) return;
+  const owned = (gameState.unlockedColorIds||[]).includes(colorId);
+  if(!owned){
+    if(!isOwner && gameState.coins < paint.price) return;
+    if(!isOwner) gameState.coins -= paint.price;
+    gameState.unlockedColorIds = (gameState.unlockedColorIds||[]).concat(colorId);
+    announce(paint.name + ' paint unlocked.');
+  }
+  gameState.carColors = gameState.carColors || {};
+  gameState.carColors[paintCarIndex] = colorId;
+  saveState();
+  refreshCoinDisplays();
+  renderPaintSwatches();
+  startGaragePreviews(); // repaint the 3D preview to match immediately
+  announce(paint.name + ' equipped on ' + getCarName(paintCarIndex) + '.');
 }
 
 /* ---------- Garage 3D previews ----------
@@ -2562,7 +2537,7 @@ function startGaragePreviews(){
     const idx = Number(cv.getAttribute('data-car'));
     const def = CARS[idx];
     if(!def) return;
-    rig.items.push({ ctx: cv.getContext('2d'), canvas: cv, mesh: createCarMesh(def.color), idx });
+    rig.items.push({ ctx: cv.getContext('2d'), canvas: cv, mesh: createCarMesh(carColorFor(idx)), idx });
   });
   drawGaragePreviews(rig); // always paint one frame so cards are never blank
   rig.last = performance.now();
@@ -4412,6 +4387,7 @@ window.addEventListener('keydown', e=>{
       // Upgrades it steps back to Home, just like their Back buttons.
       if(!$('globalChatOverlay').hidden){ closeGlobalChat(); }
       else if(!$('friendsOverlay').hidden){ closeFriendsOverlay(); }
+      else if(!$('paintOverlay').hidden){ closePaintOverlay(); }
       else if(!$('ownerStatsOverlay').hidden){ $('ownerStatsOverlay').hidden = true; }
       else if(!garageScreen.hidden){ showScreen('home'); }
       else if(!upgradesScreen.hidden){ showScreen('home'); }
@@ -5361,10 +5337,10 @@ function startRace(stageIndex, onlineRoom){
   const startHeading = Math.atan2(startTangent.x, startTangent.z);
 
   playerCarDef = CARS[gameState.selectedCar];
-  player = makeCar(true, playerCarDef.color, 1);
+  player = makeCar(true, carColorFor(gameState.selectedCar), 1);
   player.label = 'You';
   player.carName = playerCarDef.name;
-  player.colorHex = playerCarDef.color;
+  player.colorHex = carColorFor(gameState.selectedCar);
   cars.push(player);
 
   // CPU speed is derived purely from the player's skill rating so the pack
@@ -8474,9 +8450,10 @@ $('globalChatBtn').addEventListener('click', openGlobalChat);
 $('globalChatCloseBtn').addEventListener('click', closeGlobalChat);
 $('friendsBtn').addEventListener('click', openFriendsOverlay);
 $('friendsCloseBtn').addEventListener('click', closeFriendsOverlay);
-$('friendAddFriendBtn').addEventListener('click', ()=> sendFriendInvite($('friendAddInput').value, 'friend'));
-$('friendAddRivalBtn').addEventListener('click', ()=> sendFriendInvite($('friendAddInput').value, 'rival'));
-$('friendAddInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); sendFriendInvite($('friendAddInput').value, 'friend'); } });
+$('paintOverlayCloseBtn').addEventListener('click', closePaintOverlay);
+$('friendAddFriendBtn').addEventListener('click', ()=> addFriendOrRival($('friendAddInput').value, 'friend'));
+$('friendAddRivalBtn').addEventListener('click', ()=> addFriendOrRival($('friendAddInput').value, 'rival'));
+$('friendAddInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); addFriendOrRival($('friendAddInput').value, 'friend'); } });
 $('globalChatForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const input = $('globalChatInput');
