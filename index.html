@@ -1043,7 +1043,6 @@
         <div class="btnRow" style="flex-direction:column; margin-top:14px;">
           <button class="btn garage" id="circuitNextBtn" hidden>Next Race</button>
           <button class="btn garage" id="raceAgainBtn">Race Again</button>
-          <button class="btn secondary" id="photoModeBtn">📷 Photo Mode</button>
           <button class="btn secondary" id="resultsGarageBtn">Garage</button>
           <button class="btn secondary" id="resultsUpgradesBtn">Upgrades</button>
           <button class="btn ghost" id="resultsHomeBtn">Home</button>
@@ -1054,7 +1053,6 @@
     <div id="photoModeBar" hidden style="position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:25;
       background:var(--panel); border:1px solid var(--border); border-radius:999px; padding:10px 18px;
       display:flex; align-items:center; gap:14px; font-weight:600; font-size:13px; color:var(--muted);">
-      <span>Drag to orbit &middot; Scroll/pinch to zoom</span>
       <button class="btn" id="photoModeSaveBtn" style="padding:6px 14px; min-height:auto; font-size:13px;">Save Photo</button>
       <button class="btn secondary" id="photoModeCloseBtn" style="padding:6px 14px; min-height:auto; font-size:13px;">Done</button>
     </div>
@@ -4536,16 +4534,19 @@ window.addEventListener('keydown', e=>{
     e.preventDefault(); openGlobalChat();
   }
   if(e.code === gameState.keyBinds.boost && appState==='racing'){ triggerBoost(); }
+  if(e.code === 'Digit1' && appState === 'results'){ takePhoto(); }
   if(e.code === 'Escape'){
     if(appState === 'racing' || appState === 'racing-countdown'){
       pauseRace();
+      PhotoMode.enter(); // Esc drops straight into Photo Mode instead of the plain pause menu
     } else if(appState === 'paused'){
-      // Step back one level at a time: out of Settings to the pause menu
-      // first, then Resume on a second press, same as tapping the buttons.
-      if(!$('settingsCard').hidden){ $('settingsBackBtn').click(); }
+      // Step back one level at a time: out of Photo Mode to the pause menu
+      // first, out of Settings to the pause menu next, then Resume on a
+      // further press, same as tapping the buttons.
+      if(PhotoMode.active){ PhotoMode.exit(); }
+      else if(!$('settingsCard').hidden){ $('settingsBackBtn').click(); }
       else { resumeRace(); }
     } else if(appState === 'results'){
-      if(PhotoMode.active){ PhotoMode.exit(); return; } // step out of photo mode first, same as any other overlay
       $('resultsHomeBtn').click();
     } else if(appState === 'home'){
       // On Home itself Escape has nowhere further to go; from Garage or
@@ -5940,13 +5941,10 @@ $('findMatchBtn').addEventListener('click', ()=>{ Online.startSearch(); });
 $('lobbyBackBtn').addEventListener('click', ()=>{ Online.stopSearch(); showScreen('mode'); });
 
 function startRace(stageIndex, onlineRoom){
-  // Defensive cleanup: no matter which path led here (results buttons,
-  // a stage card click, restarting from pause, an online match starting,
-  // etc.), Photo Mode and its floating button bar must never carry over
-  // into a fresh race.
-  if(typeof PhotoMode !== 'undefined' && PhotoMode.active) PhotoMode.exit();
-  const photoBar = $('photoModeBar');
-  if(photoBar) photoBar.hidden = true;
+  // Defensive cleanup: no matter which path led here (restarting from
+  // pause, an online match starting, etc.), Photo Mode and its floating
+  // button bar must never carry over into a fresh race.
+  if(PhotoMode.active) PhotoMode.exit();
   if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
   if(!onlineRoom) Online.leaveRace();
   // Snapshot current state before the race modifies coins / racesCompleted.
@@ -7387,18 +7385,44 @@ function updateCamera(dt){
   camera.lookAt(lookAt);
 }
 
+/* ---------- Photo capture ----------
+   Shared "grab the canvas and download it" step used by both photo
+   features below — a WYSIWYG capture of exactly what's on screen right
+   now, since it reads pixels straight off the same canvas the race
+   already renders to. */
+function downloadCanvasPhoto(){
+  renderer.render(scene, camera);
+  const c = $('canvas');
+  c.toBlob(blob=>{
+    if(!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'velocity-circuit-photo.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }, 'image/png');
+}
+// Pressing 1 on the results screen grabs the freeze-frame the chase cam
+// ended the race on and downloads it immediately — no mode to enter.
+function takePhoto(){
+  if(!player) return;
+  downloadCanvasPhoto();
+}
+
 /* ---------- Photo Mode ----------
-   A freeze-frame camera for the results screen. Reuses the same global
-   `camera`/`scene`/`renderer` the race already renders with — while active
-   it just takes over positioning `camera` each frame (in place of
-   updateCamera(), which isn't called during 'results' anyway), orbiting
-   around the finished player car with drag + wheel/pinch, instead of
-   leaving it parked at whatever angle the chase cam happened to be at when
-   you crossed the line. Saving reads pixels straight off that same canvas,
-   so it's a WYSIWYG capture of exactly what's on screen. */
+   A freeze-frame orbit camera you drop straight into by pausing a race
+   with Esc. Reuses the same global `camera`/`scene`/`renderer` the race
+   already renders with — while active it just takes over positioning
+   `camera` each frame (in place of updateCamera(), which isn't called
+   once paused), orbiting around the player's car with drag + wheel/pinch,
+   instead of leaving it parked at whatever angle the chase cam happened
+   to be at when you paused. */
 const PhotoMode = {
   active: false,
-  pivot: null,       // THREE.Vector3 — orbit centre, the finished car's position
+  pivot: null,       // THREE.Vector3 — orbit centre, the player's car position
   yaw: 0, pitch: 0.25, distance: 12,
   MIN_DIST: 4, MAX_DIST: 60,
   dragging: false,
@@ -7416,7 +7440,7 @@ const PhotoMode = {
     this.distance = Math.max(this.MIN_DIST, Math.min(this.MAX_DIST, rel.length() || 12));
     this.pitch = Math.asin(Math.max(-1, Math.min(1, rel.y / this.distance)));
     this.yaw = Math.atan2(rel.x, rel.z);
-    $('resultsOverlay').hidden = true;
+    $('pauseOverlay').hidden = true;
     $('photoModeBar').hidden = false;
     $('hud').style.display = 'none';
     const c = $('canvas');
@@ -7431,7 +7455,11 @@ const PhotoMode = {
     this.active = false;
     this.pointers.clear();
     this.dragging = false;
-    $('resultsOverlay').hidden = false;
+    // Only re-reveal the pause menu if we're still actually paused — if
+    // something already resumed the race out from under Photo Mode (e.g. a
+    // gamepad Start press toggling straight past this), the race is what
+    // should be on screen, not a pause menu popping back up over it.
+    if(appState === 'paused') $('pauseOverlay').hidden = false;
     $('photoModeBar').hidden = true;
     $('hud').style.display = '';
     const c = $('canvas');
@@ -7488,24 +7516,11 @@ const PhotoMode = {
     camera.lookAt(this.pivot.x, this.pivot.y + 1.2, this.pivot.z);
   },
   save(){
-    renderer.render(scene, camera);
-    const c = $('canvas');
-    c.toBlob(blob=>{
-      if(!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'velocity-circuit-photo.png';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url), 2000);
-    }, 'image/png');
+    downloadCanvasPhoto();
   }
 };
-$('photoModeBtn').addEventListener('click', ()=> PhotoMode.enter());
-$('photoModeCloseBtn').addEventListener('click', ()=> PhotoMode.exit());
 $('photoModeSaveBtn').addEventListener('click', ()=> PhotoMode.save());
+$('photoModeCloseBtn').addEventListener('click', ()=> PhotoMode.exit());
 
 /* ---------- HUD ---------- */
 function ordinalSuffix(n){
@@ -8764,7 +8779,6 @@ function kickFromOnlineRace(reason){
   announce(reason);
 }
 $('circuitNextBtn').addEventListener('click', ()=>{
-  if(PhotoMode.active) PhotoMode.exit();
   $('resultsOverlay').hidden = true;
   if(!circuit) return;
   circuit.idx++;
@@ -8776,7 +8790,6 @@ $('circuitNextBtn').addEventListener('click', ()=>{
   }
 });
 $('raceAgainBtn').addEventListener('click', ()=>{
-  if(PhotoMode.active) PhotoMode.exit();
   $('resultsOverlay').hidden = true;
   if(Online.room){
     // Can't replay the same online room — head back to the lobby to find a new match
@@ -8785,9 +8798,9 @@ $('raceAgainBtn').addEventListener('click', ()=>{
   }
   startRace(selectedStage);
 });
-$('resultsGarageBtn').addEventListener('click', ()=>{ if(PhotoMode.active) PhotoMode.exit(); abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
-$('resultsUpgradesBtn').addEventListener('click', ()=>{ if(PhotoMode.active) PhotoMode.exit(); abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
-$('resultsHomeBtn').addEventListener('click', ()=>{ if(PhotoMode.active) PhotoMode.exit(); const wasOnline = !!Online.room; abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
+$('resultsGarageBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('garage'); renderCarGrid(); });
+$('resultsUpgradesBtn').addEventListener('click', ()=>{ abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); showScreen('upgrades'); renderUpgrades(); });
+$('resultsHomeBtn').addEventListener('click', ()=>{ const wasOnline = !!Online.room; abandonCircuitIfActive(); endOnlineIfNeeded(); $('resultsOverlay').hidden = true; appState='home'; Sound.stop(); if(wasOnline){ showScreen('mode'); } else { showScreen('home'); renderStageGrid(); } });
 
 /* ---------- Main loop ---------- */
 let lastTime = performance.now();
@@ -8798,12 +8811,13 @@ function animate(now){
   lastTime = now;
 
   // Photo Mode's floating button bar (and its HUD-hiding side effect) only
-  // ever belongs on the post-race results screen. Force it closed the moment
-  // we're anywhere else — checking the DOM directly (not just the "active"
-  // flag) so a stale/left-open bar can never linger over the live race HUD
-  // (Pause/Muted, coins, leaderboard, laps, boost, etc.), no matter how it
-  // ended up in that state.
-  if(appState !== 'results'){
+  // ever belongs on top of a paused race. Force it closed the moment we're
+  // anywhere else — checking the DOM directly (not just the "active" flag)
+  // so a stale/left-open bar can never linger over the live race HUD
+  // (Pause/Muted, coins, leaderboard, laps, boost, etc.) or the results
+  // screen, no matter how it ended up in that state (e.g. a gamepad Start
+  // press resuming the race straight out of Photo Mode).
+  if(appState !== 'paused'){
     if(PhotoMode.active) PhotoMode.exit();
     const photoBar = $('photoModeBar');
     if(photoBar && !photoBar.hidden) photoBar.hidden = true;
@@ -8892,6 +8906,7 @@ function animate(now){
     updateCamera(dt);
     renderer.render(scene, camera);
   } else if(appState === 'paused'){
+    PhotoMode.update();
     renderer.render(scene, camera);
   } else if(appState === 'results'){
     // The player is done, but everyone else who hasn't crossed the line yet
@@ -8905,7 +8920,6 @@ function animate(now){
       Online.updateRemoteCars(dt);
     }
     updateHUD();
-    PhotoMode.update();
     renderer.render(scene, camera);
   }
 }
