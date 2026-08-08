@@ -89,12 +89,22 @@
   .ratingBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid var(--border);
     padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .ratingBar strong{ color:var(--text); }
+
+  /* Single condensed box (top-left of the Home Screen) holding coins,
+     driver rating, the signed-in profile, and the Chat/Friends buttons —
+     replaces what used to be four separate floating bars. */
   .homeStatsBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid var(--border);
-    padding:10px 16px; border-radius:999px; font-weight:700; font-size:14px; display:flex; align-items:center; gap:10px;
-    z-index:20; color:var(--muted); transition:opacity .15s, visibility .15s; }
+    border-radius:var(--radius); padding:12px 14px; z-index:20; color:var(--muted);
+    display:flex; flex-direction:column; gap:8px; align-items:flex-start;
+    width:min(260px,calc(100vw - 32px)); transition:opacity .15s, visibility .15s; }
   .homeStatsBar strong{ color:var(--text); }
-  .homeStatsBar .statsDivider{ opacity:.5; }
   .homeStatsBar.hiddenForOverlay{ opacity:0; visibility:hidden; pointer-events:none; }
+  .homeStatsRow{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; flex-wrap:wrap; }
+  .homeStatsRow .statsDivider{ opacity:.5; }
+  .homeStatsBar .homeProfileRow{ border-top:1px solid var(--border); padding-top:8px; width:100%; font-weight:600; font-size:13px; }
+  .homeStatsBar .homeActionsRow{ border-top:1px solid var(--border); padding-top:8px; width:100%; gap:8px; }
+  .homeStatsBar .homeActionsRow .btn{ font-size:13px; padding:8px 14px; min-height:auto; letter-spacing:.2px; flex:1; }
+  .homeStatsBar .globalChatBtn{ position:relative; }
 
   .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid var(--border);
     padding:8px 14px; border-radius:999px; font-weight:600; font-size:13px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
@@ -579,22 +589,23 @@
 
   <!-- HOME SCREEN -->
   <section id="homeScreen" class="screen" hidden>
-    <div class="homeStatsBar" id="homeStatsBar" aria-label="Coin balance and driver rating">
-      <span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins
-      <span class="statsDivider" aria-hidden="true">&bull;</span>
-      Driver Rating <strong id="homeRatingText">50</strong>
-    </div>
-
-    <div class="profileBar" aria-label="Logged in profile">
-      <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
-    </div>
-    <div class="accountActionsBar">
-      <button class="btn secondary globalChatBtn" id="globalChatBtn" type="button">
-        <span class="emoji" aria-hidden="true">💬</span> Chat<span class="chatUnreadDot" id="globalChatUnreadDot" hidden></span>
-      </button>
-      <button class="btn secondary" id="friendsBtn" type="button">
-        <span class="emoji" aria-hidden="true">👥</span> Friends
-      </button>
+    <div class="homeStatsBar" id="homeStatsBar" aria-label="Coins, driver rating, profile, and chat">
+      <div class="homeStatsRow">
+        <span class="coinDot" aria-hidden="true"></span><span id="homeCoinText">0</span> coins
+        <span class="statsDivider" aria-hidden="true">&bull;</span>
+        Driver Rating <strong id="homeRatingText">50</strong>
+      </div>
+      <div class="homeStatsRow homeProfileRow" aria-label="Logged in profile">
+        <span class="emoji" aria-hidden="true">👤</span><strong id="profileNameText">Player</strong><span class="ownerBadge" id="ownerBadge" hidden>OWNER</span><button class="logoutLink" id="logoutBtn" type="button">Log out</button>
+      </div>
+      <div class="homeStatsRow homeActionsRow">
+        <button class="btn secondary globalChatBtn" id="globalChatBtn" type="button">
+          <span class="emoji" aria-hidden="true">💬</span> Chat<span class="chatUnreadDot" id="globalChatUnreadDot" hidden></span>
+        </button>
+        <button class="btn secondary" id="friendsBtn" type="button">
+          <span class="emoji" aria-hidden="true">👥</span> Friends
+        </button>
+      </div>
     </div>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
@@ -670,7 +681,7 @@
         <h2>Chat</h2>
         <p class="statsSub">Message players on this device instantly, plus anyone else currently signed in on another device — they need to be online right now to receive it.</p>
         <p id="globalChatStatus" style="font-size:12px;color:var(--muted);margin:0 0 10px;"></p>
-        <div class="chatLog" id="globalChatLog" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;min-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:12px;"></div>
+        <div class="chatLog" id="globalChatLog" role="log" aria-live="polite" aria-label="Chat messages" style="flex:1;min-height:160px;max-height:none;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:12px;"></div>
         <form class="chatForm" id="globalChatForm" style="padding:0;border-top:none;flex:none;">
           <button type="button" class="btn chatEmojiBtn" id="globalChatEmojiBtn" aria-label="Insert emoji" aria-haspopup="true" aria-expanded="false">🙂</button>
           <div class="emojiPicker" id="globalChatEmojiPicker" role="menu" aria-label="Emoji picker" hidden></div>
