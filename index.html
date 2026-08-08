@@ -94,16 +94,16 @@
      driver rating, the signed-in profile, and the Chat/Friends buttons —
      replaces what used to be four separate floating bars. */
   .homeStatsBar{ position:fixed; top:16px; left:16px; background:var(--panel); border:1px solid var(--border);
-    border-radius:var(--radius); padding:12px 14px; z-index:20; color:var(--muted);
-    display:flex; flex-direction:column; gap:8px; align-items:flex-start;
-    width:min(260px,calc(100vw - 32px)); transition:opacity .15s, visibility .15s; }
+    border-radius:var(--radius); padding:10px 12px; z-index:20; color:var(--muted);
+    display:flex; flex-direction:column; gap:6px; align-items:flex-start;
+    width:min(200px,calc(100vw - 32px)); transition:opacity .15s, visibility .15s; }
   .homeStatsBar strong{ color:var(--text); }
   .homeStatsBar.hiddenForOverlay{ opacity:0; visibility:hidden; pointer-events:none; }
-  .homeStatsRow{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; flex-wrap:wrap; }
+  .homeStatsRow{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:12px; flex-wrap:wrap; }
   .homeStatsRow .statsDivider{ opacity:.5; }
-  .homeStatsBar .homeProfileRow{ border-top:1px solid var(--border); padding-top:8px; width:100%; font-weight:600; font-size:13px; }
-  .homeStatsBar .homeActionsRow{ border-top:1px solid var(--border); padding-top:8px; width:100%; gap:8px; }
-  .homeStatsBar .homeActionsRow .btn{ font-size:13px; padding:8px 14px; min-height:auto; letter-spacing:.2px; flex:1; }
+  .homeStatsBar .homeProfileRow{ border-top:1px solid var(--border); padding-top:6px; width:100%; font-weight:600; font-size:12px; gap:6px; }
+  .homeStatsBar .homeActionsRow{ border-top:1px solid var(--border); padding-top:6px; width:100%; gap:6px; }
+  .homeStatsBar .homeActionsRow .btn{ font-size:12px; padding:6px 10px; min-height:auto; letter-spacing:.2px; flex:1; }
   .homeStatsBar .globalChatBtn{ position:relative; }
 
   .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid var(--border);
@@ -8788,6 +8788,16 @@ function animate(now){
   requestAnimationFrame(animate);
   const dt = Math.min((now - lastTime)/1000, 0.05);
   lastTime = now;
+
+  // Photo Mode's floating button bar (and its HUD-hiding side effect) only
+  // ever belongs on the post-race results screen. If a race starts while it
+  // was still showing — or its "active" flag and its DOM visibility ever
+  // drift apart for any reason — self-heal every frame instead of letting
+  // it linger and cover the live race HUD (Pause/Muted, coins, leaderboard,
+  // laps, boost, etc.).
+  if(appState !== 'results' && PhotoMode.active){
+    PhotoMode.exit();
+  }
 
   Gamepad.poll(dt);
   updateOceanProximity();
