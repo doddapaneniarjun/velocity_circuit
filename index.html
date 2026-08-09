@@ -288,16 +288,27 @@
   .speedo{ position:absolute; top:50%; right:18px; transform:translateY(-50%); text-align:right; }
   .speedNum{ font-size:44px; font-weight:800; line-height:1; color:var(--speed-color); text-shadow:0 0 15px rgba(var(--accent-rgb),.51); }
   .posWrap{ position:absolute; bottom:18px; right:18px; display:flex; align-items:flex-start; }
-  .posNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
+  .posNum{ position:relative; font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
   .posLabel{ font-size:28px; font-weight:800; color:var(--peach); margin:14px 0 0 3px; }
   .posNum.pos-1{ color:#ffd700; text-shadow:0 0 15px rgba(255,215,0,.55); }
   .posNum.pos-2{ color:#c0c0c0; text-shadow:0 0 15px rgba(192,192,192,.55); }
   .posNum.pos-3{ color:#cd7f32; text-shadow:0 0 15px rgba(205,127,50,.55); }
+  /* Podium 1st/2nd/3rd used to be color-only (gold/silver/bronze) — a red-green
+     or blue-yellow colorblind player saw the same glyph three times over.
+     A distinct shape badge next to the number carries the same info without
+     relying on hue. */
+  .posNum.pos-1::after, .posNum.pos-2::after, .posNum.pos-3::after{
+    position:absolute; top:6px; right:-30px; font-size:34px; line-height:1; text-shadow:none; }
+  .posNum.pos-1::after{ content:'★'; color:#ffd700; }
+  .posNum.pos-2::after{ content:'▲'; color:#c0c0c0; }
+  .posNum.pos-3::after{ content:'●'; color:#cd7f32; }
+  .touchModeActive .posWrap .posNum.pos-1::after,
+  .touchModeActive .posWrap .posNum.pos-2::after,
+  .touchModeActive .posWrap .posNum.pos-3::after{ top:2px; right:-16px; font-size:18px; }
   .minimapWrap{ position:absolute; top:50%; left:calc(14px + env(safe-area-inset-left)); transform:translateY(-50%); z-index:6; }
   .lapLeftWrap{ position:absolute; bottom:calc(18px + env(safe-area-inset-bottom)); left:calc(18px + env(safe-area-inset-left)); text-align:left; }
   .lapLeftLabel{ font-size:13px; font-weight:800; letter-spacing:1px; color:var(--peach); }
-  .lapLeftNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }
-  #minimap{ background:var(--minimap-bg); border:1px solid rgba(var(--accent-rgb),.25); border-radius:12px; pointer-events:all; touch-action:none; }
+  .lapLeftNum{ font-size:154px; font-weight:800; line-height:1; color:var(--peach); text-shadow:0 0 15px rgba(var(--peach-rgb),.51); }  #minimap{ background:var(--minimap-bg); border:1px solid rgba(var(--accent-rgb),.25); border-radius:12px; pointer-events:all; touch-action:none; }
   #minimap.ownerTeleport{ cursor:crosshair; }
   .boostWrap{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:7px; pointer-events:all; }
@@ -316,13 +327,34 @@
   .driftIndicator{ position:absolute; top:70px; left:50%; transform:translateX(-50%); background:var(--panel-glass);
     border:1px solid #9db8c9; color:#9db8c9; font-weight:800; letter-spacing:2px; font-size:15px;
     padding:6px 16px; border-radius:999px; box-shadow:0 0 14px rgba(157,184,201,.5); pointer-events:none;
-    animation:driftPulse .5s ease-in-out infinite; transition:color .15s, border-color .15s, box-shadow .15s; }
+    animation:driftPulse .5s ease-in-out infinite; transition:color .15s, border-color .15s, box-shadow .15s, border-width .15s; }
   .driftIndicator[hidden]{ display:none; }
-  .driftIndicator.tier1{ border-color:#4fd8ff; color:#4fd8ff; box-shadow:0 0 14px rgba(79,216,255,.6); }
-  .driftIndicator.tier2{ border-color:#ffb23d; color:#ffb23d; box-shadow:0 0 16px rgba(255,178,61,.65); }
+  /* Tiers used to be color-only (cyan -> orange -> purple). border-width now
+     grows with tier alongside the color/glow, and the label itself carries a
+     growing pip count (see updateHUD), so the tier reads without needing to
+     distinguish hue. */
+  .driftIndicator.tier1{ border-color:#4fd8ff; color:#4fd8ff; box-shadow:0 0 14px rgba(79,216,255,.6); border-width:1px; }
+  .driftIndicator.tier2{ border-color:#ffb23d; color:#ffb23d; box-shadow:0 0 16px rgba(255,178,61,.65); border-width:2px; }
   .driftIndicator.tier3{ border-color:#e14fff; color:#e14fff; box-shadow:0 0 20px rgba(225,79,255,.75);
-    animation:driftPulse .28s ease-in-out infinite; }
+    border-width:3px; animation:driftPulse .28s ease-in-out infinite; }
   @keyframes driftPulse{ 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
+  /* ---------- Reconnect banner ----------
+     Host-migration (see Online.beginHostMigration/joinAsMigratedHost) used
+     to only fire showToast('Host disconnected — reconnecting…'), but
+     showToast() is a no-op for every variant except 'lap' — so during an
+     actual mesh reconnect, nothing was ever shown at all. This banner is a
+     persistent (not auto-fading) indicator that stays up for the whole
+     retry sequence, which can take several seconds across multiple
+     attempts, not just a single blip. See Online.setReconnecting(). */
+  .reconnectBanner{ position:absolute; top:112px; left:50%; transform:translateX(-50%);
+    background:var(--panel-glass); border:1px solid #ffb23d; color:#ffb23d; font-weight:800;
+    letter-spacing:.5px; font-size:14px; padding:8px 18px; border-radius:999px;
+    display:flex; align-items:center; gap:10px; box-shadow:0 0 14px rgba(255,178,61,.5); pointer-events:none;
+    z-index:21; }
+  .reconnectBanner[hidden]{ display:none; }
+  .reconnectSpinner{ width:14px; height:14px; border-radius:50%; flex:none;
+    border:2px solid rgba(255,178,61,.35); border-top-color:#ffb23d; animation:reconnectSpin .8s linear infinite; }
+  @keyframes reconnectSpin{ to{ transform:rotate(360deg); } }
   @keyframes gamepadFlash{ 0%,100%{ opacity:1; background:var(--danger); } 50%{ opacity:.35; background:transparent; } }
   #hudGamepadIndicator.gamepadFlashing{ animation:gamepadFlash 0.5s step-start infinite; border-radius:10px; }
   .gamepadFocus{ outline:3px solid var(--accent) !important; outline-offset:2px; }
@@ -349,6 +381,28 @@
     transition:transform .08s, box-shadow .08s; }
   .keycapBtn:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--border-strong), 0 2px 6px rgba(var(--shadow-rgb),.25); }
   .keycapWide{ font-size:10px; letter-spacing:1px; }
+
+  /* ---------- Touch-mode HUD clearance ----------
+     .posWrap (bottom-right) and .lapLeftWrap (bottom-left) both draw a
+     154px numeral at the exact same screen corners the drift/boost/mute
+     stack (.touchKeys, bottom-right) and the joystick knob (bottom-left,
+     inside .joystickZone) live in. That's invisible to mouse/keyboard and
+     gamepad players since nothing else occupies those corners for them,
+     but once touch controls are on, the numerals visually collide with
+     the buttons/knob — same fixed-pixel positions on every screen size,
+     not just small ones. Shrinking the numerals only in touch mode keeps
+     the big dramatic HUD look for everyone else. See
+     applyTouchControlsVisibility() for where .touchModeActive gets
+     toggled onto #hud. */
+  .touchModeActive .posWrap .posNum{ font-size:72px; text-shadow:0 0 10px rgba(var(--peach-rgb),.51); }
+  .touchModeActive .posWrap .posLabel{ font-size:16px; margin:8px 0 0 2px; }
+  .touchModeActive .lapLeftWrap .lapLeftNum{ font-size:72px; text-shadow:0 0 10px rgba(var(--peach-rgb),.51); }
+  /* Also tighten the live-standings panel, whose height grows with the
+     number of racers — with a full pack it can reach down into the
+     joystick's hit zone (top:200px) otherwise. */
+  .touchModeActive .leaderboardPanel{ padding:10px 14px; }
+  .touchModeActive .leaderboardTitle{ margin-bottom:4px; }
+  .touchModeActive .lbRow{ padding:3px 0; font-size:13px; }
   .controlsHint{ position:absolute; top:14px; left:50%; transform:translateX(-50%); background:var(--panel-glass);
     border:1px solid var(--border); border-radius:10px; padding:6px 14px; font-size:13px; color:var(--muted); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
   .hudToolbar{ position:absolute; top:14px; right:14px; margin-top:64px; display:flex; gap:8px; pointer-events:all; }
@@ -652,6 +706,35 @@
       </div>
     </div>
 
+    <div class="overlay" id="onboardingOverlay" hidden>
+      <div class="statsOverlayCard">
+        <button type="button" class="popupCloseX" id="onboardingCloseX" aria-label="Close (X)">✕</button>
+        <h2>Welcome to Velocity Circuit! 🏁</h2>
+        <p class="statsSub">A quick rundown before your first race — you can revisit all of this any time from Settings.</p>
+        <div style="max-height:360px;overflow-y:auto;text-align:left;">
+          <div style="margin-bottom:16px;">
+            <strong style="display:block;margin-bottom:4px;">🎮 Driving</strong>
+            <p class="statsSub" style="margin:0;">Keyboard: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive, <strong>Shift</strong> to drift, <strong>Space</strong> to boost. On a touchscreen you'll get an on-screen joystick plus drift/boost buttons. Plug in a gamepad and it's picked up automatically. Every one of these can be remapped later in Settings.</p>
+          </div>
+          <div style="margin-bottom:16px;">
+            <strong style="display:block;margin-bottom:4px;">🌀 Drift boost</strong>
+            <p class="statsSub" style="margin:0;">Hold a drift through a corner and it charges a mini-turbo — the on-screen indicator grows (and changes color) as it builds through three tiers, then release for a speed boost.</p>
+          </div>
+          <div style="margin-bottom:16px;">
+            <strong style="display:block;margin-bottom:4px;">🌦️ Weather</strong>
+            <p class="statsSub" style="margin:0;">Some tracks have rain, snow, ash, or fog — grip and braking change with conditions, the same for every racer.</p>
+          </div>
+          <div style="margin-bottom:0;">
+            <strong style="display:block;margin-bottom:4px;">🎨 Garage &amp; Upgrades</strong>
+            <p class="statsSub" style="margin:0;">Earn coins by racing, then spend them on new cars, paint, tires, and Engine Tunes in the Garage, or on performance upgrades in the Upgrades shop.</p>
+          </div>
+        </div>
+        <div class="btnRow" style="margin-top:16px;">
+          <button class="btn" id="onboardingCloseBtn">Let's race</button>
+        </div>
+      </div>
+    </div>
+
 
     <p class="homeControls">Click a track to start racing instantly. Controls: <strong>W/A/S/D</strong> or <strong>Arrow Keys</strong> to drive. <strong>Shift</strong> to drift. <strong>Esc</strong> to pause. <strong>C</strong> to chat. Complete laps to earn coins — spend them on new cars in the Garage and performance upgrades in the Upgrades shop, and finish races to unlock harder tracks. CPU racers adapt to your skill in real time and cars can collide, so watch your line into corners.</p>
 
@@ -854,6 +937,10 @@
       </div>
       <div class="toast" id="toast"></div>
       <div class="driftIndicator" id="driftIndicator" hidden>DRIFT!</div>
+      <div class="reconnectBanner" id="reconnectBanner" hidden role="status" aria-live="polite">
+        <span class="reconnectSpinner" aria-hidden="true"></span>
+        <span id="reconnectBannerText">Reconnecting…</span>
+      </div>
       <div class="countdownWrap" id="countdownWrap" hidden><div class="countdownNum" id="countdownNum">3</div></div>
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
       <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="posLabel" id="posLabel">st</div></div>
@@ -949,15 +1036,29 @@
         </div>
         <div style="margin-bottom:24px;text-align:left;">
           <label style="display:block;font-weight:700;margin-bottom:8px;">
-            Master Volume
-            <span id="volumeVal" style="color:var(--accent);margin-left:8px;">70</span>
+            Engine &amp; Ambience
+            <span id="engineVolumeVal" style="color:var(--accent);margin-left:8px;">70</span>
           </label>
           <div style="display:flex;align-items:center;gap:12px;">
             <span class="emoji" style="color:var(--muted);font-size:13px;">🔈</span>
-            <input type="range" id="volumeSlider" min="0" max="100" value="70"
+            <input type="range" id="engineVolumeSlider" min="0" max="100" value="70"
               style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
             <span class="emoji" style="color:var(--muted);font-size:13px;">🔊</span>
           </div>
+          <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">Engine note, supercharger whine, and crowd — including any equipped Engine Tune.</p>
+        </div>
+        <div style="margin-bottom:24px;text-align:left;">
+          <label style="display:block;font-weight:700;margin-bottom:8px;">
+            UI &amp; Notifications
+            <span id="uiVolumeVal" style="color:var(--accent);margin-left:8px;">70</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="emoji" style="color:var(--muted);font-size:13px;">🔈</span>
+            <input type="range" id="uiVolumeSlider" min="0" max="100" value="70"
+              style="flex:1;accent-color:var(--accent);height:6px;cursor:pointer;">
+            <span class="emoji" style="color:var(--muted);font-size:13px;">🔊</span>
+          </div>
+          <p style="color:var(--muted);font-size:12px;margin:8px 0 0;">Lap chimes and chat message alerts.</p>
         </div>
         <div style="margin-bottom:24px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;">
           <div>
@@ -1164,7 +1265,9 @@ const DEFAULT_STATE = {
   skillRating: 50,
   soundOn: true,
   sensitivity: 50,  // 0–100; maps to a turn-rate multiplier of 0.4–1.6
-  volume: 70,       // 0–100 master volume
+  volume: 70,          // deprecated — kept only so an old save can migrate into the two sliders below
+  engineVolume: 70,    // 0–100; engine/fan/crowd bus (includes the equipped Engine Tune)
+  uiVolume: 70,        // 0–100; lap chimes + chat notification dings
   invertSteering: false,
   showEmojis: true,
   showMinimap: true,
@@ -1193,7 +1296,8 @@ const DEFAULT_STATE = {
   unlockedTireIds: [0],     // ids into TIRE_STYLES this profile has bought; 0 (Factory) is always free
   carTires: {},             // { [carIndex]: tireId } — equipped rim/tire style per car; absent = stock
   unlockedEngineIds: [0],   // ids into ENGINE_TUNES this profile has bought; 0 (Factory) is always free
-  carEngines: {}            // { [carIndex]: engineId } — equipped engine tune per car; absent = stock
+  carEngines: {},           // { [carIndex]: engineId } — equipped engine tune per car; absent = stock
+  wonInWeather: false       // true once this profile has won a race on a non-clear-weather stage
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -1235,7 +1339,14 @@ function loadState(){
       gameState.skillRating    = Number.isFinite(parsed.skillRating)    ? parsed.skillRating    : 50;
       gameState.soundOn        = parsed.soundOn !== false;
       gameState.sensitivity    = Number.isFinite(parsed.sensitivity) ? parsed.sensitivity : 50;
-      gameState.volume         = Number.isFinite(parsed.volume) ? parsed.volume : 70;
+      // engineVolume/uiVolume replace the old single `volume` slider. A save
+      // written before this split has engineVolume/uiVolume undefined, so
+      // fall back to its old `volume` value (same number on both new
+      // sliders) rather than resetting a returning player's level to the
+      // default 70.
+      const legacyVolume = Number.isFinite(parsed.volume) ? parsed.volume : 70;
+      gameState.engineVolume   = Number.isFinite(parsed.engineVolume) ? parsed.engineVolume : legacyVolume;
+      gameState.uiVolume       = Number.isFinite(parsed.uiVolume) ? parsed.uiVolume : legacyVolume;
       gameState.invertSteering = parsed.invertSteering === true;
       gameState.showEmojis     = parsed.showEmojis !== false;
       gameState.showMinimap    = parsed.showMinimap !== false;
@@ -1269,6 +1380,7 @@ function loadState(){
         ? parsed.unlockedEngineIds.slice() : DEFAULT_STATE.unlockedEngineIds.slice();
       if(!gameState.unlockedEngineIds.includes(0)) gameState.unlockedEngineIds.push(0); // Factory engine tune is always free
       gameState.carEngines = parsed.carEngines && typeof parsed.carEngines === 'object' ? Object.assign({}, parsed.carEngines) : {};
+      gameState.wonInWeather = parsed.wonInWeather === true;
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -1299,6 +1411,14 @@ function saveState(){
 // Keeps the shared accounts table's coins/rating roughly current so Manage
 // Players shows real numbers for every account, not just ones with a local
 // save slot on this device. Throttled since saveState() fires often.
+//
+// This is also the write path Top Racers reads from, so it's now guarded
+// server-side by a DB trigger (enforce_account_sanity in
+// leaderboard_integrity.sql) that rejects impossible coins/rating values
+// and flags suspiciously large jumps for review. A rejected write throws
+// here and is caught below same as any other Supabase failure — the local
+// save still succeeds, so play isn't blocked, but the shared leaderboard
+// simply won't pick up a tampered number.
 let lastSupabaseSync = 0;
 function syncCurrentUserToSupabase(force){
   if(!currentUser || typeof sbUpsertAccount !== 'function') return Promise.resolve();
@@ -1314,7 +1434,7 @@ function syncCurrentUserToSupabase(force){
     coins: gameState.coins,
     rating: gameState.skillRating,
     deleted: false
-  }).catch(e=>{ console.warn('[VelocityCircuit] Progress saved locally, but syncing coins/rating to the shared database failed.', e); });
+  }).catch(e=>{ console.warn('[VelocityCircuit] Progress saved locally, but syncing coins/rating to the shared database failed (this also happens if the DB-side sanity check in leaderboard_integrity.sql rejected the write).', e); });
 }
 
 // Snapshot of gameState taken just before each race. If the tab closes
@@ -1639,7 +1759,13 @@ async function sbUpsertAccount(nameKey, fields){
        updated_at timestamptz DEFAULT now()
      );
    If it's missing, every call below fails silently (caught) and Time Trial
-   just falls back to the local-only ghost, exactly like before. */
+   just falls back to the local-only ghost, exactly like before.
+
+   Also apply leaderboard_integrity.sql, which adds a BEFORE INSERT/UPDATE
+   trigger (enforce_ghost_sanity) rejecting a lap_time faster than that
+   stage's known-plausible floor, or a frames payload that doesn't add up
+   to the claimed lap_time — a doctored ghost lap is directly visible on
+   the Track Records leaderboard, so it's worth checking server-side. */
 async function sbGetStageGhost(stageIndex){
   const rows = await sbFetch('stage_ghosts?stage_index=eq.' + stageIndex + '&select=*');
   return (rows && rows[0]) || null;
@@ -1843,7 +1969,7 @@ function showLoginScreen(){
 // Enters a logged-in session for nameKey/display, points saves at that
 // profile's own slot, and loads whatever progress it already has (or starts
 // fresh if it's brand new).
-function beginSession(nameKey, display, remember, owner){
+function beginSession(nameKey, display, remember, owner, isNewAccount){
   currentUser = nameKey;
   isOwner = !!owner;
   SAVE_KEY = saveKeyFor(nameKey);
@@ -1866,7 +1992,14 @@ function beginSession(nameKey, display, remember, owner){
   renderFriendsList();
   syncFriendsFromShared(); // pull this account's friends/rivals list from other devices, if any
   announce('Logged in as ' + display + (isOwner ? ', owner mode on.' : '.'));
+  // A brand-new account is otherwise dropped straight onto stage-select with
+  // no explanation of drift tiers, weather, gamepad support, or where to
+  // remap controls — this covers that once, on the very first login.
+  if(isNewAccount) showOnboarding();
 }
+
+function showOnboarding(){ $('onboardingOverlay').hidden = false; }
+function closeOnboarding(){ $('onboardingOverlay').hidden = true; }
 
 async function attemptLogin(rawUsername, rawPassword){
   const errEl = $('loginError');
@@ -1968,7 +2101,7 @@ async function attemptLogin(rawUsername, rawPassword){
 
   const remember = $('rememberMeToggle').checked;
   if(submitBtn) submitBtn.disabled = false;
-  beginSession(nameKey, users[nameKey].display, remember, owner);
+  beginSession(nameKey, users[nameKey].display, remember, owner, isNewAccount);
 }
 
 function logout(){
@@ -2209,7 +2342,11 @@ const ACHIEVEMENTS = [
   { id:'maxed_out',    emoji:'🔧', name:'Maxed Out',          desc:'Max every upgrade.',                           check:()=> UPGRADE_DEFS.every(d=> (gameState.upgrades[d.key]||0) >= MAX_UPGRADE_LEVEL) },
   { id:'all_tracks',   emoji:'🗺️', name:'Circuit Master',     desc:'Unlock every track.',                          check:()=> STAGES.every((s,i)=>isStageUnlocked(i)) },
   { id:'ghost_beater', emoji:'👻', name:'Ghost Hunter',       desc:'Beat your own ghost in Time Trial mode.',      check:()=> (gameState.ghostBeatsCount||0) >= 1 },
-  { id:'marathon',     emoji:'⏱️', name:'Marathon Driver',    desc:'Play for 5 hours in total.',                   check:()=> (gameState.totalPlayTimeSec||0) >= 18000 }
+  { id:'marathon',     emoji:'⏱️', name:'Marathon Driver',    desc:'Play for 5 hours in total.',                   check:()=> (gameState.totalPlayTimeSec||0) >= 18000 },
+  { id:'weather_win',  emoji:'🌧️', name:'Foul Weather Racer', desc:'Win a race with weather active (rain, snow, ash, or fog).', check:()=> gameState.wonInWeather === true },
+  { id:'tuned_up',     emoji:'🛠️', name:'Fully Kitted',       desc:'Equip a non-Factory tire and Engine Tune on the same car.',
+    check:()=> Object.keys(gameState.carTires||{}).some(idx=>
+      (gameState.carTires[idx]||0) !== 0 && (gameState.carEngines[idx]||0) !== 0) }
 ];
 // Re-checked after anything that could move one of the counters above. Silent
 // unless something newly qualifies, so it's cheap to call liberally.
@@ -2748,6 +2885,7 @@ $('timeTrialToggle').addEventListener('change', (e)=>{ timeTrialMode = e.target.
 $('openCircuitBtn').addEventListener('click', ()=>{ showScreen('circuit'); renderCircuitScreen(); });
 $('homeAchievementsBtn').addEventListener('click', openAchievements);
 $('achievementsCloseBtn').addEventListener('click', closeAchievements);
+$('onboardingCloseBtn').addEventListener('click', closeOnboarding);
 $('homeLeaderboardBtn').addEventListener('click', openLeaderboard);
 $('leaderboardCloseBtn').addEventListener('click', closeLeaderboard);
 $('leaderboardTabRacersBtn').addEventListener('click', ()=> setLeaderboardTab('racers'));
@@ -3014,6 +3152,7 @@ function equipOrBuyTire(tireId){
   refreshCoinDisplays();
   renderTireSwatches();
   startGaragePreviews();
+  checkAchievements();
   announce(tire.name + ' equipped on ' + getCarName(tireCarIndex) + '.');
 }
 
@@ -3066,6 +3205,7 @@ function equipOrBuyEngine(engineId){
   refreshCoinDisplays();
   renderEngineSwatches();
   startGaragePreviews();
+  checkAchievements();
   announce(tune.name + ' equipped on ' + getCarName(engineCarIndex) + '.');
 }
 
@@ -6002,11 +6142,27 @@ const Online = {
       }
     }, 10000);
   },
+  // Persistent (non-fading) HUD banner for the duration of a host-migration
+  // retry sequence — see the .reconnectBanner comment in the stylesheet for
+  // why this exists instead of relying on showToast(). Safe to call
+  // repeatedly with active:true across multiple retry attempts; only the
+  // final active:false actually hides it.
+  setReconnecting(active, label){
+    const el = $('reconnectBanner');
+    if(!el) return;
+    if(active){
+      $('reconnectBannerText').textContent = label || 'Reconnecting…';
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+    }
+  },
   beginHostMigration(){
     if(!this.room || this.migrating) return;
     this.migrating = true;
     if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
     showToast('Host disconnected — reconnecting…');
+    this.setReconnecting(true, 'Host disconnected — reconnecting…');
     this.cleanupPeer();
     const relayId = this.raceRelayId();
     let decided = false;
@@ -6020,6 +6176,7 @@ const Online = {
       this.conns = {};
       p.on('connection', conn => this.hostAccept(conn));
       this.armMigrationWatchdog();
+      this.setReconnecting(false);
       showToast('You are now hosting the race.');
       announce('Host migrated — you are now the race host.');
     });
@@ -6032,16 +6189,19 @@ const Online = {
       } else if(!this.room){
         decided = true;
         this.migrating = false;
+        this.setReconnecting(false);
       } else {
         // Transient failure (network hiccup, etc.) — try again shortly.
         decided = true;
         this.migrating = false;
+        this.setReconnecting(true, 'Still trying to reconnect…');
         this.retryTimer = setTimeout(()=> this.beginHostMigration(), 1500);
       }
     });
   },
   joinAsMigratedHost(relayId){
     if(!this.room) return;
+    this.setReconnecting(true, 'Reconnecting to race host…');
     this.cleanupPeer();
     let settled = false;
     const p = new Peer(PEER_OPTS);
@@ -6054,6 +6214,7 @@ const Online = {
         if(!this.room) return;
         settled = true;
         conn.send({ type:'rejoin', id:this.myId, name:this.displayName(), key:this.nameKey(), car:gameState.selectedCar });
+        this.setReconnecting(false);
         showToast('Reconnected to race host.');
       });
       conn.on('data', m => this.clientOnMsg(m));
@@ -6065,8 +6226,10 @@ const Online = {
       if(settled || !this.room) return;
       if(err && err.type === 'peer-unavailable'){
         // New host hasn't claimed the relay id yet — give it a moment.
+        this.setReconnecting(true, 'Waiting for a new host…');
         this.retryTimer = setTimeout(()=> this.beginHostMigration(), 1000);
       } else {
+        this.setReconnecting(true, 'Still trying to reconnect…');
         this.retryTimer = setTimeout(()=> this.joinAsMigratedHost(relayId), 1500);
       }
     });
@@ -6165,8 +6328,18 @@ const Online = {
      visible request. Note this doesn't change WHO the numbers come from:
      it's still each client reporting on itself, same as before, just without
      a request message announcing that someone is looking. A tampered client
-     could still report false numbers either way — there's no server here to
-     verify anything against. */
+     could still report false numbers either way, and that's still true here
+     — /stats is a peer-to-peer broadcast with no server in the loop at all,
+     so it stays "trust the other client." That's a low-stakes gap since
+     /stats is just an in-race courtesy readout. The numbers that actually
+     matter — accounts.coins/rating and stage_ghosts.lap_time, which is what
+     Top Racers and Track Records show — go through Supabase instead, and
+     THOSE now get checked server-side by DB triggers before they land in
+     the table (see leaderboard_integrity.sql: enforce_account_sanity /
+     enforce_ghost_sanity). It's a sanity layer, not full anti-cheat — it
+     rejects impossible values and flags suspicious-but-plausible ones for
+     review, since this is still a client-authoritative game with no
+     server-side race simulation to check against. */
   tickStats(){
     const now = Date.now();
     if(now - this.lastStatsSent < 4000) return;
@@ -6269,6 +6442,7 @@ const Online = {
     this.cleanupPeer();
     this.clearMigrationWatchdog();
     this.migrating = false;
+    this.setReconnecting(false);
     this.pingMs = null;
     this.pingSamples = {};
     this.lastPingSent = 0;
@@ -8161,7 +8335,10 @@ function updateHUD(){
     driftEl.classList.toggle('tier1', tier === 1);
     driftEl.classList.toggle('tier2', tier === 2);
     driftEl.classList.toggle('tier3', tier >= 3);
-    driftEl.textContent = tier >= 3 ? 'MINI-TURBO!' : 'DRIFT';
+    // Text used to be color-only between tiers 1 and 2 (both just said
+    // "DRIFT"). A growing pip count now carries the tier without relying on
+    // the cyan/orange/purple hue shift.
+    driftEl.textContent = tier >= 3 ? '\u25B2\u25B2\u25B2 MINI-TURBO!' : tier === 2 ? '\u25B2\u25B2 DRIFT' : '\u25B2 DRIFT';
   }
   const lapsLeft = Math.max(0, raceLaps - player.lap);
   $('lapLeftNum').textContent = lapsLeft;
@@ -8441,7 +8618,7 @@ $('minimap').addEventListener('click', (e)=>{
 const Sound = (function(){
   const AC = window.AudioContext || window.webkitAudioContext;
   let ctx = null, noiseBuf = null, running = false;
-  let master, engineBus, fanBus, crowdBus, uiBus;
+  let master, engineBus, fanBus, crowdBus, uiBus, engineVolGain, uiVolGain;
   let playerVoice = null, rivalVoices = [], fan = null, crowd = null;
   let crowdBase = 0, revBlip = 0, shiftCut = 0, lastGear = 0;
 
@@ -8676,9 +8853,16 @@ const Sound = (function(){
     fanBus    = ctx.createGain(); fanBus.gain.value    = 0.125;
     crowdBus  = ctx.createGain(); crowdBus.gain.value  = 0.15;
     uiBus     = ctx.createGain(); uiBus.gain.value     = 0.5;
+    // Two independent volume stages so "Engine & Ambience" (engine, fan/
+    // blower whine, crowd) and "UI & Notifications" (lap chime, chat ding)
+    // can be mixed separately instead of sharing one master knob — see
+    // applyVolume(). master itself is now just the on/off (mute) gate, at
+    // the same 0.5 ceiling the old combined slider used at 100%.
+    engineVolGain = ctx.createGain(); engineVolGain.gain.value = 0.7;
+    uiVolGain     = ctx.createGain(); uiVolGain.gain.value     = 0.7;
     [engineBus, fanBus, crowdBus].forEach(b=> b.connect(tone));
-    tone.connect(master);
-    uiBus.connect(master);   // UI cues bypass the tone filter and the engine duck
+    tone.connect(engineVolGain); engineVolGain.connect(master);
+    uiBus.connect(uiVolGain); uiVolGain.connect(master);   // UI cues bypass the tone filter and the engine duck
     master.connect(comp); comp.connect(ctx.destination);
     // Surface the real state so the HUD can say "click to enable" rather than
     // silently doing nothing.
@@ -8712,11 +8896,18 @@ const Sound = (function(){
       return 'on';
     },
     isOn(){ return gameState.soundOn !== false; },
+    /* master is just the mute/run gate now (fixed 0.5 ceiling, same as the
+       old combined slider at 100%); engineVolGain and uiVolGain each carry
+       their own 0–100 slider independently, so muting still silences both
+       at once, but the two sliders are otherwise unrelated. */
     applyVolume(){
       if(!ctx) return;
-      const vol = Number.isFinite(gameState.volume) ? gameState.volume : 70;
-      const target = (running && this.isOn()) ? 0.5 * (vol/100) : 0;
+      const engineVol = Number.isFinite(gameState.engineVolume) ? gameState.engineVolume : 70;
+      const uiVol = Number.isFinite(gameState.uiVolume) ? gameState.uiVolume : 70;
+      const target = (running && this.isOn()) ? 0.5 : 0;
       master.gain.setTargetAtTime(target, ctx.currentTime, 0.08);
+      engineVolGain.gain.setTargetAtTime(engineVol/100, ctx.currentTime, 0.08);
+      uiVolGain.gain.setTargetAtTime(uiVol/100, ctx.currentTime, 0.08);
     },
     toggle(){
       gameState.soundOn = !this.isOn();
@@ -8968,6 +9159,13 @@ function applyTouchControlsVisibility(){
   const on = gameState.touchControls === true;
   $('joystickZone').hidden = !on;
   $('touchKeys').hidden = !on;
+  // The position number and lap-left number are both drawn at a fixed
+  // ~154px font size in the same bottom corners the drift/boost/mute
+  // buttons and joystick knob occupy — fine when only a mouse/keyboard is
+  // in play (nothing else is anchored down there), but it visually
+  // collides with the touch controls once they're on screen. See the
+  // .touchModeActive rules near .posWrap/.lapLeftWrap in the stylesheet.
+  $('hud').classList.toggle('touchModeActive', on);
   if(!on){
     // Leaving touch mode shouldn't leave a steering direction (or drift) stuck held down.
     keys['ArrowLeft'] = keys['ArrowRight'] = keys['ArrowUp'] = keys['ArrowDown'] = false;
@@ -9050,8 +9248,10 @@ $('settingsBtn').addEventListener('click', ()=>{
   $('themeToggle').value = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   $('sensitivitySlider').value = gameState.sensitivity;
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
-  $('volumeSlider').value = gameState.volume;
-  $('volumeVal').textContent = Math.round(gameState.volume);
+  $('engineVolumeSlider').value = gameState.engineVolume;
+  $('engineVolumeVal').textContent = Math.round(gameState.engineVolume);
+  $('uiVolumeSlider').value = gameState.uiVolume;
+  $('uiVolumeVal').textContent = Math.round(gameState.uiVolume);
   $('deadzoneSlider').value = gameState.gamepadDeadzone;
   $('deadzoneVal').textContent = Math.round(gameState.gamepadDeadzone) + '%';
   $('gamepadVibrationToggle').checked = gameState.gamepadVibration !== false;
@@ -9075,9 +9275,15 @@ $('sensitivitySlider').addEventListener('input', ()=>{
   $('sensitivityVal').textContent = Math.round(gameState.sensitivity);
   saveState();
 });
-$('volumeSlider').addEventListener('input', ()=>{
-  gameState.volume = Number($('volumeSlider').value);
-  $('volumeVal').textContent = Math.round(gameState.volume);
+$('engineVolumeSlider').addEventListener('input', ()=>{
+  gameState.engineVolume = Number($('engineVolumeSlider').value);
+  $('engineVolumeVal').textContent = Math.round(gameState.engineVolume);
+  Sound.applyVolume();
+  saveState();
+});
+$('uiVolumeSlider').addEventListener('input', ()=>{
+  gameState.uiVolume = Number($('uiVolumeSlider').value);
+  $('uiVolumeVal').textContent = Math.round(gameState.uiVolume);
   Sound.applyVolume();
   saveState();
 });
@@ -9196,7 +9402,8 @@ $('noclipWallsToggle').addEventListener('change', ()=>{
 $('resetProgressBtn').addEventListener('click', ()=>{
   if(!confirm('Reset all progress? This clears your coins, upgrades, unlocked tracks, and records. This cannot be undone.')) return;
   const keepSoundOn = gameState.soundOn, keepSensitivity = gameState.sensitivity,
-        keepVolume = gameState.volume, keepInvert = gameState.invertSteering,
+        keepEngineVolume = gameState.engineVolume, keepUiVolume = gameState.uiVolume,
+        keepInvert = gameState.invertSteering,
         keepEmojis = gameState.showEmojis,
         keepMinimap = gameState.showMinimap, keepUnits = gameState.units,
         keepCameraShake = gameState.cameraShake, keepShowFps = gameState.showFps,
@@ -9207,7 +9414,8 @@ $('resetProgressBtn').addEventListener('click', ()=>{
   // Preserve control/audio preferences through a progress reset — those
   // aren't "progress", they're how the player likes to play.
   gameState.soundOn = keepSoundOn; gameState.sensitivity = keepSensitivity;
-  gameState.volume = keepVolume; gameState.invertSteering = keepInvert;
+  gameState.engineVolume = keepEngineVolume; gameState.uiVolume = keepUiVolume;
+  gameState.invertSteering = keepInvert;
   gameState.showEmojis = keepEmojis;
   gameState.showMinimap = keepMinimap; gameState.units = keepUnits;
   gameState.cameraShake = keepCameraShake; gameState.showFps = keepShowFps;
@@ -9273,7 +9481,13 @@ function finishRace(){
 
   const previouslyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   gameState.racesCompleted += 1;
-  if(pos === 1){ gameState.wins = (gameState.wins||0) + 1; } else { gameState.losses = (gameState.losses||0) + 1; }
+  if(pos === 1){
+    gameState.wins = (gameState.wins||0) + 1;
+    // Feeds the 'weather_win' achievement below — a persisted flag since the
+    // stage/weather themselves aren't part of gameState and won't still be
+    // known next time achievements are (re)checked.
+    if(weatherForStage(selectedStage).label !== 'Clear') gameState.wonInWeather = true;
+  } else { gameState.losses = (gameState.losses||0) + 1; }
   const newlyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   const newlyUnlocked = newlyUnlockedCount > previouslyUnlockedCount;
   checkAchievements();
@@ -9966,6 +10180,7 @@ $('engineOverlayCloseBtn').addEventListener('click', closeEngineOverlay);
    bottom "Close" button. closeAnyPopup() also backs the global X-key
    shortcut below, closing whichever one of these happens to be open. */
 $('achievementsCloseX').addEventListener('click', closeAchievements);
+$('onboardingCloseX').addEventListener('click', closeOnboarding);
 $('leaderboardCloseX').addEventListener('click', closeLeaderboard);
 $('ownerStatsCloseX').addEventListener('click', ()=>{ $('ownerStatsOverlay').hidden = true; });
 $('globalChatCloseX').addEventListener('click', closeGlobalChat);
@@ -9975,6 +10190,7 @@ $('tireCloseX').addEventListener('click', closeTireOverlay);
 $('engineCloseX').addEventListener('click', closeEngineOverlay);
 $('statsCloseX').addEventListener('click', ()=>{ $('statsOverlay').hidden = true; });
 function closeAnyPopup(){
+  if(!$('onboardingOverlay').hidden){ closeOnboarding(); return true; }
   if(!$('achievementsOverlay').hidden){ closeAchievements(); return true; }
   if(!$('leaderboardOverlay').hidden){ closeLeaderboard(); return true; }
   if(!$('ownerStatsOverlay').hidden){ $('ownerStatsOverlay').hidden = true; return true; }
