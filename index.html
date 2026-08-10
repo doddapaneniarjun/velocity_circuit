@@ -5651,6 +5651,7 @@ const GamepadMenuNav = {
    Only visible/reachable when gameState.touchControls is on (see
    applyTouchControlsVisibility). The joystick just drives the same `keys`
    flags the keyboard sets, so updateCar() needs no changes at all. */
+const TouchInput = { analogSteer: 0 };
 (function setupTouchControls(){
   const zone = $('joystickZone'), base = $('joystickBase'), knob = $('joystickKnob');
   const MAX_R = 46;     // px the knob can travel from the base's center
@@ -5662,9 +5663,21 @@ const GamepadMenuNav = {
     keys['ArrowRight'] = dx >  DEADZONE;
     keys['ArrowUp']    = dy < -DEADZONE;
     keys['ArrowDown']  = dy >  DEADZONE;
+    // Proportional steering: how far past the deadzone the knob has been
+    // dragged, scaled to [-1,1], so a small nudge turns gently and only a
+    // full push to MAX_R gives full lock — matching what the knob shows on
+    // screen instead of always snapping to a hard digital turn.
+    if(Math.abs(dx) > DEADZONE){
+      const travel = Math.abs(dx) - DEADZONE;
+      const range = Math.max(1, MAX_R - DEADZONE);
+      TouchInput.analogSteer = -Math.sign(dx) * Math.min(1, travel / range);
+    } else {
+      TouchInput.analogSteer = 0;
+    }
   }
   function clearDir(){
     keys['ArrowLeft'] = keys['ArrowRight'] = keys['ArrowUp'] = keys['ArrowDown'] = false;
+    TouchInput.analogSteer = 0;
   }
   function startStick(id, x, y){
     activeId = id; originX = x; originY = y;
@@ -7176,6 +7189,7 @@ function updateCar(car, dt){
     brake = (keys['ArrowDown']||keys[kb.down]||Gamepad.brakeHeld) ? 1 : 0;
     steer = ((keys['ArrowLeft']||keys[kb.left])?1:0) - ((keys['ArrowRight']||keys[kb.right])?1:0);
     if(Gamepad.analogSteer) steer = Gamepad.analogSteer; // analog stick overrides digital keys when active
+    if(TouchInput.analogSteer) steer = TouchInput.analogSteer; // on-screen joystick: proportional to how far it's pushed
     if(gameState.invertSteering) steer = -steer;
   } else {
     // Build a lane-offset waypoint: shift the centreline point laterally by
