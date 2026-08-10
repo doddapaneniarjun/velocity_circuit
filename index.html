@@ -2229,6 +2229,15 @@ const BASE_TURN = 2.5;
 const BASE_BRAKE = 55;
 const DRAG = 0.55;
 
+// MotoGP-style handling feel (player only — AI keeps its original, simpler
+// steering so its lines/difficulty tuning don't shift): real bikes lean into
+// a turn rather than snapping to full angle, bleed speed through a corner
+// unless you brake beforehand, and lose drive if you gas it too hard while
+// still leaned over. See updateCar() for where each is applied.
+const STEER_EASE_RATE = 8;        // 1/sec — how fast steering input ramps to its target (lower = heavier lean-in)
+const CORNER_SCRUB_COEFF = 0.5;   // speed bled off per second of full-lock turning, scaled by how fast you're going
+const CORNER_THROTTLE_LOSS = 0.45;// max fraction of accel lost to wheelspin when gassing it hard mid-turn at low speed
+
 const BOOST_MAX = 100;
 const BOOST_CHARGE_TIME = 9;      // seconds to fill from empty
 const BOOST_DURATION = 5;         // seconds the boost lasts once triggered
@@ -7191,6 +7200,13 @@ function updateCar(car, dt){
     if(Gamepad.analogSteer) steer = Gamepad.analogSteer; // analog stick overrides digital keys when active
     if(TouchInput.analogSteer) steer = TouchInput.analogSteer; // on-screen joystick: proportional to how far it's pushed
     if(gameState.invertSteering) steer = -steer;
+    // Weighted lean-in: a bike doesn't snap to full lean angle the instant
+    // you push the stick — it takes a beat to commit. Ease the raw input
+    // toward its target instead of applying it instantly, so turn-in (and
+    // mid-corner corrections) feel like leaning the bike over rather than
+    // twitching a digital flag.
+    car.steerSmoothed = (car.steerSmoothed||0) + (steer - (car.steerSmoothed||0)) * Math.min(1, dt*STEER_EASE_RATE);
+    steer = car.steerSmoothed;
   } else {
     // Build a lane-offset waypoint: shift the centreline point laterally by
     // this CPU's assigned lane so it steers toward its own lane, not the middle.
@@ -7222,6 +7238,17 @@ function updateCar(car, dt){
     if(car.pos.distanceTo(target) < 7){
       car.aiTarget = (car.aiTarget + 7) % track.N;
     }
+  }
+
+  // Throttle control on corner exit: gas it too hard while still leaned
+  // over at low speed and the rear loses drive instead of putting all that
+  // power down cleanly — same reason MotoGP punishes an early, greedy throttle
+  // hand out of a corner. Grip comes back as the bike stands back up (steer
+  // toward 0) or as speed builds, so it only bites right where it should.
+  if(car.isPlayer){
+    const spdFrac0 = Math.min(Math.abs(car.speed)/maxSpeed, 1);
+    const wheelspin = Math.abs(steer) * (1 - spdFrac0*0.6);
+    accel *= 1 - wheelspin*CORNER_THROTTLE_LOSS;
   }
 
   car.speed += throttle*accel*dt;
@@ -7279,6 +7306,17 @@ function updateCar(car, dt){
   car.drifting = drifting;
   const effTurnRate = drifting ? turnRate*DRIFT_TURN_MULT : turnRate;
 
+  // Cornering scrub: a bike can't carry full corner speed without braking
+  // first — turning hard while still going fast bleeds speed off on its own,
+  // same as running in too hot and having the bike run wide/stand up. This
+  // is what forces the brake-turn-in-accelerate rhythm rather than just
+  // holding the throttle flat and steering. Skipped while actively
+  // drifting — the powerslide is its own separate, intentional mechanic.
+  if(car.isPlayer && !drifting && Math.abs(car.speed) > 1){
+    const scrub = Math.abs(steer) * Math.abs(car.speed) * CORNER_SCRUB_COEFF * dt;
+    car.speed -= Math.sign(car.speed) * Math.min(Math.abs(car.speed)*0.9, scrub);
+  }
+
   // Locked-direction drift steering: once the slide starts, the turn
   // direction is pinned to car.driftDir. Steering with the slide holds a
   // tight, full-power arc ("inward" drift); steering against it widens the
@@ -7304,7 +7342,10 @@ function updateCar(car, dt){
     : 0;
   car.driftSlipAngle = (car.driftSlipAngle||0) + (targetSlipAngle - (car.driftSlipAngle||0)) * Math.min(1, dt*DRIFT_SLIP_EASE);
 
-  const baseSpeedFactor = 0.35 + 0.65*Math.min(Math.abs(car.speed)/maxSpeed, 1);
+  const spdFrac = Math.min(Math.abs(car.speed)/maxSpeed, 1);
+  const baseSpeedFactor = car.isPlayer
+    ? (0.35 + 0.65*Math.min(spdFrac/0.7, 1)) * (1 - 0.25*Math.max(0, spdFrac-0.7)/0.3)
+    : 0.35 + 0.65*spdFrac;
   const speedFactor = car.isPlayer ? baseSpeedFactor : Math.max(baseSpeedFactor, car.aiMisalign || 0);
   const dir = car.speed < 0 ? -1 : 1;   // only ever -1 for the player now
   car.heading += driftSteer*effTurnRate*dt*speedFactor*dir;
