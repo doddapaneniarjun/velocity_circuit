@@ -285,6 +285,30 @@
   .editorForm .loginField{ margin-bottom:0; }
   select.loginInput{ appearance:auto; }
   .customTrackList{ display:flex; flex-direction:column; gap:8px; max-width:720px; margin:0 auto 20px; }
+
+  /* Compact Track Editor layout for iPad-class screens (portrait or
+     landscape). Targets tablet widths with a touch-first pointer so we
+     don't also shrink things on small phones (which already get squeezed
+     by the vw-based sizing above) or on desktop/laptop trackpads. */
+  @media (max-width: 1024px) and (pointer: coarse){
+    .editorWrap{ padding-bottom:6px; }
+    .editorHint{ font-size:11.5px; max-width:520px; margin:0 auto 8px; line-height:1.35; }
+    .editorCanvasWrap{ width:min(360px,72vw); margin:0 auto 8px; }
+    #editorCanvas{ border-radius:10px; }
+    .editorLoopStatus{ font-size:11.5px; margin:0 0 6px; }
+    .editorPieceGrid{ grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:6px;
+      width:min(520px,94vw); margin:0 auto 8px; }
+    .editorPieceBtn{ padding:6px 4px; border-radius:9px; gap:2px; font-size:10px; }
+    .editorPieceBtn .pieceEmoji{ font-size:16px; }
+    .editorToolbar{ gap:6px; margin-bottom:4px; }
+    .editorToolbar .btn{ font-size:11px; padding:6px 10px; }
+    .editorForm{ grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px 10px; max-width:600px; margin:8px auto 4px; }
+    .editorForm .loginField label{ font-size:12px; margin-bottom:3px; }
+    .editorForm .loginInput{ padding:8px 10px; font-size:13px; }
+    .sectionTitle{ font-size:16px; margin:14px 0 8px; }
+    .customTrackList{ max-width:560px; }
+    .customTrackRow{ padding:8px 12px; font-size:13px; }
+  }
   .customTrackRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
     background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 16px; text-align:left; }
   .customTrackRow .customTrackBtns{ display:flex; gap:8px; }
@@ -959,7 +983,7 @@
         <button class="btn secondary" id="editorNewBtn">&#65291; New Track</button>
       </div>
 
-      <p class="editorHint">Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — &ldquo;Save Track&rdquo; unlocks once it's closed. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
+      <p class="editorHint">Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view, and Uphill/Downhill pieces raise or lower it in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too — and &ldquo;Save Track&rdquo; unlocks once it's closed. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
 
       <div class="editorCanvasWrap">
         <canvas id="editorCanvas" width="640" height="640" aria-label="3D track preview — drag to orbit"></canvas>
@@ -3191,25 +3215,33 @@ const EDITOR_MIN_PIECES = 6;
 const EDITOR_MAX_PIECES = 40;
 const EDITOR_CLOSE_DIST = 40;    // world units — how close the end must get to the start gate
 const EDITOR_CLOSE_ANGLE = Math.PI*0.30; // ~54° — how closely the end must face the start heading
+const EDITOR_CLOSE_HEIGHT = 4;   // world units — how close the end must get to the start's height
 const EDITOR_SELF_CLEARANCE_PAD = 6;     // extra margin (world units) added to track width for the self-cross check
 
 /* ---------- Piece catalog ----------
-   Each piece traces a path forward from an entry cursor {x,z,heading} (a
-   position + facing angle in radians, forward = (cos h, sin h)) and
-   returns { pathPoints, exit } — pathPoints are new anchor points (NOT
-   including the entry point, which is already the chain's last point);
-   exit is the resulting cursor for the next piece. */
-function traceStraight(cursor, length, numSamples){
+   Each piece traces a path forward from an entry cursor {x,z,heading,y} (a
+   position + facing angle in radians, forward = (cos h, sin h), plus
+   height y) and returns { pathPoints, exit } — pathPoints are new anchor
+   points (NOT including the entry point, which is already the chain's
+   last point), each one a real 3D anchor {x,y,z}; exit is the resulting
+   cursor for the next piece. Pieces with a nonzero dy climb or drop that
+   many world units of height, evenly, across the piece's own length —
+   that's what lets pieces be placed in true 3D instead of every piece
+   sitting on one flat plane. */
+function traceStraight(cursor, length, numSamples, dy){
   const h0 = cursor.heading, fx=Math.cos(h0), fz=Math.sin(h0);
+  const y0 = cursor.y||0, rise = dy||0;
   const pts = [];
   for(let i=1;i<=numSamples;i++){
-    const d = length*(i/numSamples);
-    pts.push({ x:cursor.x+fx*d, z:cursor.z+fz*d });
+    const t = i/numSamples;
+    const d = length*t;
+    pts.push({ x:cursor.x+fx*d, z:cursor.z+fz*d, y:y0+rise*t });
   }
-  return { pathPoints: pts, exit:{ x:cursor.x+fx*length, z:cursor.z+fz*length, heading:h0 } };
+  return { pathPoints: pts, exit:{ x:cursor.x+fx*length, z:cursor.z+fz*length, heading:h0, y:y0+rise } };
 }
-function traceCurve(cursor, signedAngle, radius, numSamples){
+function traceCurve(cursor, signedAngle, radius, numSamples, dy){
   const h0 = cursor.heading;
+  const y0 = cursor.y||0, rise = dy||0;
   const s = signedAngle >= 0 ? 1 : -1;
   const leftPerp = { x:-Math.sin(h0), z:Math.cos(h0) };
   const center = { x: cursor.x + s*radius*leftPerp.x, z: cursor.z + s*radius*leftPerp.z };
@@ -3217,25 +3249,28 @@ function traceCurve(cursor, signedAngle, radius, numSamples){
   const pts = [];
   let last = null;
   for(let i=1;i<=numSamples;i++){
-    const t = signedAngle * (i/numSamples);
+    const frac = i/numSamples;
+    const t = signedAngle * frac;
     const ct=Math.cos(t), st=Math.sin(t);
-    const p = { x: center.x + (u0.x*ct - u0.z*st), z: center.z + (u0.x*st + u0.z*ct) };
+    const p = { x: center.x + (u0.x*ct - u0.z*st), z: center.z + (u0.x*st + u0.z*ct), y: y0+rise*frac };
     pts.push(p);
     last = p;
   }
-  return { pathPoints: pts, exit:{ x:last.x, z:last.z, heading:h0+signedAngle } };
+  return { pathPoints: pts, exit:{ x:last.x, z:last.z, heading:h0+signedAngle, y:y0+rise } };
 }
 const TRACK_PIECES = {
-  straight:  { label:'Straight',       emoji:'\u2B06\uFE0F', trace:c=>traceStraight(c, 26, 2) },
-  straightS: { label:'Short Straight', emoji:'\u{1F53C}',     trace:c=>traceStraight(c, 13, 1) },
-  curveL30:  { label:'Gentle Left',    emoji:'\u2196\uFE0F',  trace:c=>traceCurve(c,  Math.PI/6,  34, 3) },
-  curveR30:  { label:'Gentle Right',   emoji:'\u2197\uFE0F',  trace:c=>traceCurve(c, -Math.PI/6,  34, 3) },
-  curveL60:  { label:'Sharp Left',     emoji:'\u2B05\uFE0F',  trace:c=>traceCurve(c,  Math.PI/3,  24, 4) },
-  curveR60:  { label:'Sharp Right',    emoji:'\u27A1\uFE0F',  trace:c=>traceCurve(c, -Math.PI/3,  24, 4) },
-  hairpinL:  { label:'Hairpin Left',   emoji:'\u21A9\uFE0F',  trace:c=>traceCurve(c,  Math.PI*0.66, 17, 6) },
-  hairpinR:  { label:'Hairpin Right',  emoji:'\u21AA\uFE0F',  trace:c=>traceCurve(c, -Math.PI*0.66, 17, 6) }
+  straight:  { label:'Straight',       emoji:'\u2B06\uFE0F', trace:c=>traceStraight(c, 26, 2, 0) },
+  straightS: { label:'Short Straight', emoji:'\u{1F53C}',     trace:c=>traceStraight(c, 13, 1, 0) },
+  curveL30:  { label:'Gentle Left',    emoji:'\u2196\uFE0F',  trace:c=>traceCurve(c,  Math.PI/6,  34, 3, 0) },
+  curveR30:  { label:'Gentle Right',   emoji:'\u2197\uFE0F',  trace:c=>traceCurve(c, -Math.PI/6,  34, 3, 0) },
+  curveL60:  { label:'Sharp Left',     emoji:'\u2B05\uFE0F',  trace:c=>traceCurve(c,  Math.PI/3,  24, 4, 0) },
+  curveR60:  { label:'Sharp Right',    emoji:'\u27A1\uFE0F',  trace:c=>traceCurve(c, -Math.PI/3,  24, 4, 0) },
+  hairpinL:  { label:'Hairpin Left',   emoji:'\u21A9\uFE0F',  trace:c=>traceCurve(c,  Math.PI*0.66, 17, 6, 0) },
+  hairpinR:  { label:'Hairpin Right',  emoji:'\u21AA\uFE0F',  trace:c=>traceCurve(c, -Math.PI*0.66, 17, 6, 0) },
+  uphill:    { label:'Uphill',         emoji:'\u{1F4C8}',     trace:c=>traceStraight(c, 26, 4, 7) },
+  downhill:  { label:'Downhill',       emoji:'\u{1F4C9}',     trace:c=>traceStraight(c, 26, 4, -7) }
 };
-const PIECE_ORDER = ['straight','straightS','curveL30','curveR30','curveL60','curveR60','hairpinL','hairpinR'];
+const PIECE_ORDER = ['straight','straightS','curveL30','curveR30','curveL60','curveR60','hairpinL','hairpinR','uphill','downhill'];
 
 let editorPieces = [];         // [pieceId, ...] — the track being built, in order
 let editingCustomId = null;    // id of the custom track being edited, or null for a new one
@@ -3264,8 +3299,8 @@ function getEditorWidth(){
 // whole-track Move/Rotate controls are applied separately, as a transform,
 // so this never has to be re-derived from world-space points.
 function computeChain(pieceIds){
-  let cursor = { x:0, z:0, heading:0 };
-  const points = [{ x:0, z:0 }];
+  let cursor = { x:0, z:0, heading:0, y:0 };
+  const points = [{ x:0, z:0, y:0 }];
   pieceIds.forEach(id=>{
     const piece = TRACK_PIECES[id];
     if(!piece) return;
@@ -3275,9 +3310,11 @@ function computeChain(pieceIds){
   });
   return { points, cursor };
 }
+// Move/rotate only ever act in the horizontal (x,z) plane — height is
+// carried straight through untouched.
 function applyEditorTransform(points, t){
   const cos=Math.cos(t.rot), sin=Math.sin(t.rot);
-  return points.map(p=> ({ x: p.x*cos - p.z*sin + t.dx, z: p.x*sin + p.z*cos + t.dz }));
+  return points.map(p=> ({ x: p.x*cos - p.z*sin + t.dx, z: p.x*sin + p.z*cos + t.dz, y: p.y||0 }));
 }
 
 // Distance-based self-intersection guard: checks candidate path points
@@ -3306,8 +3343,9 @@ function editorLoopStatus(){
   const end = chain.cursor;
   const dist = Math.hypot(end.x, end.z);
   const angDiff = Math.abs(normalizeAngleLocal(end.heading));
-  const closed = editorPieces.length >= EDITOR_MIN_PIECES && dist <= EDITOR_CLOSE_DIST && angDiff <= EDITOR_CLOSE_ANGLE;
-  return { chain, dist, angDiff, closed };
+  const heightOff = Math.abs(end.y||0);
+  const closed = editorPieces.length >= EDITOR_MIN_PIECES && dist <= EDITOR_CLOSE_DIST && angDiff <= EDITOR_CLOSE_ANGLE && heightOff <= EDITOR_CLOSE_HEIGHT;
+  return { chain, dist, angDiff, heightOff, closed };
 }
 function updateEditorLoopStatusUI(status){
   const el = $('editorLoopStatus');
@@ -3317,6 +3355,9 @@ function updateEditorLoopStatusUI(status){
     el.className = 'editorLoopStatus closed';
   } else if(editorPieces.length === 0){
     el.textContent = 'Place at least ' + EDITOR_MIN_PIECES + ' pieces and steer back to the start gate to close the loop.';
+    el.className = 'editorLoopStatus open';
+  } else if(status.dist <= EDITOR_CLOSE_DIST && status.angDiff <= EDITOR_CLOSE_ANGLE && status.heightOff > EDITOR_CLOSE_HEIGHT){
+    el.textContent = 'Back at the start gate but ' + Math.round(status.heightOff) + ' units off in height — balance your uphill and downhill pieces so the loop lands back at start height.';
     el.className = 'editorLoopStatus open';
   } else {
     el.textContent = 'Not closed yet — ' + Math.round(status.dist) + ' units from the start gate. Keep building the loop back around.';
@@ -3446,8 +3487,8 @@ function buildEditorRibbonGeometry(rawPoints, width){
   const positions = [];
   for(let i=0;i<N;i++){
     const c = centerline[i], n = normals[i];
-    positions.push(c.x + n.x*half, 0.05, c.z + n.z*half);
-    positions.push(c.x - n.x*half, 0.05, c.z - n.z*half);
+    positions.push(c.x + n.x*half, c.y+0.05, c.z + n.z*half);
+    positions.push(c.x - n.x*half, c.y+0.05, c.z - n.z*half);
   }
   const indices = [];
   for(let i=0;i<N;i++){
@@ -3482,28 +3523,28 @@ function drawEditorCanvas(){
   // Only the piece BOUNDARIES get a marker (not every dense sample point) —
   // otherwise the scene gets cluttered with a mesh per sample.
   let idx = 0;
-  let cursorLocal = { x:0, z:0, heading:0 };
-  const boundaryLocal = [{ x:0, z:0 }];
+  let cursorLocal = { x:0, z:0, heading:0, y:0 };
+  const boundaryLocal = [{ x:0, z:0, y:0 }];
   editorPieces.forEach(id=>{
     const piece = TRACK_PIECES[id];
     const res = piece.trace(cursorLocal);
     cursorLocal = res.exit;
-    boundaryLocal.push({ x:cursorLocal.x, z:cursorLocal.z });
+    boundaryLocal.push({ x:cursorLocal.x, z:cursorLocal.z, y:cursorLocal.y });
   });
   const boundaryWorld = applyEditorTransform(boundaryLocal, editorTransform);
   boundaryWorld.forEach((p,i)=>{
     const isLast = i === boundaryWorld.length-1 && boundaryWorld.length>1;
     const mat = i===0 ? editorStartMat : (isLast ? editorCursorMat : editorPointMat);
     const mesh = new THREE.Mesh(editorSphereGeo, mat);
-    mesh.position.set(p.x, 3.4, p.z);
+    mesh.position.set(p.x, (p.y||0)+3.4, p.z);
     editorMarkersGroup.add(mesh);
   });
 
   // Start gate ring — green once the loop is properly closed.
   if(editorGateMesh){
     editorGateMesh.material = status.closed ? editorGateMatClosed : editorGateMatOpen;
-    const gatePos = applyEditorTransform([{x:0,z:0}], editorTransform)[0];
-    editorGateMesh.position.set(gatePos.x, 0.06, gatePos.z);
+    const gatePos = applyEditorTransform([{x:0,z:0,y:0}], editorTransform)[0];
+    editorGateMesh.position.set(gatePos.x, (gatePos.y||0)+0.06, gatePos.z);
   }
 
   if(editorRibbonMesh){
@@ -3800,7 +3841,10 @@ function persistCurrentEditorTrack(){
   const laps = Math.max(2, Math.min(8, parseInt($('editorLapsInput').value,10) || DEFAULT_LAPS));
   const width = Math.max(14, Math.min(30, parseInt($('editorWidthInput').value,10) || TRACK_WIDTH));
   const worldPoints = applyEditorTransform(status.chain.points, editorTransform);
-  const points = worldPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
+  // Saved as [x,y,z] triples so elevation survives the round trip. Older
+  // saved tracks used [x,z] pairs — resampleCustomCenterline() below still
+  // reads those fine (treating them as flat, y=0).
+  const points = worldPoints.map(p => [Math.round(p.x*100)/100, Math.round((p.y||0)*100)/100, Math.round(p.z*100)/100]);
   const pieces = editorPieces.slice();
   const transform = { ...editorTransform };
 
@@ -4639,9 +4683,13 @@ function genFoggyMansion(N){
 // through the raw anchor points — same output shape as the procedural
 // gen* functions below, so it drops straight into the rest of buildTrack.
 function resampleCustomCenterline(rawPoints, N){
+  // Array points are [x,y,z] (new saves — real elevation) or the older
+  // [x,z] pairs (treated as flat, y=0) for backward compatibility with
+  // tracks saved before the editor supported hills. Object points (the
+  // editor's own live {x,y,z} anchors) carry y directly.
   const anchors = rawPoints.map(p=> Array.isArray(p)
-    ? new THREE.Vector3(p[0], 0, p[1])
-    : new THREE.Vector3(p.x, 0, p.z));
+    ? (p.length > 2 ? new THREE.Vector3(p[0], p[1], p[2]) : new THREE.Vector3(p[0], 0, p[1]))
+    : new THREE.Vector3(p.x, p.y||0, p.z));
   const curve = new THREE.CatmullRomCurve3(anchors, true, 'catmullrom', 0.5);
   // getSpacedPoints(N) returns N+1 points (evenly spaced by arc length) for
   // a closed curve, with the last point duplicating the first — trim it.
@@ -5613,7 +5661,7 @@ function buildCrowd(theme, points, normals, half){
           // Height/build variation so the crowd isn't a rank of identical clones.
           const build = 0.82 + Math.random()*0.4;
           const heightJ = 0.85 + Math.random()*0.32;
-          pos.y = baseY + (heightJ-1)*0.35;
+          pos.y = points[i].y + baseY + (heightJ-1)*0.35;
           // Each person faces roughly toward the track but with natural scatter.
           const q = new THREE.Quaternion().setFromAxisAngle(upAxis, baseAngle + (Math.random()-0.5)*1.1);
           const bodyScale = new THREE.Vector3(build, heightJ, build);
@@ -5815,7 +5863,7 @@ function buildTrack(stageIndex){
     const valid = new Array(N);
     for(let i=0;i<N;i++){
       const checkPos = points[i].clone().add(normals[i].clone().multiplyScalar(sign*barrierOffset));
-      checkPos.y = 0.6;
+      checkPos.y = points[i].y + 0.6;
       valid[i] = !collidesWithTrack(checkPos, i);
     }
     suppressShortRuns(valid);
@@ -5833,14 +5881,15 @@ function buildTrack(stageIndex){
       const outI = points[i].clone().addScaledVector(nI, sign*outerOffset);
       const inJ = points[j].clone().addScaledVector(nJ, sign*innerOffset);
       const outJ = points[j].clone().addScaledVector(nJ, sign*outerOffset);
-      const inIt = inI.clone(); inIt.y = barrierHeight;
-      const outIt = outI.clone(); outIt.y = barrierHeight;
-      const inJt = inJ.clone(); inJt.y = barrierHeight;
-      const outJt = outJ.clone(); outJt.y = barrierHeight;
-      const inIb = inI.clone(); inIb.y = 0;
-      const outIb = outI.clone(); outIb.y = 0;
-      const inJb = inJ.clone(); inJb.y = 0;
-      const outJb = outJ.clone(); outJb.y = 0;
+      const yI = points[i].y||0, yJ = points[j].y||0;
+      const inIt = inI.clone(); inIt.y = yI+barrierHeight;
+      const outIt = outI.clone(); outIt.y = yI+barrierHeight;
+      const inJt = inJ.clone(); inJt.y = yJ+barrierHeight;
+      const outJt = outJ.clone(); outJt.y = yJ+barrierHeight;
+      const inIb = inI.clone(); inIb.y = yI;
+      const outIb = outI.clone(); outIb.y = yI;
+      const inJb = inJ.clone(); inJb.y = yJ;
+      const outJb = outJ.clone(); outJb.y = yJ;
       // Top face
       addQuad(inIt, outIt, outJt, inJt);
       // Outer face (away from track)
@@ -5911,7 +5960,7 @@ function buildFinishLine(points, normals, width){
   [1,-1].forEach(sign=>{
     const pillar = new THREE.Mesh(pillarGeo, pillarMat);
     const pos = p0.clone().addScaledVector(n0, sign*(half+1));
-    pos.y = 3.5;
+    pos.y = p0.y + 3.5;
     pillar.position.copy(pos);
     group.add(pillar);
   });
@@ -5950,7 +5999,7 @@ function buildFinishLine(points, normals, width){
   bannerTexMirrored.needsUpdate = true;
 
   const bannerApproach = new THREE.Mesh(bannerGeo, new THREE.MeshBasicMaterial({ map: bannerTex, side: THREE.FrontSide }));
-  bannerApproach.position.copy(p0); bannerApproach.position.y = 6.6;
+  bannerApproach.position.copy(p0); bannerApproach.position.y = p0.y + 6.6;
   bannerApproach.rotation.y = bannerY + Math.PI;   // normal = -tangent, faces incoming cars
   group.add(bannerApproach);
 
@@ -7834,7 +7883,7 @@ function startRace(stageIndex, onlineRoom){
     // back to the -1.35 slot since they have no laneOffset assigned.
     const gridOff = car.laneOffset != null ? car.laneOffset : (car.isPlayer ? -1.35 : laneOffsets[i]);
     car.pos.copy(track.points[0]).add(startNormal.clone().multiplyScalar(gridOff));
-    car.pos.y = 0;
+    car.pos.y = track.points[0].y||0;
     car.heading = startHeading;
     car.trackIndex = 0; car.prevIndex = 0; car.aiTarget = 8;
     car.mesh.position.copy(car.pos);
@@ -8476,6 +8525,12 @@ function updateCar(car, dt){
   }
 
   car.trackIndex = findNearestIndex(car);
+  // Ride the track's elevation: ease pos.y toward the height of the nearest
+  // track point instead of snapping, so hills/ramps feel like a smooth
+  // climb or drop rather than a stair-step. On flat (built-in) tracks every
+  // point's y is 0, so this is a no-op there.
+  const groundY = track.points[car.trackIndex] ? (track.points[car.trackIndex].y||0) : 0;
+  car.pos.y += (groundY - car.pos.y) * Math.min(1, dt*8);
   applyBoundary(car, dt);
   applyPropCollisions(car);
 
@@ -9339,7 +9394,7 @@ function updateCamera(dt){
     camera.position.z += (Math.random()-0.5) * mag;
   }
   const lookAt = new THREE.Vector3().copy(player.pos).addScaledVector(fwd, 6);
-  lookAt.y = 1.2;
+  lookAt.y = player.pos.y + 1.2;
   camera.lookAt(lookAt);
 }
 
@@ -9746,13 +9801,13 @@ function teleportPlayerTo(worldX, worldZ){
   if(!track || !player) return;
   player.pos.x = worldX;
   player.pos.z = worldZ;
-  player.pos.y = 0;
   player.speed = 0;
   player.crashBoost = 0;
   player.touchingWall = false;
   player.wallOffTime = 0;
   player.wallPenaltyCd = 0;
   const idx = nearestTrackIndexFull(worldX, worldZ);
+  player.pos.y = track.points[idx].y||0;
   player.trackIndex = idx;
   // Snapping prevIndex to match trackIndex here is what stops a teleport from
   // instantly faking a finish-line crossing by itself: the crossing check
@@ -9775,7 +9830,7 @@ function teleportPlayerTo(worldX, worldZ){
   camera.position.copy(player.pos).addScaledVector(fwd, -10);
   camera.position.y = player.pos.y + 4.6;
   const lookAt = new THREE.Vector3().copy(player.pos).addScaledVector(fwd, 6);
-  lookAt.y = 1.2;
+  lookAt.y = player.pos.y + 1.2;
   camera.lookAt(lookAt);
   showToast('Teleported.');
   announce('Teleported to the tapped location.');
