@@ -5719,7 +5719,18 @@ function buildTrack(stageIndex){
   // actually visible past the sand instead of being fully covered by the
   // ground (which previously sat both higher and wider than the ocean,
   // hiding it completely no matter how close the camera got).
-  const groundSize = ocean ? 900 : 2000;
+  // Built-in tracks are always generated close to world origin, so a fixed
+  // plate centered there used to be plenty. Custom tracks are built piece by
+  // piece starting from local (0,0) with no cap on piece count, so a long
+  // enough build can easily run past the edge of a fixed-size plate — the
+  // car would then be driving over open void once it got far enough from
+  // the middle. Sizing the plate off how far the track's own points actually
+  // reach from the origin keeps every custom track fully floored while
+  // leaving built-in tracks (which never approach that radius) unchanged.
+  let maxReach = 0;
+  points.forEach(p=>{ const r = Math.hypot(p.x, p.z); if(r > maxReach) maxReach = r; });
+  const groundMargin = ocean ? 450 : 1000; // matches the old fixed half-size
+  const groundSize = Math.max(ocean ? 900 : 2000, (maxReach + groundMargin) * 2);
   const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize);
   const groundMat = new THREE.MeshStandardMaterial({
     map: makeGroundTexture(theme.ground, theme.groundStyle),
@@ -8300,16 +8311,45 @@ function applyPropCollisions(car){
 }
 
 function applyBoundary(car, dt){
-  // Invisible walls at the track edges have been removed entirely — cars
-  // are never pushed back, slowed, or steered by track boundaries anymore.
-  // This was also the source of the "wall out of nowhere" bug on custom
-  // tracks: findNearestIndex() can resolve to the wrong, far-away part of
-  // a track that crosses/overlaps itself (now allowed in the editor), so
-  // the boundary check below would occasionally clamp the car against a
-  // piece of track nowhere near where it actually was. Removing the check
-  // fixes that at the source instead of trying to special-case it.
+  const wasTouching = car.touchingWall;
   car.wallOffTime = (car.wallOffTime || 0) + (dt || 0);
   car.touchingWall = false;
+  if(gameState.noclipWalls || !track) return;
+
+  const idx = car.trackIndex;
+  const pt = track.points[idx];
+  const n = track.normals[idx];
+  if(!pt || !n) return;
+
+  const dx = car.pos.x - pt.x, dz = car.pos.z - pt.z;
+  const half = (track.width || TRACK_WIDTH) / 2;
+
+  // Guard against the old "wall out of nowhere" bug: findNearestIndex()
+  // only searches a small window around the car's last known index, so it
+  // stays locked onto the strand the car is actually on even where a
+  // self-crossing custom track overlaps itself elsewhere — but if it ever
+  // does resolve to a point that isn't plausibly close to the car (e.g.
+  // right after a big position jump), skip the clamp for this frame rather
+  // than snapping the car toward a wall nowhere near where it visually is.
+  const SANITY_RANGE = half + 40;
+  if(dx*dx + dz*dz > SANITY_RANGE*SANITY_RANGE) return;
+
+  const lateral = dx*n.x + dz*n.z;              // signed distance from centerline
+  const limit = half + 0.2;                     // road's shoulder, just inside the barrier ribbon
+  const over = Math.abs(lateral) - limit;
+  if(over <= 0) return;
+
+  // Smooth push-off rather than an instant snap back to the boundary.
+  const sign = lateral < 0 ? -1 : 1;
+  const pushEase = Math.min(1, dt*10);
+  car.pos.x -= n.x * sign * over * pushEase;
+  car.pos.z -= n.z * sign * over * pushEase;
+  car.touchingWall = true;
+  car.wallOffTime = 0;
+  if(!wasTouching){
+    car.speed *= 0.1; // 90% speed cut on first contact
+    giveCrashBoost(car);
+  }
 }
 
 const BOOST_LIGHT_INTENSITY = 2.6;
