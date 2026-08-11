@@ -1299,7 +1299,12 @@ const DEFAULT_STATE = {
   carTires: {},             // { [carIndex]: tireId } — equipped rim/tire style per car; absent = stock
   unlockedEngineIds: [0],   // ids into ENGINE_TUNES this profile has bought; 0 (Factory) is always free
   carEngines: {},           // { [carIndex]: engineId } — equipped engine tune per car; absent = stock
-  wonInWeather: false       // true once this profile has won a race on a non-clear-weather stage
+  wonInWeather: false,      // true once this profile has won a race on a non-clear-weather stage
+  reached4th: false,        // true once this profile has finished a race in 4th place
+  wonWithPowerLoss: false,  // true once this profile has won a race while engine power loss was active (ash/snow/rain)
+  wonWithWind: false,       // true once this profile has won a race while crosswind gusts were active
+  wonWithSlip: false,       // true once this profile has won a race while hazard patches (puddles/ice) were active
+  wonWithFog: false         // true once this profile has won a race with reduced visibility active
 };
 let gameState = JSON.parse(JSON.stringify(DEFAULT_STATE));
 let stateLoaded = false;
@@ -1383,6 +1388,11 @@ function loadState(){
       if(!gameState.unlockedEngineIds.includes(0)) gameState.unlockedEngineIds.push(0); // Factory engine tune is always free
       gameState.carEngines = parsed.carEngines && typeof parsed.carEngines === 'object' ? Object.assign({}, parsed.carEngines) : {};
       gameState.wonInWeather = parsed.wonInWeather === true;
+      gameState.reached4th = parsed.reached4th === true;
+      gameState.wonWithPowerLoss = parsed.wonWithPowerLoss === true;
+      gameState.wonWithWind = parsed.wonWithWind === true;
+      gameState.wonWithSlip = parsed.wonWithSlip === true;
+      gameState.wonWithFog = parsed.wonWithFog === true;
       if(typeof gameState.selectedCar !== 'number' || !gameState.ownedCars.includes(gameState.selectedCar)){
         gameState.selectedCar = gameState.ownedCars[0] || 0;
       }
@@ -2374,18 +2384,46 @@ let circuit = null;
    nothing here can change outside those moments. */
 const ACHIEVEMENTS = [
   { id:'first_win',   emoji:'🏁', name:'First Blood',        desc:'Win your first race.',                         check:()=> (gameState.wins||0) >= 1 },
+  { id:'wins_5',       emoji:'🥇', name:'Getting Good',       desc:'Get 1st place 5 times.',                       check:()=> (gameState.wins||0) >= 5 },
   { id:'ten_wins',     emoji:'🥇', name:'Podium Regular',     desc:'Win 10 races.',                                check:()=> (gameState.wins||0) >= 10 },
+  { id:'wins_25',      emoji:'🥇', name:'Consistent Winner',  desc:'Get 1st place 25 times.',                      check:()=> (gameState.wins||0) >= 25 },
   { id:'fifty_wins',   emoji:'🏆', name:'Track Star',         desc:'Win 50 races.',                                check:()=> (gameState.wins||0) >= 50 },
+  { id:'wins_100',     emoji:'🏆', name:'Dominant',           desc:'Get 1st place 100 times.',                     check:()=> (gameState.wins||0) >= 100 },
+  { id:'wins_250',     emoji:'🏆', name:'Racing Royalty',     desc:'Get 1st place 250 times.',                     check:()=> (gameState.wins||0) >= 250 },
+  { id:'wins_500',     emoji:'👑', name:'Hall of Famer',      desc:'Get 1st place 500 times.',                     check:()=> (gameState.wins||0) >= 500 },
+  { id:'wins_750',     emoji:'👑', name:'Untouchable Record', desc:'Get 1st place 750 times.',                     check:()=> (gameState.wins||0) >= 750 },
+  { id:'wins_1000',    emoji:'💎', name:'One in a Million',   desc:'Get 1st place 1,000 times.',                   check:()=> (gameState.wins||0) >= 1000 },
+  { id:'fourth_place', emoji:'😅', name:'So Close',           desc:'Get 4th place.',                               check:()=> gameState.reached4th === true },
   { id:'races_25',     emoji:'🚦', name:'Checkered Veteran',  desc:'Complete 25 races.',                           check:()=> (gameState.racesCompleted||0) >= 25 },
   { id:'races_100',    emoji:'🎖️', name:'Century Club',       desc:'Complete 100 races.',                          check:()=> (gameState.racesCompleted||0) >= 100 },
+  { id:'coins_1k',     emoji:'🪙', name:'Pocket Change',      desc:'Earn 1,000 coins in total.',                   check:()=> (gameState.lifetimeCoins||0) >= 1000 },
   { id:'coins_5k',     emoji:'🪙', name:'Coin Collector',     desc:'Earn 5,000 coins in total.',                   check:()=> (gameState.lifetimeCoins||0) >= 5000 },
   { id:'coins_25k',    emoji:'💰', name:'High Roller',        desc:'Earn 25,000 coins in total.',                  check:()=> (gameState.lifetimeCoins||0) >= 25000 },
+  { id:'coins_50k',    emoji:'💵', name:'Big Spender',        desc:'Earn 50,000 coins in total.',                  check:()=> (gameState.lifetimeCoins||0) >= 50000 },
+  { id:'coins_100k',   emoji:'💴', name:'Six Figures',        desc:'Earn 100,000 coins in total.',                 check:()=> (gameState.lifetimeCoins||0) >= 100000 },
+  { id:'coins_250k',   emoji:'💶', name:'Fortune Builder',    desc:'Earn 250,000 coins in total.',                 check:()=> (gameState.lifetimeCoins||0) >= 250000 },
+  { id:'coins_500k',   emoji:'💷', name:'Half-Millionaire',   desc:'Earn 500,000 coins in total.',                 check:()=> (gameState.lifetimeCoins||0) >= 500000 },
+  { id:'coins_1m',     emoji:'🏦', name:'Millionaire',        desc:'Earn 1,000,000 coins in total.',               check:()=> (gameState.lifetimeCoins||0) >= 1000000 },
+  { id:'rating_100',   emoji:'📈', name:'On the Radar',       desc:'Reach a driver rating of 100.',                check:()=> (gameState.skillRating||0) >= 100 },
+  { id:'rating_250',   emoji:'📈', name:'Rising Talent',      desc:'Reach a driver rating of 250.',                check:()=> (gameState.skillRating||0) >= 250 },
+  { id:'rating_500',   emoji:'📈', name:'Seasoned Racer',     desc:'Reach a driver rating of 500.',                check:()=> (gameState.skillRating||0) >= 500 },
+  { id:'rating_1000',  emoji:'⭐', name:'Elite Driver',       desc:'Reach a driver rating of 1,000.',              check:()=> (gameState.skillRating||0) >= 1000 },
+  { id:'rating_1500',  emoji:'🌟', name:'Ace Driver',         desc:'Reach a driver rating of 1,500.',              check:()=> (gameState.skillRating||0) >= 1500 },
+  { id:'rating_2000',  emoji:'✨', name:'Circuit Legend',     desc:'Reach a driver rating of 2,000.',              check:()=> (gameState.skillRating||0) >= 2000 },
+  { id:'rating_2500',  emoji:'💫', name:'Grandmaster',        desc:'Reach a driver rating of 2,500.',              check:()=> (gameState.skillRating||0) >= 2500 },
+  { id:'rating_3000',  emoji:'👑', name:'World Class',        desc:'Reach a driver rating of 3,000.',              check:()=> (gameState.skillRating||0) >= 3000 },
+  { id:'rating_4000',  emoji:'🔥', name:'Untouchable',        desc:'Reach a driver rating of 4,000.',              check:()=> (gameState.skillRating||0) >= 4000 },
+  { id:'rating_5000',  emoji:'🐐', name:'Living Legend',      desc:'Reach a driver rating of 5,000.',              check:()=> (gameState.skillRating||0) >= 5000 },
   { id:'full_garage',  emoji:'🚗', name:'Full Garage',        desc:'Own every car.',                               check:()=> (gameState.ownedCars||[]).length >= CARS.length },
   { id:'maxed_out',    emoji:'🔧', name:'Maxed Out',          desc:'Max every upgrade.',                           check:()=> UPGRADE_DEFS.every(d=> (gameState.upgrades[d.key]||0) >= MAX_UPGRADE_LEVEL) },
   { id:'all_tracks',   emoji:'🗺️', name:'Circuit Master',     desc:'Unlock every track.',                          check:()=> STAGES.every((s,i)=>isStageUnlocked(i)) },
   { id:'ghost_beater', emoji:'👻', name:'Ghost Hunter',       desc:'Beat your own ghost in Time Trial mode.',      check:()=> (gameState.ghostBeatsCount||0) >= 1 },
   { id:'marathon',     emoji:'⏱️', name:'Marathon Driver',    desc:'Play for 5 hours in total.',                   check:()=> (gameState.totalPlayTimeSec||0) >= 18000 },
   { id:'weather_win',  emoji:'🌧️', name:'Foul Weather Racer', desc:'Win a race with weather active (rain, snow, ash, or fog).', check:()=> gameState.wonInWeather === true },
+  { id:'win_power_loss',    emoji:'🌋', name:'Power Through',    desc:'Get 1st place with engine power loss.',      check:()=> gameState.wonWithPowerLoss === true },
+  { id:'win_crosswind',     emoji:'💨', name:'Against the Wind', desc:'Get 1st place with crosswind gusts.',        check:()=> gameState.wonWithWind === true },
+  { id:'win_hazard_patch',  emoji:'🧊', name:'Ice in Your Veins', desc:'Get 1st place with hazard patches.',        check:()=> gameState.wonWithSlip === true },
+  { id:'win_bad_visibility',emoji:'🌫️', name:'Blind Faith',      desc:'Get 1st place with bad visibility.',         check:()=> gameState.wonWithFog === true },
   { id:'tuned_up',     emoji:'🛠️', name:'Fully Kitted',       desc:'Equip a non-Factory tire and Engine Tune on the same car.',
     check:()=> Object.keys(gameState.carTires||{}).some(idx=>
       (gameState.carTires[idx]||0) !== 0 && (gameState.carEngines[idx]||0) !== 0) }
@@ -9652,7 +9690,20 @@ function finishRace(){
     // stage/weather themselves aren't part of gameState and won't still be
     // known next time achievements are (re)checked.
     if(weatherForStage(selectedStage).label !== 'Clear') gameState.wonInWeather = true;
-  } else { gameState.losses = (gameState.losses||0) + 1; }
+    // Same idea, but split out per hazard type (see WEATHER_DEFS) so each of
+    // the specific hazard-win achievements below can be checked on its own,
+    // independent of which other hazards happened to also be active.
+    const wStage = weatherForStage(selectedStage);
+    if(wStage.powerMult < 1) gameState.wonWithPowerLoss = true;
+    if(wStage.windMult > 0) gameState.wonWithWind = true;
+    if(wStage.slipChance > 0) gameState.wonWithSlip = true;
+    if(wStage.fogBoost > 0) gameState.wonWithFog = true;
+  } else {
+    gameState.losses = (gameState.losses||0) + 1;
+    // A plain "you finished 4th" badge — not tied to weather, just a nod to
+    // the just-off-the-podium finish everyone eventually has.
+    if(pos === 4) gameState.reached4th = true;
+  }
   const newlyUnlockedCount = STAGES.filter((s,i)=>isStageUnlocked(i)).length;
   const newlyUnlocked = newlyUnlockedCount > previouslyUnlockedCount;
   checkAchievements();
