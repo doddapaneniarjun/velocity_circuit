@@ -256,6 +256,25 @@
   .garageWrap{ width:min(920px,94vw); }
   .garageHeader{ display:flex; align-items:center; justify-content:space-between; margin:-24px -24px 18px; padding:16px 24px; gap:10px; flex-wrap:wrap; position:sticky; top:-24px; background:var(--bg); z-index:5; border-bottom:1px solid #e3d2b3; }
   .sectionTitle{ font-size:20px; font-weight:800; margin:22px 0 12px; }
+
+  /* ---------- Track Editor ---------- */
+  .btn.danger{ background:var(--danger); color:#fff8ef; }
+  .editorWrap{ padding-bottom:10px; }
+  .editorHint{ color:var(--muted); font-size:13px; text-align:center; max-width:640px; margin:0 auto 14px; line-height:1.5; }
+  .editorCanvasWrap{ width:min(560px,92vw); margin:0 auto 14px; }
+  #editorCanvas{ width:100%; aspect-ratio:1/1; display:block; background:var(--track-bg);
+    border:2px solid var(--border-strong); border-radius:var(--radius); touch-action:none; cursor:crosshair; }
+  .editorToolbar{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:center; margin-bottom:6px; }
+  .editorToolbar .btn{ font-size:13px; padding:9px 16px; min-height:auto; }
+  .editorForm{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px 18px;
+    max-width:780px; margin:14px auto 6px; text-align:left; }
+  .editorForm .loginField{ margin-bottom:0; }
+  select.loginInput{ appearance:auto; }
+  .customTrackList{ display:flex; flex-direction:column; gap:8px; max-width:720px; margin:0 auto 20px; }
+  .customTrackRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 16px; text-align:left; }
+  .customTrackRow .customTrackBtns{ display:flex; gap:8px; }
+  .customTrackRow .customTrackBtns .btn{ font-size:13px; padding:8px 14px; min-height:auto; }
   .colorRow{ display:flex; gap:12px; flex-wrap:wrap; }
   .colorSwatch{ width:56px; height:56px; border-radius:14px; border:3px solid transparent; cursor:pointer; }
   .colorSwatch.selected{ border-color:var(--text); }
@@ -685,6 +704,7 @@
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
       <button class="btn secondary" id="openCircuitBtn"><span class="emoji" aria-hidden="true">🏆</span> Championships</button>
+      <button class="btn secondary" id="openEditorBtn"><span class="emoji" aria-hidden="true">🛠️</span> Track Editor</button>
       <button class="btn secondary" id="homeAchievementsBtn">🏅 Achievements</button>
       <button class="btn secondary" id="homeLeaderboardBtn">🏁 Leaderboard</button>
     </div>
@@ -913,6 +933,93 @@
       <h2 class="sectionTitle">Championships</h2>
       <p class="stageMeta" style="max-width:640px;margin-bottom:18px;">Race a fixed circuit of tracks back-to-back. Each finish earns championship points (12/8/5/3 for 1st–4th) that carry over between races — the bigger your total by the final stage, the bigger the coin payout.</p>
       <div class="stageGrid" id="circuitGrid" role="group" aria-label="Select a championship"></div>
+    </div>
+  </section>
+
+  <!-- TRACK EDITOR SCREEN -->
+  <section id="editorScreen" class="screen" hidden>
+    <div class="garageWrap editorWrap">
+      <div class="garageHeader">
+        <button class="btn ghost" id="editorBackBtn">Back</button>
+        <h2 class="sectionTitle" id="editorScreenTitle" style="margin:0;">Track Editor</h2>
+        <button class="btn secondary" id="editorNewBtn">&#65291; New Track</button>
+      </div>
+
+      <p class="editorHint">Click empty space to add a point, drag a point to move it, click a point again to remove it. Add at least 4 points — the loop closes automatically and the finish line sits at your first (green) point.</p>
+
+      <div class="editorCanvasWrap">
+        <canvas id="editorCanvas" width="640" height="640" aria-label="Track shape drawing area"></canvas>
+      </div>
+      <div class="editorToolbar">
+        <button class="btn secondary" id="editorUndoBtn" type="button">Undo Point</button>
+        <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
+        <span class="stageMeta" style="align-self:center;"><span id="editorPointCount">0</span> points</span>
+      </div>
+      <p class="editorHint" id="editorMsg" role="status" aria-live="polite"></p>
+
+      <div class="editorForm">
+        <div class="loginField">
+          <label for="editorNameInput">Track name</label>
+          <input class="loginInput" id="editorNameInput" type="text" maxlength="40" placeholder="My Custom Track">
+        </div>
+        <div class="loginField">
+          <label for="editorThemeSelect">Scenery theme</label>
+          <select class="loginInput" id="editorThemeSelect">
+            <option value="oval">Sunset Desert</option>
+            <option value="stadium">Green Stadium</option>
+            <option value="iceRibbon">Icy Ribbon</option>
+            <option value="wavy">Coastal Curves</option>
+            <option value="canyon">Red Rock Canyon</option>
+            <option value="switchback">Mountain Switchback</option>
+            <option value="serpent">Forest Serpent</option>
+            <option value="neonSerpent">Neon Night</option>
+            <option value="citygrid">Downtown City</option>
+            <option value="volcano">Volcano Ember</option>
+            <option value="cavern">Crystal Cavern</option>
+            <option value="lunar">Lunar Moonscape</option>
+            <option value="harbor">Harbor Docks</option>
+            <option value="redwood">Redwood Forest</option>
+            <option value="glacier">Glacier Ice</option>
+            <option value="foggyMansion">Foggy Mansion</option>
+          </select>
+        </div>
+        <div class="loginField">
+          <label for="editorWeatherSelect">Weather</label>
+          <select class="loginInput" id="editorWeatherSelect">
+            <option value="clear">Clear</option>
+            <option value="rain">Rain</option>
+            <option value="snow">Snow</option>
+            <option value="ash">Ashfall</option>
+            <option value="fog">Fog</option>
+          </select>
+        </div>
+        <div class="loginField">
+          <label for="editorDifficultySelect">Difficulty</label>
+          <select class="loginInput" id="editorDifficultySelect">
+            <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734;&#9734;</option>
+            <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734;&#9734;</option>
+            <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734;&#9734;</option>
+            <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734;&#9734;</option>
+            <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733;&#9734;</option>
+            <option value="6">&#9733;&#9733;&#9733;&#9733;&#9733;&#9733;</option>
+          </select>
+        </div>
+        <div class="loginField">
+          <label for="editorLapsInput">Laps</label>
+          <input class="loginInput" id="editorLapsInput" type="number" min="2" max="8" value="3">
+        </div>
+        <div class="loginField">
+          <label for="editorWidthInput">Track width</label>
+          <input class="loginInput" id="editorWidthInput" type="number" min="14" max="30" value="20">
+        </div>
+      </div>
+
+      <div class="btnRow" style="margin-bottom:26px;">
+        <button class="btn" id="editorSaveBtn" type="button">Save Track</button>
+      </div>
+
+      <h2 class="sectionTitle">Your Custom Tracks</h2>
+      <div class="customTrackList" id="editorTrackList"></div>
     </div>
   </section>
 
@@ -2325,6 +2432,43 @@ const STAGES = [
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
 
+/* ---------- Custom tracks (Track Editor) ----------
+   Player-drawn tracks are stored locally (per-browser) as raw point lists
+   and appended to STAGES at runtime after the fixed built-in tracks, so
+   every other system that indexes into STAGES (best laps, name overrides,
+   the stage grid, buildTrack) just works without special-casing. Custom
+   tracks are intentionally left out of the online random-track pool
+   (BUILTIN_STAGE_COUNT) since a track drawn on one device doesn't exist on
+   anyone else's. */
+const BUILTIN_STAGE_COUNT = STAGES.length;
+const CUSTOM_TRACKS_KEY = 'velocityCircuit_customTracks';
+let customTracks = [];
+function loadCustomTracks(){
+  try{
+    const raw = localStorage.getItem(CUSTOM_TRACKS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    customTracks = Array.isArray(parsed) ? parsed.filter(t=>t && Array.isArray(t.points) && t.points.length>=3) : [];
+  }catch(e){ customTracks = []; }
+  rebuildStagesFromCustomTracks();
+}
+function saveCustomTracksToStorage(){
+  try{ localStorage.setItem(CUSTOM_TRACKS_KEY, JSON.stringify(customTracks)); }catch(e){}
+}
+// Drops any previously-appended custom stage objects and re-appends fresh
+// ones from `customTracks` — called after every add/edit/delete so STAGES
+// stays in sync with what's saved.
+function rebuildStagesFromCustomTracks(){
+  STAGES.length = BUILTIN_STAGE_COUNT;
+  customTracks.forEach(ct=>{
+    STAGES.push({
+      name: ct.name, type: ct.theme || 'oval', desc: 'A custom track.',
+      difficulty: ct.difficulty || 1, width: ct.width || TRACK_WIDTH,
+      unlockRaces: 0, laps: ct.laps || DEFAULT_LAPS, weather: ct.weather || 'clear',
+      custom: true, customId: ct.id, customPoints: ct.points
+    });
+  });
+}
+
 /* ---------- Weather ----------
    Each stage carries a fixed `weather` tag (see STAGES above). WEATHER_DEFS
    maps that tag to a uniform set of track-condition multipliers applied to
@@ -2751,6 +2895,7 @@ function renameCar(i, newName){
   saveCarNameOverrides();
 }
 loadCarNameOverrides();
+loadCustomTracks();
 
 // Harder tracks pay out more, and easier/earlier tracks pay out less: the
 // easiest track (difficulty 1) now pays half of the old baseline, scaling up
@@ -2766,6 +2911,7 @@ const $ = id => document.getElementById(id);
 const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), upgradesScreen = $('upgradesScreen'), gameScreen = $('gameScreen');
 const modeScreen = $('modeScreen'), onlineScreen = $('onlineScreen'), circuitScreen = $('circuitScreen');
 const spectateScreen = $('spectateScreen');
+const editorScreen = $('editorScreen');
 const liveRegion = $('liveRegion');
 
 function announce(text){ liveRegion.textContent = ''; requestAnimationFrame(()=>{ liveRegion.textContent = text; }); }
@@ -2779,6 +2925,7 @@ function showScreen(name){
   garageScreen.hidden = name!=='garage';
   upgradesScreen.hidden = name!=='upgrades';
   circuitScreen.hidden = name!=='circuit';
+  editorScreen.hidden = name!=='editor';
   gameScreen.hidden = name!=='game';
 }
 
@@ -2829,7 +2976,7 @@ function renderStageGrid(){
     }
     card.innerHTML = `
       <canvas class="stageThumb" data-stage="${i}" width="376" height="180" aria-hidden="true"></canvas>
-      <p class="stageName">${unlocked ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
+      <p class="stageName">${unlocked ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}${s.custom ? ' <span class="stageMeta" aria-hidden="true">🛠️</span>' : ''}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
       ${s.weather && s.weather !== 'clear' ? `<p class="stageMeta">${WEATHER_DEFS[s.weather].emoji} ${WEATHER_DEFS[s.weather].label} — ${weatherHazardBlurb(s.weather)}</p>` : ''}
@@ -2872,9 +3019,10 @@ function blitStageThumbs(){
     if(stagePhotos[i]){
       ctx.drawImage(stagePhotos[i], 0, 0, cv.width, cv.height);
     } else {
+      const grad = s.grad || (SCENERY_THEMES[s.type] && SCENERY_THEMES[s.type].sky) || ['#8a6f52','#c1502e'];
       const g = ctx.createLinearGradient(0, 0, cv.width, cv.height);
-      g.addColorStop(0, s.grad[0]);
-      g.addColorStop(1, s.grad[1]);
+      g.addColorStop(0, grad[0]);
+      g.addColorStop(1, grad[1]);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, cv.width, cv.height);
     }
@@ -2981,6 +3129,292 @@ $('leaderboardTabRacersBtn').addEventListener('click', ()=> setLeaderboardTab('r
 $('leaderboardTabTracksBtn').addEventListener('click', ()=> setLeaderboardTab('tracks'));
 $('leaderboardTabFriendsBtn').addEventListener('click', ()=> setLeaderboardTab('friends'));
 $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
+
+/* ---------- Track Editor ----------
+   A freehand track designer: click/tap the canvas to drop anchor points
+   forming a closed loop, drag a point to reposition it, click a point again
+   (without dragging) to delete it. On save, the raw points are stored in
+   world units (see EDITOR_RANGE) inside `customTracks` and STAGES is
+   rebuilt so the new track shows up on the home screen grid exactly like a
+   built-in one — buildTrack() smooths the raw points into a full centerline
+   via resampleCustomCenterline() (see generateCenterline above). */
+const EDITOR_RANGE = 140;      // world units from canvas center to its edge
+const EDITOR_MAX_POINTS = 40;
+const EDITOR_MIN_POINTS = 4;
+const EDITOR_HIT_PX = 20;      // pointer-to-point hit radius, in canvas pixels
+let editorPoints = [];         // [{x,z}, ...] in world units, drawing in progress
+let editorDragIndex = -1;
+let editorDragMoved = false;
+let editingCustomId = null;    // id of the custom track being edited, or null for a new one
+let editorMsgTimer = null;
+
+function editorSetMsg(text){
+  const el = $('editorMsg');
+  if(!el) return;
+  el.textContent = text || '';
+}
+
+function editorPixelFromEvent(evt){
+  const canvas = $('editorCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  return {
+    px: (clientX - rect.left) / rect.width * canvas.width,
+    py: (clientY - rect.top) / rect.height * canvas.height
+  };
+}
+function editorPixelToWorld(px, py){
+  const canvas = $('editorCanvas');
+  return {
+    x: (px / canvas.width - 0.5) * 2 * EDITOR_RANGE,
+    z: (py / canvas.height - 0.5) * 2 * EDITOR_RANGE
+  };
+}
+function editorWorldToPixel(x, z){
+  const canvas = $('editorCanvas');
+  return {
+    px: (x / (2*EDITOR_RANGE) + 0.5) * canvas.width,
+    py: (z / (2*EDITOR_RANGE) + 0.5) * canvas.height
+  };
+}
+function editorFindPointNear(px, py){
+  for(let i=0;i<editorPoints.length;i++){
+    const p = editorWorldToPixel(editorPoints[i].x, editorPoints[i].z);
+    if(Math.hypot(p.px-px, p.py-py) <= EDITOR_HIT_PX) return i;
+  }
+  return -1;
+}
+
+function drawEditorCanvas(){
+  const canvas = $('editorCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H); // canvas's own CSS background (theme-aware) shows through
+
+  // Reference grid
+  ctx.strokeStyle = 'rgba(128,128,128,0.18)';
+  ctx.lineWidth = 1;
+  const GRID = 8;
+  for(let i=1;i<GRID;i++){
+    const gx = W/GRID*i, gy = H/GRID*i;
+    ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(128,128,128,0.32)';
+  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+
+  // Path preview
+  if(editorPoints.length >= 2){
+    ctx.strokeStyle = '#c1502e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    editorPoints.forEach((p,i)=>{
+      const {px,py} = editorWorldToPixel(p.x,p.z);
+      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    });
+    if(editorPoints.length >= 3){
+      const first = editorWorldToPixel(editorPoints[0].x, editorPoints[0].z);
+      ctx.lineTo(first.px, first.py);
+    }
+    ctx.stroke();
+  }
+  // Points
+  editorPoints.forEach((p,i)=>{
+    const {px,py} = editorWorldToPixel(p.x,p.z);
+    ctx.beginPath();
+    ctx.arc(px, py, i===0 ? 9 : 7, 0, Math.PI*2);
+    ctx.fillStyle = i===0 ? '#6f8f46' : '#c1502e';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#fff8ef';
+    ctx.stroke();
+  });
+
+  const countEl = $('editorPointCount');
+  if(countEl) countEl.textContent = editorPoints.length;
+}
+
+function editorPointerDown(e){
+  e.preventDefault();
+  const {px,py} = editorPixelFromEvent(e);
+  const hit = editorFindPointNear(px,py);
+  if(hit !== -1){
+    editorDragIndex = hit;
+    editorDragMoved = false;
+    try{ $('editorCanvas').setPointerCapture(e.pointerId); }catch(err){}
+  } else {
+    if(editorPoints.length >= EDITOR_MAX_POINTS){ editorSetMsg('That\u2019s the max — ' + EDITOR_MAX_POINTS + ' points.'); return; }
+    editorPoints.push(editorPixelToWorld(px,py));
+    editorSetMsg('');
+    drawEditorCanvas();
+  }
+}
+function editorPointerMove(e){
+  if(editorDragIndex === -1) return;
+  e.preventDefault();
+  editorDragMoved = true;
+  const {px,py} = editorPixelFromEvent(e);
+  editorPoints[editorDragIndex] = editorPixelToWorld(px,py);
+  drawEditorCanvas();
+}
+function editorPointerUp(e){
+  if(editorDragIndex === -1) return;
+  const idx = editorDragIndex;
+  if(!editorDragMoved){
+    editorPoints.splice(idx,1);
+    drawEditorCanvas();
+  }
+  editorDragIndex = -1;
+  editorDragMoved = false;
+}
+
+function renderCustomTrackList(){
+  const wrap = $('editorTrackList');
+  if(!wrap) return;
+  if(customTracks.length === 0){
+    wrap.innerHTML = '<p class="stageMeta">No custom tracks yet — draw one above and save it.</p>';
+    return;
+  }
+  wrap.innerHTML = '';
+  customTracks.forEach(ct=>{
+    const row = document.createElement('div');
+    row.className = 'customTrackRow';
+    const info = document.createElement('span');
+    info.innerHTML = '<strong>' + escapeHtml(ct.name) + '</strong> <span class="stageMeta">(' + ct.points.length + ' points &middot; ' + ct.laps + ' laps)</span>';
+    const btns = document.createElement('div');
+    btns.className = 'customTrackBtns';
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button'; editBtn.className = 'btn secondary'; editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', ()=> openEditorForEdit(ct.id));
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button'; delBtn.className = 'btn danger'; delBtn.textContent = 'Delete';
+    delBtn.addEventListener('click', ()=>{
+      if(confirm('Delete "' + ct.name + '"? This can\u2019t be undone.')) deleteCustomTrack(ct.id);
+    });
+    btns.appendChild(editBtn); btns.appendChild(delBtn);
+    row.appendChild(info); row.appendChild(btns);
+    wrap.appendChild(row);
+  });
+}
+
+function openEditorForNew(){
+  editingCustomId = null;
+  editorPoints = [];
+  editorDragIndex = -1;
+  $('editorScreenTitle').textContent = 'Track Editor \u2014 New Track';
+  $('editorNameInput').value = '';
+  $('editorThemeSelect').value = 'oval';
+  $('editorWeatherSelect').value = 'clear';
+  $('editorDifficultySelect').value = '2';
+  $('editorLapsInput').value = DEFAULT_LAPS;
+  $('editorWidthInput').value = TRACK_WIDTH;
+  editorSetMsg('');
+  drawEditorCanvas();
+  renderCustomTrackList();
+}
+function openEditorForEdit(id){
+  const ct = customTracks.find(c=>c.id===id);
+  if(!ct) return;
+  editingCustomId = id;
+  editorPoints = ct.points.map(p=> ({ x:p[0], z:p[1] }));
+  editorDragIndex = -1;
+  $('editorScreenTitle').textContent = 'Track Editor \u2014 Editing "' + ct.name + '"';
+  $('editorNameInput').value = ct.name;
+  $('editorThemeSelect').value = ct.theme || 'oval';
+  $('editorWeatherSelect').value = ct.weather || 'clear';
+  $('editorDifficultySelect').value = String(ct.difficulty || 2);
+  $('editorLapsInput').value = ct.laps || DEFAULT_LAPS;
+  $('editorWidthInput').value = ct.width || TRACK_WIDTH;
+  editorSetMsg('');
+  drawEditorCanvas();
+  renderCustomTrackList();
+  showScreen('editor');
+}
+
+function saveCustomTrack(){
+  if(editorPoints.length < EDITOR_MIN_POINTS){
+    editorSetMsg('Add at least ' + EDITOR_MIN_POINTS + ' points to close the loop.');
+    return;
+  }
+  const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
+  let name = rawName || ('Custom Track ' + (customTracks.length + 1));
+  const collides = STAGES.some(s => s.name === name && s.customId !== editingCustomId);
+  if(collides) name = name + ' ' + String(Date.now()).slice(-4);
+
+  const theme = $('editorThemeSelect').value;
+  const weather = $('editorWeatherSelect').value;
+  const difficulty = Math.max(1, Math.min(6, parseInt($('editorDifficultySelect').value,10) || 2));
+  const laps = Math.max(2, Math.min(8, parseInt($('editorLapsInput').value,10) || DEFAULT_LAPS));
+  const width = Math.max(14, Math.min(30, parseInt($('editorWidthInput').value,10) || TRACK_WIDTH));
+  const points = editorPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
+
+  if(editingCustomId){
+    const ct = customTracks.find(c=>c.id===editingCustomId);
+    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points });
+  } else {
+    customTracks.push({
+      id: 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      name, theme, weather, difficulty, laps, width, points
+    });
+  }
+  saveCustomTracksToStorage();
+  rebuildStagesFromCustomTracks();
+  editingCustomId = null;
+  editorSetMsg('Track saved!');
+  renderCustomTrackList();
+  renderStageGrid();
+  if(editorMsgTimer) clearTimeout(editorMsgTimer);
+  editorMsgTimer = setTimeout(()=>{ showScreen('home'); }, 700);
+}
+
+// Deleting a custom track shifts every later custom track's STAGES index
+// down by one to fill the gap — best-lap records and name overrides (both
+// keyed by that numeric index) are shifted along with it so they stay
+// attached to the right track instead of leaking onto its new neighbor.
+function deleteCustomTrack(id){
+  const pos = customTracks.findIndex(c=>c.id===id);
+  if(pos === -1) return;
+  const stageIdx = BUILTIN_STAGE_COUNT + pos;
+  const oldLastIdx = BUILTIN_STAGE_COUNT + customTracks.length - 1;
+  customTracks.splice(pos,1);
+  for(let i=stageIdx; i<oldLastIdx; i++){
+    if(gameState.bestLaps[i+1] !== undefined) gameState.bestLaps[i] = gameState.bestLaps[i+1];
+    else delete gameState.bestLaps[i];
+    if(trackNameOverrides[i+1] !== undefined) trackNameOverrides[i] = trackNameOverrides[i+1];
+    else delete trackNameOverrides[i];
+  }
+  delete gameState.bestLaps[oldLastIdx];
+  delete trackNameOverrides[oldLastIdx];
+  saveState();
+  saveTrackNameOverrides();
+  saveCustomTracksToStorage();
+  rebuildStagesFromCustomTracks();
+  if(selectedStage >= STAGES.length) selectedStage = 0;
+  if(editingCustomId === id) openEditorForNew();
+  renderCustomTrackList();
+  renderStageGrid();
+}
+
+$('openEditorBtn').addEventListener('click', ()=>{ openEditorForNew(); showScreen('editor'); });
+$('editorBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
+$('editorNewBtn').addEventListener('click', openEditorForNew);
+$('editorUndoBtn').addEventListener('click', ()=>{ editorPoints.pop(); editorSetMsg(''); drawEditorCanvas(); });
+$('editorClearBtn').addEventListener('click', ()=>{
+  if(editorPoints.length && !confirm('Clear all points?')) return;
+  editorPoints = []; editorSetMsg(''); drawEditorCanvas();
+});
+$('editorSaveBtn').addEventListener('click', saveCustomTrack);
+(function initEditorCanvas(){
+  const canvas = $('editorCanvas');
+  if(!canvas) return;
+  canvas.addEventListener('pointerdown', editorPointerDown);
+  canvas.addEventListener('pointermove', editorPointerMove);
+  canvas.addEventListener('pointerup', editorPointerUp);
+  canvas.addEventListener('pointercancel', editorPointerUp);
+})();
 
 /* ---------- Championship screen ---------- */
 function renderCircuitScreen(){
@@ -3668,7 +4102,21 @@ function genFoggyMansion(N){
   }
   return pts;
 }
-function generateCenterline(type, N){
+// Resamples a player-drawn point list (from the Track Editor) into N evenly
+// spaced points around a smooth closed loop, via a closed Catmull-Rom spline
+// through the raw anchor points — same output shape as the procedural
+// gen* functions below, so it drops straight into the rest of buildTrack.
+function resampleCustomCenterline(rawPoints, N){
+  const anchors = rawPoints.map(p=> Array.isArray(p)
+    ? new THREE.Vector3(p[0], 0, p[1])
+    : new THREE.Vector3(p.x, 0, p.z));
+  const curve = new THREE.CatmullRomCurve3(anchors, true, 'catmullrom', 0.5);
+  // getSpacedPoints(N) returns N+1 points (evenly spaced by arc length) for
+  // a closed curve, with the last point duplicating the first — trim it.
+  return curve.getSpacedPoints(N).slice(0, N);
+}
+function generateCenterline(type, N, customPoints){
+  if(customPoints && customPoints.length >= 3) return resampleCustomCenterline(customPoints, N);
   if(type==='oval') return genOval(N);
   if(type==='stadium') return genStadium(N);
   if(type==='iceRibbon') return genIceRibbon(N);
@@ -4680,7 +5128,7 @@ function buildTrack(stageIndex){
   const stage = STAGES[stageIndex];
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
   const trackWidth = stage.width || TRACK_WIDTH;
-  const rawPoints = generateCenterline(stage.type, N_POINTS);
+  const rawPoints = generateCenterline(stage.type, N_POINTS, stage.customPoints);
   const points = relaxCenterlineForWidth(rawPoints, trackWidth);
   const { normals } = computeTangentsNormals(points);
   const half = trackWidth/2;
@@ -6140,7 +6588,7 @@ const Online = {
     const room = {
       roomId: this.myId + '-' + Date.now(),
       hostId: this.myId,
-      stageIndex: Math.floor(Math.random()*STAGES.length),
+      stageIndex: Math.floor(Math.random()*BUILTIN_STAGE_COUNT), // custom tracks are local-only, never picked online
       startInMs: 5000,
       players: this.roster.slice(0,4)
     };
