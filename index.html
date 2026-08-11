@@ -1016,6 +1016,7 @@
 
       <div class="btnRow" style="margin-bottom:26px;">
         <button class="btn" id="editorSaveBtn" type="button">Save Track</button>
+        <button class="btn" id="editorTestBtn" type="button" style="background:var(--good);">&#127937; Save &amp; Test Drive</button>
       </div>
 
       <h2 class="sectionTitle">Your Custom Tracks</h2>
@@ -3286,6 +3287,12 @@ function renderCustomTrackList(){
     info.innerHTML = '<strong>' + escapeHtml(ct.name) + '</strong> <span class="stageMeta">(' + ct.points.length + ' points &middot; ' + ct.laps + ' laps)</span>';
     const btns = document.createElement('div');
     btns.className = 'customTrackBtns';
+    const raceBtn = document.createElement('button');
+    raceBtn.type = 'button'; raceBtn.className = 'btn'; raceBtn.style.background = 'var(--good)'; raceBtn.textContent = '\uD83C\uDFC1 Race';
+    raceBtn.addEventListener('click', ()=>{
+      const idx = STAGES.findIndex(s => s.customId === ct.id);
+      if(idx !== -1){ selectedStage = idx; startRace(idx); }
+    });
     const editBtn = document.createElement('button');
     editBtn.type = 'button'; editBtn.className = 'btn secondary'; editBtn.textContent = 'Edit';
     editBtn.addEventListener('click', ()=> openEditorForEdit(ct.id));
@@ -3294,7 +3301,7 @@ function renderCustomTrackList(){
     delBtn.addEventListener('click', ()=>{
       if(confirm('Delete "' + ct.name + '"? This can\u2019t be undone.')) deleteCustomTrack(ct.id);
     });
-    btns.appendChild(editBtn); btns.appendChild(delBtn);
+    btns.appendChild(raceBtn); btns.appendChild(editBtn); btns.appendChild(delBtn);
     row.appendChild(info); row.appendChild(btns);
     wrap.appendChild(row);
   });
@@ -3334,10 +3341,26 @@ function openEditorForEdit(id){
   showScreen('editor');
 }
 
-function saveCustomTrack(){
+// True when the canvas has points that haven't been written to
+// `customTracks` yet — used to warn before New Track / Back discard them.
+function editorHasUnsavedWork(){
+  if(editorPoints.length === 0) return false;
+  if(!editingCustomId) return true; // a fresh, never-saved drawing
+  const ct = customTracks.find(c=>c.id===editingCustomId);
+  if(!ct) return true;
+  const current = editorPoints.map(p=>[Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
+  if(current.length !== ct.points.length) return true;
+  return current.some((p,i)=> p[0]!==ct.points[i][0] || p[1]!==ct.points[i][1]);
+}
+
+// Saves the current drawing into `customTracks` and STAGES. Returns the
+// STAGES index of the saved track, or -1 if validation failed (a message is
+// shown in that case). When `raceAfter` is true, jumps straight into a real
+// 3D race on the track that was just saved instead of returning home.
+function saveCustomTrack(raceAfter){
   if(editorPoints.length < EDITOR_MIN_POINTS){
     editorSetMsg('Add at least ' + EDITOR_MIN_POINTS + ' points to close the loop.');
-    return;
+    return -1;
   }
   const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
   let name = rawName || ('Custom Track ' + (customTracks.length + 1));
@@ -3351,23 +3374,33 @@ function saveCustomTrack(){
   const width = Math.max(14, Math.min(30, parseInt($('editorWidthInput').value,10) || TRACK_WIDTH));
   const points = editorPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
 
+  let savedId = editingCustomId;
   if(editingCustomId){
     const ct = customTracks.find(c=>c.id===editingCustomId);
     if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points });
-  } else {
-    customTracks.push({
-      id: 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-      name, theme, weather, difficulty, laps, width, points
-    });
+    else { savedId = null; }
+  }
+  if(!savedId){
+    savedId = 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    customTracks.push({ id: savedId, name, theme, weather, difficulty, laps, width, points });
   }
   saveCustomTracksToStorage();
   rebuildStagesFromCustomTracks();
-  editingCustomId = null;
-  editorSetMsg('Track saved!');
+  editingCustomId = savedId;
+  $('editorScreenTitle').textContent = 'Track Editor \u2014 Editing "' + name + '"';
   renderCustomTrackList();
   renderStageGrid();
+
+  const idx = STAGES.findIndex(s => s.customId === savedId);
+  if(raceAfter && idx !== -1){
+    selectedStage = idx;
+    startRace(idx); // startRace() switches to the game screen itself
+    return idx;
+  }
+  editorSetMsg('Track saved!');
   if(editorMsgTimer) clearTimeout(editorMsgTimer);
   editorMsgTimer = setTimeout(()=>{ showScreen('home'); }, 700);
+  return idx;
 }
 
 // Deleting a custom track shifts every later custom track's STAGES index
@@ -3399,14 +3432,21 @@ function deleteCustomTrack(id){
 }
 
 $('openEditorBtn').addEventListener('click', ()=>{ openEditorForNew(); showScreen('editor'); });
-$('editorBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
-$('editorNewBtn').addEventListener('click', openEditorForNew);
+$('editorBackBtn').addEventListener('click', ()=>{
+  if(editorHasUnsavedWork() && !confirm('Leave without saving? Your unsaved changes to this track will be lost.')) return;
+  showScreen('home');
+});
+$('editorNewBtn').addEventListener('click', ()=>{
+  if(editorHasUnsavedWork() && !confirm('Start a new track? Your unsaved changes to the current one will be lost \u2014 click Cancel and use Save Track first if you want to keep it.')) return;
+  openEditorForNew();
+});
 $('editorUndoBtn').addEventListener('click', ()=>{ editorPoints.pop(); editorSetMsg(''); drawEditorCanvas(); });
 $('editorClearBtn').addEventListener('click', ()=>{
   if(editorPoints.length && !confirm('Clear all points?')) return;
   editorPoints = []; editorSetMsg(''); drawEditorCanvas();
 });
-$('editorSaveBtn').addEventListener('click', saveCustomTrack);
+$('editorSaveBtn').addEventListener('click', ()=> saveCustomTrack(false));
+$('editorTestBtn').addEventListener('click', ()=> saveCustomTrack(true));
 (function initEditorCanvas(){
   const canvas = $('editorCanvas');
   if(!canvas) return;
