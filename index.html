@@ -110,6 +110,16 @@
   .homeStatsBar .homeActionsRow .btn{ font-size:12px; padding:6px 10px; min-height:auto; letter-spacing:.2px; flex:1; }
   .homeStatsBar .globalChatBtn{ position:relative; }
 
+  /* Track-screen action buttons (top-right of the Home/Track-select screen):
+     Menu, Garage, Upgrades, Championships, Achievements, Leaderboard — used
+     to sit in a row at the bottom of the screen; moved up here so they're
+     reachable without scrolling past the whole track grid. */
+  .homeTrackActions{ position:fixed; top:16px; right:16px; z-index:20;
+    display:flex; flex-direction:column; gap:8px; align-items:stretch;
+    width:min(190px,calc(100vw - 32px)); transition:opacity .15s, visibility .15s; }
+  .homeTrackActions.hiddenForOverlay{ opacity:0; visibility:hidden; pointer-events:none; }
+  .homeTrackActions .btn{ font-size:13px; padding:8px 14px; min-height:auto; letter-spacing:.2px; white-space:nowrap; }
+
   .profileBar{ position:fixed; top:64px; right:16px; background:var(--panel); border:1px solid var(--border);
     padding:8px 14px; border-radius:999px; font-weight:600; font-size:13px; display:flex; align-items:center; gap:10px; z-index:20; color:var(--muted); }
   .profileBar strong{ color:var(--text); }
@@ -670,6 +680,14 @@
         </button>
       </div>
     </div>
+    <div class="homeTrackActions" id="homeTrackActions" aria-label="Track screen actions">
+      <button class="btn ghost" id="homeMenuBtn">Menu</button>
+      <button class="btn secondary" id="openGarageBtn">Garage</button>
+      <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
+      <button class="btn secondary" id="openCircuitBtn"><span class="emoji" aria-hidden="true">🏆</span> Championships</button>
+      <button class="btn secondary" id="homeAchievementsBtn">🏅 Achievements</button>
+      <button class="btn secondary" id="homeLeaderboardBtn">🏁 Leaderboard</button>
+    </div>
     <h1 class="title">VELOCITY <span>CIRCUIT</span></h1>
     <p class="subtitle">Race laps. Earn coins. Upgrade your car.</p>
 
@@ -684,15 +702,6 @@
       <div style="font-weight:800;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Challenges</div>
       <div id="homeDailyChallengeText" style="font-size:14px;margin-bottom:6px;">Loading…</div>
       <div id="homeWeeklyChallengeText" style="font-size:14px;">Loading…</div>
-    </div>
-
-    <div class="btnRow">
-      <button class="btn ghost" id="homeMenuBtn">Menu</button>
-      <button class="btn secondary" id="openGarageBtn">Garage</button>
-      <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
-      <button class="btn secondary" id="openCircuitBtn"><span class="emoji" aria-hidden="true">🏆</span> Championships</button>
-      <button class="btn secondary" id="homeAchievementsBtn">🏅 Achievements</button>
-      <button class="btn secondary" id="homeLeaderboardBtn">🏁 Leaderboard</button>
     </div>
 
     <div class="overlay" id="achievementsOverlay" hidden>
@@ -9874,16 +9883,18 @@ function animate(now){
     if(PhotoMode.active) PhotoMode.exit();
   }
 
-  // The Home Screen's condensed stats box should duck out of the way the
-  // instant any fullscreen popup (Chat, Friends, Achievements, Player
-  // Stats) opens above it, and reappear once they're all closed again —
-  // checked centrally here so it stays correct no matter which popup(s)
-  // opened or closed it.
+  // The Home Screen's condensed stats box (and the track-actions button
+  // group) should duck out of the way the instant any fullscreen popup
+  // (Chat, Friends, Achievements, Player Stats) opens above it, and
+  // reappear once they're all closed again — checked centrally here so it
+  // stays correct no matter which popup(s) opened or closed it.
   const homeBar = $('homeStatsBar');
-  if(homeBar){
+  const trackActions = $('homeTrackActions');
+  if(homeBar || trackActions){
     const popupOpen = ['achievementsOverlay','leaderboardOverlay','ownerStatsOverlay','globalChatOverlay','friendsOverlay']
       .some(id => { const el = $(id); return el && !el.hidden; });
-    homeBar.classList.toggle('hiddenForOverlay', popupOpen);
+    if(homeBar) homeBar.classList.toggle('hiddenForOverlay', popupOpen);
+    if(trackActions) trackActions.classList.toggle('hiddenForOverlay', popupOpen);
   }
 
   Gamepad.poll(dt);
