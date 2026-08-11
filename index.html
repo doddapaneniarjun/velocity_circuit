@@ -261,12 +261,25 @@
   .btn.danger{ background:var(--danger); color:#fff8ef; }
   .editorWrap{ padding-bottom:10px; }
   .editorHint{ color:var(--muted); font-size:13px; text-align:center; max-width:640px; margin:0 auto 14px; line-height:1.5; }
-  .editorCanvasWrap{ width:min(560px,92vw); margin:0 auto 14px; }
+  .editorCanvasWrap{ width:min(560px,92vw); margin:0 auto 14px; position:relative; }
   #editorCanvas{ width:100%; aspect-ratio:1/1; display:block; background:var(--track-bg);
-    border:2px solid var(--border-strong); border-radius:var(--radius); touch-action:none; cursor:crosshair; }
+    border:2px solid var(--border-strong); border-radius:var(--radius); touch-action:none; cursor:grab; }
+  #editorCanvas.dragging{ cursor:grabbing; }
   .editorToolbar{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:center; margin-bottom:6px; }
   .editorToolbar .btn{ font-size:13px; padding:9px 16px; min-height:auto; }
   .editorToolbar .btn.active{ background:var(--accent); color:#fff8ef; border-color:var(--accent); }
+  .editorPieceGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(108px,1fr)); gap:10px;
+    width:min(640px,94vw); margin:0 auto 12px; }
+  .editorPieceBtn{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px;
+    border-radius:12px; border:2px solid var(--border-strong); background:var(--panel); color:var(--text);
+    font:inherit; font-weight:700; font-size:12px; cursor:pointer; transition:border-color .15s, transform .1s; }
+  .editorPieceBtn:hover{ border-color:var(--accent); transform:translateY(-1px); }
+  .editorPieceBtn:active{ transform:translateY(0); }
+  .editorPieceBtn .pieceEmoji{ font-size:22px; line-height:1; }
+  .editorPieceBtn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+  .editorLoopStatus{ text-align:center; font-weight:700; font-size:13px; margin:0 0 10px; }
+  .editorLoopStatus.open{ color:var(--danger); }
+  .editorLoopStatus.closed{ color:var(--good); }
   .editorForm{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px 18px;
     max-width:780px; margin:14px auto 6px; text-align:left; }
   .editorForm .loginField{ margin-bottom:0; }
@@ -946,22 +959,27 @@
         <button class="btn secondary" id="editorNewBtn">&#65291; New Track</button>
       </div>
 
-      <p class="editorHint">This is a live 3D view. Click empty ground to add a point, drag a point to move it, click a point again (without dragging) to remove it. Use &ldquo;Move Track&rdquo; to drag the whole loop at once, &ldquo;Rotate Track&rdquo; to spin it in place, and the Orbit buttons or scroll/pinch to look around. Add at least 4 points — the loop closes automatically and the finish line sits at your first (green) point. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
+      <p class="editorHint">Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — &ldquo;Save Track&rdquo; unlocks once it's closed. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
 
       <div class="editorCanvasWrap">
-        <canvas id="editorCanvas" width="640" height="640" aria-label="Track shape drawing area"></canvas>
+        <canvas id="editorCanvas" width="640" height="640" aria-label="3D track preview — drag to orbit"></canvas>
+      </div>
+
+      <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces and steer back to the start gate to close the loop.</p>
+
+      <div class="editorPieceGrid" id="editorPieceGrid"><!-- piece buttons injected by JS --></div>
+
+      <div class="editorToolbar">
+        <button class="btn secondary" id="editorUndoBtn" type="button">&#8617; Remove Last Piece</button>
+        <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
+        <span class="stageMeta" style="align-self:center;"><span id="editorPointCount">0</span> pieces placed</span>
       </div>
       <div class="editorToolbar">
         <button class="btn secondary" id="editorMoveModeBtn" type="button">&#9995; Move Track</button>
         <button class="btn secondary" id="editorRotateTrackLeftBtn" type="button">&#8634; Rotate Track</button>
         <button class="btn secondary" id="editorRotateTrackRightBtn" type="button">Rotate Track &#8635;</button>
-      </div>
-      <div class="editorToolbar">
         <button class="btn secondary" id="editorRotateLeftBtn" type="button">&#8634; Orbit</button>
         <button class="btn secondary" id="editorRotateRightBtn" type="button">Orbit &#8635;</button>
-        <button class="btn secondary" id="editorUndoBtn" type="button">Undo Point</button>
-        <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
-        <span class="stageMeta" style="align-self:center;"><span id="editorPointCount">0</span> points</span>
       </div>
       <p class="editorHint" id="editorMsg" role="status" aria-live="polite"></p>
 
@@ -3140,21 +3158,89 @@ $('leaderboardTabFriendsBtn').addEventListener('click', ()=> setLeaderboardTab('
 $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
 
 /* ---------- Track Editor ----------
-   A freehand track designer: click/tap the canvas to drop anchor points
-   forming a closed loop, drag a point to reposition it, click a point again
-   (without dragging) to delete it. On save, the raw points are stored in
-   world units (see EDITOR_RANGE) inside `customTracks` and STAGES is
-   rebuilt so the new track shows up on the home screen grid exactly like a
-   built-in one — buildTrack() smooths the raw points into a full centerline
-   via resampleCustomCenterline() (see generateCenterline above). */
-const EDITOR_RANGE = 140;      // world units from canvas center to its edge
-const EDITOR_MAX_POINTS = 40;
-const EDITOR_MIN_POINTS = 4;
-const EDITOR_HIT_PX = 20;      // pointer-to-point hit radius, in canvas pixels
-let editorPoints = [];         // [{x,z}, ...] in world units, drawing in progress
-let editorDragIndex = -1;
-let editorDragMoved = false;
+   A piece-based track designer: instead of freehand drawing, the creator
+   picks from a fixed catalog of track pieces (straights + left/right
+   curves of varying sharpness) and each pick snaps onto the end of the
+   track being built, live, inside an orbitable 3D scene. Internally each
+   placed piece is "traced" into a run of dense (x,z) anchor points in a
+   fixed local coordinate space (see computeChain); those anchor points are
+   exactly what gets stored in `customTracks` and fed to buildTrack() via
+   resampleCustomCenterline() (see generateCenterline above), so nothing
+   downstream (barriers, collision, AI, minimap) had to change — a
+   piece-built track is stored and raced identically to the old hand-drawn
+   ones. `editorPieces` (the piece-id sequence) is stored alongside so a
+   saved track can be re-opened and continued in piece form.
+
+   Playability / "no invisible walls" safeguards:
+   - Finite piece catalog (fixed turn angles/radii) instead of arbitrary
+     freehand clicks means the centerline can't zig-zag into the tight,
+     erratic curvature that used to make barrier geometry fold over itself.
+   - Each new piece is checked against every earlier piece's path (except
+     the immediate join and the start-gate region, see editorPieceCollides)
+     and rejected with a message if it would cross the track — the single
+     biggest cause of a car's collision boundary snapping to the wrong,
+     far-away part of the track (i.e. a wall appearing out of nowhere).
+   - The loop must actually close — end back up near the start gate,
+     facing a similar direction — before Save/Test unlock, so the closing
+     stretch is always a smooth continuation rather than a sharp jump cut
+     the spline would otherwise paper over.
+   - relaxCenterlineForWidth() and the barrier-overlap suppression in
+     buildTrack() (unchanged) remain as a second line of defense. */
+const EDITOR_RANGE = 140;        // world units from canvas center to its edge
+const EDITOR_MIN_PIECES = 6;
+const EDITOR_MAX_PIECES = 40;
+const EDITOR_CLOSE_DIST = 40;    // world units — how close the end must get to the start gate
+const EDITOR_CLOSE_ANGLE = Math.PI*0.30; // ~54° — how closely the end must face the start heading
+const EDITOR_SELF_CLEARANCE_PAD = 6;     // extra margin (world units) added to track width for the self-cross check
+
+/* ---------- Piece catalog ----------
+   Each piece traces a path forward from an entry cursor {x,z,heading} (a
+   position + facing angle in radians, forward = (cos h, sin h)) and
+   returns { pathPoints, exit } — pathPoints are new anchor points (NOT
+   including the entry point, which is already the chain's last point);
+   exit is the resulting cursor for the next piece. */
+function traceStraight(cursor, length, numSamples){
+  const h0 = cursor.heading, fx=Math.cos(h0), fz=Math.sin(h0);
+  const pts = [];
+  for(let i=1;i<=numSamples;i++){
+    const d = length*(i/numSamples);
+    pts.push({ x:cursor.x+fx*d, z:cursor.z+fz*d });
+  }
+  return { pathPoints: pts, exit:{ x:cursor.x+fx*length, z:cursor.z+fz*length, heading:h0 } };
+}
+function traceCurve(cursor, signedAngle, radius, numSamples){
+  const h0 = cursor.heading;
+  const s = signedAngle >= 0 ? 1 : -1;
+  const leftPerp = { x:-Math.sin(h0), z:Math.cos(h0) };
+  const center = { x: cursor.x + s*radius*leftPerp.x, z: cursor.z + s*radius*leftPerp.z };
+  const u0 = { x: cursor.x-center.x, z: cursor.z-center.z };
+  const pts = [];
+  let last = null;
+  for(let i=1;i<=numSamples;i++){
+    const t = signedAngle * (i/numSamples);
+    const ct=Math.cos(t), st=Math.sin(t);
+    const p = { x: center.x + (u0.x*ct - u0.z*st), z: center.z + (u0.x*st + u0.z*ct) };
+    pts.push(p);
+    last = p;
+  }
+  return { pathPoints: pts, exit:{ x:last.x, z:last.z, heading:h0+signedAngle } };
+}
+const TRACK_PIECES = {
+  straight:  { label:'Straight',       emoji:'\u2B06\uFE0F', trace:c=>traceStraight(c, 26, 2) },
+  straightS: { label:'Short Straight', emoji:'\u{1F53C}',     trace:c=>traceStraight(c, 13, 1) },
+  curveL30:  { label:'Gentle Left',    emoji:'\u2196\uFE0F',  trace:c=>traceCurve(c,  Math.PI/6,  34, 3) },
+  curveR30:  { label:'Gentle Right',   emoji:'\u2197\uFE0F',  trace:c=>traceCurve(c, -Math.PI/6,  34, 3) },
+  curveL60:  { label:'Sharp Left',     emoji:'\u2B05\uFE0F',  trace:c=>traceCurve(c,  Math.PI/3,  24, 4) },
+  curveR60:  { label:'Sharp Right',    emoji:'\u27A1\uFE0F',  trace:c=>traceCurve(c, -Math.PI/3,  24, 4) },
+  hairpinL:  { label:'Hairpin Left',   emoji:'\u21A9\uFE0F',  trace:c=>traceCurve(c,  Math.PI*0.66, 17, 6) },
+  hairpinR:  { label:'Hairpin Right',  emoji:'\u21AA\uFE0F',  trace:c=>traceCurve(c, -Math.PI*0.66, 17, 6) }
+};
+const PIECE_ORDER = ['straight','straightS','curveL30','curveR30','curveL60','curveR60','hairpinL','hairpinR'];
+
+let editorPieces = [];         // [pieceId, ...] — the track being built, in order
 let editingCustomId = null;    // id of the custom track being edited, or null for a new one
+let editorTransform = { dx:0, dz:0, rot:0 }; // whole-track move/rotate, applied on top of the piece chain
+let editorPoints = [];         // dense (x,z) anchors in WORLD space (chain + transform) — what gets saved/raced
 let editorMsgTimer = null;
 
 function editorSetMsg(text){
@@ -3162,30 +3248,109 @@ function editorSetMsg(text){
   if(!el) return;
   el.textContent = text || '';
 }
+function normalizeAngleLocal(a){
+  while(a > Math.PI) a -= Math.PI*2;
+  while(a < -Math.PI) a += Math.PI*2;
+  return a;
+}
+function getEditorWidth(){
+  const widthEl = $('editorWidthInput');
+  return Math.max(14, Math.min(30, parseInt(widthEl && widthEl.value, 10) || TRACK_WIDTH));
+}
 
-function editorPixelFromEvent(evt){
-  const canvas = $('editorCanvas');
-  const rect = canvas.getBoundingClientRect();
-  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-  return {
-    px: (clientX - rect.left) / rect.width * canvas.width,
-    py: (clientY - rect.top) / rect.height * canvas.height
-  };
+// Replays the whole piece sequence from a fixed local origin/heading and
+// returns the dense local-space anchor list (starting with the origin
+// point) plus the resulting end cursor. Pure function of `pieceIds` — the
+// whole-track Move/Rotate controls are applied separately, as a transform,
+// so this never has to be re-derived from world-space points.
+function computeChain(pieceIds){
+  let cursor = { x:0, z:0, heading:0 };
+  const points = [{ x:0, z:0 }];
+  pieceIds.forEach(id=>{
+    const piece = TRACK_PIECES[id];
+    if(!piece) return;
+    const res = piece.trace(cursor);
+    res.pathPoints.forEach(p=> points.push(p));
+    cursor = res.exit;
+  });
+  return { points, cursor };
+}
+function applyEditorTransform(points, t){
+  const cos=Math.cos(t.rot), sin=Math.sin(t.rot);
+  return points.map(p=> ({ x: p.x*cos - p.z*sin + t.dx, z: p.x*sin + p.z*cos + t.dz }));
+}
+
+// Distance-based self-intersection guard: checks candidate path points
+// (in LOCAL space, i.e. before the whole-track transform, which doesn't
+// affect relative distances) against the already-placed chain, skipping
+// points right at the join (expected to be close) and points right at the
+// start gate (the whole point of the last few pieces is to approach it).
+function editorPieceCollides(candidatePts, basePts){
+  const width = getEditorWidth();
+  const minDistSq = Math.pow(width + EDITOR_SELF_CLEARANCE_PAD, 2);
+  const joinSkip = 10;      // ~last 2 pieces' worth of points — naturally close to the new piece
+  const startSkip = 8;      // ~first piece's worth of points — the start gate the loop must approach
+  const hi = Math.max(0, basePts.length - joinSkip);
+  for(const cp of candidatePts){
+    for(let i=startSkip; i<hi; i++){
+      const bp = basePts[i];
+      const dx=cp.x-bp.x, dz=cp.z-bp.z;
+      if(dx*dx+dz*dz < minDistSq) return true;
+    }
+  }
+  return false;
+}
+
+function editorLoopStatus(){
+  const chain = computeChain(editorPieces);
+  const end = chain.cursor;
+  const dist = Math.hypot(end.x, end.z);
+  const angDiff = Math.abs(normalizeAngleLocal(end.heading));
+  const closed = editorPieces.length >= EDITOR_MIN_PIECES && dist <= EDITOR_CLOSE_DIST && angDiff <= EDITOR_CLOSE_ANGLE;
+  return { chain, dist, angDiff, closed };
+}
+function updateEditorLoopStatusUI(status){
+  const el = $('editorLoopStatus');
+  if(!el) return;
+  if(status.closed){
+    el.textContent = '\u2705 Loop closed — ready to save!';
+    el.className = 'editorLoopStatus closed';
+  } else if(editorPieces.length === 0){
+    el.textContent = 'Place at least ' + EDITOR_MIN_PIECES + ' pieces and steer back to the start gate to close the loop.';
+    el.className = 'editorLoopStatus open';
+  } else {
+    el.textContent = 'Not closed yet — ' + Math.round(status.dist) + ' units from the start gate. Keep building the loop back around.';
+    el.className = 'editorLoopStatus open';
+  }
+}
+
+// Tries to append a piece to the chain. Rejects (with a message, no
+// change) if it would cross the existing track or hit the piece cap.
+function tryAddPiece(pieceId){
+  const piece = TRACK_PIECES[pieceId];
+  if(!piece) return;
+  if(editorPieces.length >= EDITOR_MAX_PIECES){ editorSetMsg('That\u2019s the max — ' + EDITOR_MAX_PIECES + ' pieces.'); return; }
+  const chain = computeChain(editorPieces);
+  const res = piece.trace(chain.cursor);
+  if(editorPieceCollides(res.pathPoints, chain.points)){
+    editorSetMsg('That piece would cross the existing track — try a different one, or remove the last piece.');
+    return;
+  }
+  editorPieces.push(pieceId);
+  editorSetMsg('');
+  drawEditorCanvas();
 }
 
 /* ---------- Track Editor 3D view ----------
-   The editor used to be a flat top-down 2D canvas. It's now a live Three.js
-   scene: the same world-space points drive a 3D camera projection (for
-   hit-testing existing markers) and a ground-plane raycast (for placing/
-   moving them), so all the point add/drag/remove logic above and below is
-   unchanged — only how a screen pixel maps to/from a world (x,z) changed. */
-let editorScene=null, editorCamera=null, editorRenderer=null, editorGroundMesh=null, editorMarkersGroup=null, editorRibbonMesh=null;
+   A live, orbitable Three.js scene. Piece buttons drive what track exists;
+   dragging the canvas only orbits the camera around it (or, in Move mode,
+   drags the whole track). */
+let editorScene=null, editorCamera=null, editorRenderer=null, editorGroundMesh=null, editorMarkersGroup=null, editorRibbonMesh=null, editorGateMesh=null;
 let editorCamAzimuth = Math.PI*0.78, editorCamElevation = 0.85, editorCamDistance = 210;
-const EDITOR_CAM_MIN_DIST = 90, EDITOR_CAM_MAX_DIST = 420;
-const editorRaycaster = new THREE.Raycaster();
-const editorGroundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
-let editorSphereGeo = null, editorStartMat = null, editorPointMat = null, editorDragMat = null, editorRibbonMat = null;
+let editorCamTarget = { x:0, z:0 };
+const EDITOR_CAM_MIN_DIST = 60, EDITOR_CAM_MAX_DIST = 620;
+let editorSphereGeo = null, editorStartMat = null, editorPointMat = null, editorCursorMat = null, editorRibbonMat = null;
+let editorGateMatOpen = null, editorGateMatClosed = null;
 
 function initEditorScene(){
   if(editorScene) return;
@@ -3196,8 +3361,8 @@ function initEditorScene(){
   editorRenderer.setSize(canvas.width, canvas.height, false);
   editorScene = new THREE.Scene();
   editorScene.background = new THREE.Color(0xcfe0ea);
-  editorScene.fog = new THREE.Fog(0xcfe0ea, 260, 560);
-  editorCamera = new THREE.PerspectiveCamera(45, canvas.width/canvas.height, 1, 1400);
+  editorScene.fog = new THREE.Fog(0xcfe0ea, 260, 700);
+  editorCamera = new THREE.PerspectiveCamera(45, canvas.width/canvas.height, 1, 1800);
 
   editorScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.05));
   const sun = new THREE.DirectionalLight(0xffffff, 0.85);
@@ -3205,7 +3370,7 @@ function initEditorScene(){
   editorScene.add(sun);
 
   editorGroundMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(1400,1400),
+    new THREE.PlaneGeometry(2200,2200),
     new THREE.MeshStandardMaterial({ color:0xe4d3b3, roughness:1 })
   );
   editorGroundMesh.rotation.x = -Math.PI/2;
@@ -3221,8 +3386,14 @@ function initEditorScene(){
   editorSphereGeo = new THREE.SphereGeometry(3.4, 16, 12);
   editorStartMat = new THREE.MeshStandardMaterial({ color:0x6f8f46, roughness:0.6 });
   editorPointMat = new THREE.MeshStandardMaterial({ color:0xc1502e, roughness:0.6 });
-  editorDragMat  = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.5, emissive:0x3a1c00, emissiveIntensity:0.3 });
+  editorCursorMat = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.5, emissive:0x3a1c00, emissiveIntensity:0.4 });
   editorRibbonMat = new THREE.MeshStandardMaterial({ color:0x33394a, roughness:0.9, side:THREE.DoubleSide });
+  editorGateMatOpen = new THREE.MeshBasicMaterial({ color:0xd98c3d, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+  editorGateMatClosed = new THREE.MeshBasicMaterial({ color:0x6f8f46, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+  editorGateMesh = new THREE.Mesh(new THREE.RingGeometry(EDITOR_CLOSE_DIST-1.4, EDITOR_CLOSE_DIST, 48), editorGateMatOpen);
+  editorGateMesh.rotation.x = -Math.PI/2;
+  editorGateMesh.position.y = 0.06;
+  editorScene.add(editorGateMesh);
 
   updateEditorCamera();
 }
@@ -3230,60 +3401,43 @@ function updateEditorCamera(){
   if(!editorCamera) return;
   const az = editorCamAzimuth, el = editorCamElevation, d = editorCamDistance;
   editorCamera.position.set(
-    d*Math.cos(el)*Math.sin(az),
+    editorCamTarget.x + d*Math.cos(el)*Math.sin(az),
     d*Math.sin(el),
-    d*Math.cos(el)*Math.cos(az)
+    editorCamTarget.z + d*Math.cos(el)*Math.cos(az)
   );
-  editorCamera.lookAt(0,0,0);
+  editorCamera.lookAt(editorCamTarget.x, 0, editorCamTarget.z);
 }
 function editorRotate(deltaRad){
   initEditorScene();
   editorCamAzimuth += deltaRad;
   updateEditorCamera();
-  drawEditorCanvas();
+  renderEditorFrame();
 }
 function editorZoom(deltaDist){
   initEditorScene();
   editorCamDistance = Math.max(EDITOR_CAM_MIN_DIST, Math.min(EDITOR_CAM_MAX_DIST, editorCamDistance + deltaDist));
   updateEditorCamera();
-  drawEditorCanvas();
+  renderEditorFrame();
+}
+// Keeps the whole track roughly in frame as it grows, without fighting the
+// player's own manual orbit/zoom — only nudges the look-at target and, if
+// the track has grown past the current view, zooms out to fit.
+function autoFitEditorCamera(worldPoints){
+  if(!worldPoints.length) { editorCamTarget = { x:0, z:0 }; return; }
+  let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
+  worldPoints.forEach(p=>{ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.z<minZ)minZ=p.z; if(p.z>maxZ)maxZ=p.z; });
+  editorCamTarget = { x:(minX+maxX)/2, z:(minZ+maxZ)/2 };
+  const radius = Math.max(30, Math.hypot(maxX-minX, maxZ-minZ)/2);
+  const needed = Math.min(EDITOR_CAM_MAX_DIST, Math.max(EDITOR_CAM_MIN_DIST, radius*2.4));
+  if(needed > editorCamDistance) editorCamDistance = needed;
+  updateEditorCamera();
 }
 
-// Ground-plane raycast: turns a canvas pixel into a world (x,z), used when
-// adding a new point or dragging an existing one.
-function editorPixelToWorld(px, py){
-  const canvas = $('editorCanvas');
-  initEditorScene();
-  const ndcX = (px/canvas.width)*2 - 1;
-  const ndcY = -(py/canvas.height)*2 + 1;
-  editorRaycaster.setFromCamera({ x:ndcX, y:ndcY }, editorCamera);
-  const hit = new THREE.Vector3();
-  const ok = editorRaycaster.ray.intersectPlane(editorGroundPlane, hit);
-  if(!ok) return { x:0, z:0 };
-  const R = EDITOR_RANGE*1.5;
-  return { x: Math.max(-R, Math.min(R, hit.x)), z: Math.max(-R, Math.min(R, hit.z)) };
-}
-// 3D-to-screen projection: used only for hit-testing which existing marker
-// a pointer is over (editorFindPointNear below), since markers now live at
-// a camera-dependent screen position rather than a fixed top-down one.
-function editorWorldToPixel(x, z){
-  const canvas = $('editorCanvas');
-  initEditorScene();
-  const v = new THREE.Vector3(x, 3.4, z).project(editorCamera);
-  return { px: (v.x*0.5+0.5)*canvas.width, py: (-v.y*0.5+0.5)*canvas.height };
-}
-function editorFindPointNear(px, py){
-  for(let i=0;i<editorPoints.length;i++){
-    const p = editorWorldToPixel(editorPoints[i].x, editorPoints[i].z);
-    if(Math.hypot(p.px-px, p.py-py) <= EDITOR_HIT_PX) return i;
-  }
-  return -1;
-}
-
-// Builds a flat 3D road ribbon from the raw editor points, reusing the same
-// spline-smoothing + offset math the real game uses to turn a drawn track
-// into a driveable one (see resampleCustomCenterline / computeTangentsNormals
-// below) — so the editor's 3D preview matches what you'll actually race on.
+// Builds a flat 3D road ribbon from the dense world-space anchor points,
+// reusing the same spline-smoothing + offset math the real game uses to
+// turn anchor points into a driveable track (see resampleCustomCenterline /
+// computeTangentsNormals below) — so the editor's 3D preview matches what
+// you'll actually race on.
 function buildEditorRibbonGeometry(rawPoints, width){
   const N = 96;
   const centerline = resampleCustomCenterline(rawPoints, N);
@@ -3307,20 +3461,50 @@ function buildEditorRibbonGeometry(rawPoints, width){
   return geo;
 }
 
+// Recomputes editorPoints (world space) from editorPieces + editorTransform,
+// refreshes the piece-palette buttons (disabling ones that would cross the
+// track), and re-renders the 3D scene. This is the single entry point every
+// piece add/remove/move/rotate action goes through.
 function drawEditorCanvas(){
   const canvas = $('editorCanvas');
   if(!canvas) return;
   initEditorScene();
 
+  const status = editorLoopStatus();
+  const worldPoints = applyEditorTransform(status.chain.points, editorTransform);
+  editorPoints = worldPoints;
+  updateEditorLoopStatusUI(status);
+  refreshPiecePalette(status);
+
   while(editorMarkersGroup.children.length){
     editorMarkersGroup.remove(editorMarkersGroup.children[0]);
   }
-  editorPoints.forEach((p,i)=>{
-    const mat = i===editorDragIndex ? editorDragMat : (i===0 ? editorStartMat : editorPointMat);
+  // Only the piece BOUNDARIES get a marker (not every dense sample point) —
+  // otherwise the scene gets cluttered with a mesh per sample.
+  let idx = 0;
+  let cursorLocal = { x:0, z:0, heading:0 };
+  const boundaryLocal = [{ x:0, z:0 }];
+  editorPieces.forEach(id=>{
+    const piece = TRACK_PIECES[id];
+    const res = piece.trace(cursorLocal);
+    cursorLocal = res.exit;
+    boundaryLocal.push({ x:cursorLocal.x, z:cursorLocal.z });
+  });
+  const boundaryWorld = applyEditorTransform(boundaryLocal, editorTransform);
+  boundaryWorld.forEach((p,i)=>{
+    const isLast = i === boundaryWorld.length-1 && boundaryWorld.length>1;
+    const mat = i===0 ? editorStartMat : (isLast ? editorCursorMat : editorPointMat);
     const mesh = new THREE.Mesh(editorSphereGeo, mat);
     mesh.position.set(p.x, 3.4, p.z);
     editorMarkersGroup.add(mesh);
   });
+
+  // Start gate ring — green once the loop is properly closed.
+  if(editorGateMesh){
+    editorGateMesh.material = status.closed ? editorGateMatClosed : editorGateMatOpen;
+    const gatePos = applyEditorTransform([{x:0,z:0}], editorTransform)[0];
+    editorGateMesh.position.set(gatePos.x, 0.06, gatePos.z);
+  }
 
   if(editorRibbonMesh){
     editorScene.remove(editorRibbonMesh);
@@ -3328,110 +3512,179 @@ function drawEditorCanvas(){
     editorRibbonMesh = null;
   }
   if(editorPoints.length >= 3){
-    const widthEl = $('editorWidthInput');
-    const width = Math.max(14, Math.min(30, parseInt(widthEl && widthEl.value,10) || TRACK_WIDTH));
+    const width = getEditorWidth();
     editorRibbonMesh = new THREE.Mesh(buildEditorRibbonGeometry(editorPoints, width), editorRibbonMat);
     editorScene.add(editorRibbonMesh);
   }
 
-  editorRenderer.render(editorScene, editorCamera);
+  autoFitEditorCamera(worldPoints);
+  renderEditorFrame();
   const countEl = $('editorPointCount');
-  if(countEl) countEl.textContent = editorPoints.length;
+  if(countEl) countEl.textContent = editorPieces.length;
+}
+function renderEditorFrame(){
+  if(!editorRenderer || !editorScene || !editorCamera) return;
+  editorRenderer.render(editorScene, editorCamera);
 }
 
-// 'points' (default): click empty ground to add a point, drag/click a
-// point to move/remove it. 'move': drag anywhere to translate the whole
-// track at once (used by the Move Track toggle button below).
-let editorMode = 'points';
-let editorMoveStart = null;
-let editorMoveOrigPoints = null;
+// Builds/refreshes the piece palette buttons, disabling any piece that
+// would immediately cross the existing track (so the "invisible wall"
+// guard is visible before the player even taps it) or that would exceed
+// the piece cap.
+function refreshPiecePalette(status){
+  const grid = $('editorPieceGrid');
+  if(!grid) return;
+  if(grid.dataset.built !== '1'){
+    grid.innerHTML = '';
+    PIECE_ORDER.forEach(id=>{
+      const piece = TRACK_PIECES[id];
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'editorPieceBtn';
+      btn.dataset.pieceId = id;
+      btn.innerHTML = '<span class="pieceEmoji" aria-hidden="true">' + piece.emoji + '</span><span>' + piece.label + '</span>';
+      btn.addEventListener('click', ()=> tryAddPiece(id));
+      grid.appendChild(btn);
+    });
+    grid.dataset.built = '1';
+  }
+  const atCap = editorPieces.length >= EDITOR_MAX_PIECES;
+  const chain = status ? status.chain : computeChain(editorPieces);
+  Array.from(grid.children).forEach(btn=>{
+    const id = btn.dataset.pieceId;
+    const piece = TRACK_PIECES[id];
+    let blocked = atCap;
+    if(!blocked){
+      const res = piece.trace(chain.cursor);
+      blocked = editorPieceCollides(res.pathPoints, chain.points);
+    }
+    btn.disabled = blocked;
+    btn.title = blocked ? (atCap ? 'Track is at the max piece count' : 'Would cross the existing track') : '';
+  });
+}
+
+// 'orbit' (default): drag rotates the camera around the track. 'move':
+// drag translates the whole track (editorTransform.dx/dz).
+let editorMode = 'orbit';
+let editorDragActive = false;
+let editorDragLast = null;
+let editorMoveStartWorld = null;
+let editorMoveOrigTransform = null;
 
 function setEditorMode(mode){
   editorMode = mode;
   const btn = $('editorMoveModeBtn');
   const canvas = $('editorCanvas');
   if(btn) btn.classList.toggle('active', mode==='move');
-  if(canvas) canvas.style.cursor = mode==='move' ? 'grab' : 'crosshair';
+  if(canvas) canvas.style.cursor = mode==='move' ? 'move' : 'grab';
 }
 
-// Rotates every point in the drawing around the shape's own centroid, so
-// the track spins in place rather than orbiting around the world origin.
+// Rotates the whole track transform around the track's own current
+// center, so it spins in place rather than orbiting the world origin.
 function rotateTrackPoints(deltaRad){
-  if(editorPoints.length < 2) return;
-  const cx = editorPoints.reduce((s,p)=>s+p.x,0) / editorPoints.length;
-  const cz = editorPoints.reduce((s,p)=>s+p.z,0) / editorPoints.length;
-  const cos = Math.cos(deltaRad), sin = Math.sin(deltaRad);
-  editorPoints = editorPoints.map(p=>{
-    const dx = p.x - cx, dz = p.z - cz;
-    return { x: cx + dx*cos - dz*sin, z: cz + dx*sin + dz*cos };
-  });
+  if(editorPieces.length < 1){ editorTransform.rot += deltaRad; drawEditorCanvas(); return; }
+  const chain = computeChain(editorPieces);
+  const worldBefore = applyEditorTransform(chain.points, editorTransform);
+  const cx = worldBefore.reduce((s,p)=>s+p.x,0) / worldBefore.length;
+  const cz = worldBefore.reduce((s,p)=>s+p.z,0) / worldBefore.length;
+  // Solve a new transform (rot' = rot+delta, dx',dz') such that the
+  // track's centroid stays at (cx,cz) after the rotation is applied.
+  const newRot = editorTransform.rot + deltaRad;
+  const cosO=Math.cos(editorTransform.rot), sinO=Math.sin(editorTransform.rot);
+  // local centroid (pre-transform)
+  const localCx = chain.points.reduce((s,p)=>s+p.x,0) / chain.points.length;
+  const localCz = chain.points.reduce((s,p)=>s+p.z,0) / chain.points.length;
+  const cosN=Math.cos(newRot), sinN=Math.sin(newRot);
+  editorTransform = {
+    rot: newRot,
+    dx: cx - (localCx*cosN - localCz*sinN),
+    dz: cz - (localCx*sinN + localCz*cosN)
+  };
   editorSetMsg('');
   drawEditorCanvas();
 }
 
+function editorPixelFromEvent(evt){
+  const canvas = $('editorCanvas');
+  const rect = canvas.getBoundingClientRect();
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  return {
+    px: (clientX - rect.left) / rect.width * canvas.width,
+    py: (clientY - rect.top) / rect.height * canvas.height
+  };
+}
+// Ground-plane raycast: turns a canvas pixel into a world (x,z) — used
+// only by Move-track dragging, to translate the track by the same amount
+// the pointer moved across the ground.
+const editorRaycaster = new THREE.Raycaster();
+const editorGroundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+function editorPixelToWorld(px, py){
+  const canvas = $('editorCanvas');
+  initEditorScene();
+  const ndcX = (px/canvas.width)*2 - 1;
+  const ndcY = -(py/canvas.height)*2 + 1;
+  editorRaycaster.setFromCamera({ x:ndcX, y:ndcY }, editorCamera);
+  const hit = new THREE.Vector3();
+  const ok = editorRaycaster.ray.intersectPlane(editorGroundPlane, hit);
+  if(!ok) return { x:0, z:0 };
+  return { x: hit.x, z: hit.z };
+}
+
 function editorPointerDown(e){
   e.preventDefault();
-  const {px,py} = editorPixelFromEvent(e);
+  const canvas = $('editorCanvas');
+  editorDragActive = true;
+  try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+  canvas.classList.add('dragging');
   if(editorMode === 'move'){
-    if(editorPoints.length === 0) return;
-    editorMoveStart = editorPixelToWorld(px,py);
-    editorMoveOrigPoints = editorPoints.map(p=> ({ x:p.x, z:p.z }));
-    try{ $('editorCanvas').setPointerCapture(e.pointerId); }catch(err){}
-    $('editorCanvas').style.cursor = 'grabbing';
+    const {px,py} = editorPixelFromEvent(e);
+    editorMoveStartWorld = editorPixelToWorld(px,py);
+    editorMoveOrigTransform = { ...editorTransform };
+    canvas.style.cursor = 'grabbing';
     return;
   }
-  const hit = editorFindPointNear(px,py);
-  if(hit !== -1){
-    editorDragIndex = hit;
-    editorDragMoved = false;
-    try{ $('editorCanvas').setPointerCapture(e.pointerId); }catch(err){}
-  } else {
-    if(editorPoints.length >= EDITOR_MAX_POINTS){ editorSetMsg('That\u2019s the max — ' + EDITOR_MAX_POINTS + ' points.'); return; }
-    editorPoints.push(editorPixelToWorld(px,py));
-    editorSetMsg('');
-    drawEditorCanvas();
-  }
+  editorDragLast = editorPixelFromEvent(e);
 }
 function editorPointerMove(e){
+  if(!editorDragActive) return;
+  e.preventDefault();
   if(editorMode === 'move'){
-    if(!editorMoveStart) return;
-    e.preventDefault();
+    if(!editorMoveStartWorld) return;
     const {px,py} = editorPixelFromEvent(e);
     const cur = editorPixelToWorld(px,py);
-    const dx = cur.x - editorMoveStart.x, dz = cur.z - editorMoveStart.z;
-    editorPoints = editorMoveOrigPoints.map(p=> ({ x:p.x+dx, z:p.z+dz }));
+    editorTransform = {
+      rot: editorMoveOrigTransform.rot,
+      dx: editorMoveOrigTransform.dx + (cur.x - editorMoveStartWorld.x),
+      dz: editorMoveOrigTransform.dz + (cur.z - editorMoveStartWorld.z)
+    };
     drawEditorCanvas();
     return;
   }
-  if(editorDragIndex === -1) return;
-  e.preventDefault();
-  editorDragMoved = true;
   const {px,py} = editorPixelFromEvent(e);
-  editorPoints[editorDragIndex] = editorPixelToWorld(px,py);
-  drawEditorCanvas();
+  if(editorDragLast){
+    const dx = px - editorDragLast.px, dy = py - editorDragLast.py;
+    editorCamAzimuth -= dx*0.008;
+    editorCamElevation = Math.max(0.18, Math.min(1.45, editorCamElevation - dy*0.006));
+    updateEditorCamera();
+    renderEditorFrame();
+  }
+  editorDragLast = { px, py };
 }
 function editorPointerUp(e){
-  if(editorMode === 'move'){
-    editorMoveStart = null;
-    editorMoveOrigPoints = null;
-    $('editorCanvas').style.cursor = 'grab';
-    return;
-  }
-  if(editorDragIndex === -1) return;
-  const idx = editorDragIndex;
-  if(!editorDragMoved){
-    editorPoints.splice(idx,1);
-    drawEditorCanvas();
-  }
-  editorDragIndex = -1;
-  editorDragMoved = false;
+  editorDragActive = false;
+  editorDragLast = null;
+  editorMoveStartWorld = null;
+  editorMoveOrigTransform = null;
+  const canvas = $('editorCanvas');
+  if(canvas){ canvas.classList.remove('dragging'); canvas.style.cursor = editorMode==='move' ? 'move' : 'grab'; }
 }
 
 function renderCustomTrackList(){
   const wrap = $('editorTrackList');
   if(!wrap) return;
   if(customTracks.length === 0){
-    wrap.innerHTML = '<p class="stageMeta">No custom tracks yet — draw one above and save it.</p>';
+    wrap.innerHTML = '<p class="stageMeta">No custom tracks yet — build one above and save it.</p>';
     return;
   }
   wrap.innerHTML = '';
@@ -3439,7 +3692,7 @@ function renderCustomTrackList(){
     const row = document.createElement('div');
     row.className = 'customTrackRow';
     const info = document.createElement('span');
-    info.innerHTML = '<strong>' + escapeHtml(ct.name) + '</strong> <span class="stageMeta">(' + ct.points.length + ' points &middot; ' + ct.laps + ' laps)</span>';
+    info.innerHTML = '<strong>' + escapeHtml(ct.name) + '</strong> <span class="stageMeta">(' + (ct.pieces ? ct.pieces.length + ' pieces' : ct.points.length + ' points') + ' &middot; ' + ct.laps + ' laps)</span>';
     const btns = document.createElement('div');
     btns.className = 'customTrackBtns';
     const raceBtn = document.createElement('button');
@@ -3464,9 +3717,10 @@ function renderCustomTrackList(){
 
 function openEditorForNew(){
   editingCustomId = null;
-  editorPoints = [];
-  editorDragIndex = -1;
-  setEditorMode('points');
+  editorPieces = [];
+  editorTransform = { dx:0, dz:0, rot:0 };
+  editorCamAzimuth = Math.PI*0.78; editorCamElevation = 0.85; editorCamDistance = 210;
+  setEditorMode('orbit');
   $('editorScreenTitle').textContent = 'Track Editor \u2014 New Track';
   $('editorNameInput').value = '';
   $('editorThemeSelect').value = 'oval';
@@ -3482,9 +3736,18 @@ function openEditorForEdit(id){
   const ct = customTracks.find(c=>c.id===id);
   if(!ct) return;
   editingCustomId = id;
-  editorPoints = ct.points.map(p=> ({ x:p[0], z:p[1] }));
-  editorDragIndex = -1;
-  setEditorMode('points');
+  editorTransform = ct.transform ? { ...ct.transform } : { dx:0, dz:0, rot:0 };
+  setEditorMode('orbit');
+  if(Array.isArray(ct.pieces) && ct.pieces.length){
+    editorPieces = ct.pieces.slice();
+    editorSetMsg('');
+  } else {
+    // Pre-dates the piece editor (or was hand-drawn) — its exact shape
+    // can't be reconstructed from pieces, so start a fresh chain. The
+    // original track is untouched in your track list until you Save here.
+    editorPieces = [];
+    editorSetMsg('This track was drawn freehand — place pieces below to rebuild it; saving will replace its old shape.');
+  }
   $('editorScreenTitle').textContent = 'Track Editor \u2014 Editing "' + ct.name + '"';
   $('editorNameInput').value = ct.name;
   $('editorThemeSelect').value = ct.theme || 'oval';
@@ -3492,32 +3755,38 @@ function openEditorForEdit(id){
   $('editorDifficultySelect').value = String(ct.difficulty || 2);
   $('editorLapsInput').value = ct.laps || DEFAULT_LAPS;
   $('editorWidthInput').value = ct.width || TRACK_WIDTH;
-  editorSetMsg('');
   drawEditorCanvas();
   renderCustomTrackList();
   showScreen('editor');
 }
 
-// True when the canvas has points that haven't been written to
-// `customTracks` yet — used to warn before New Track / Back discard them.
+// True when the piece chain (or transform) hasn't been written to
+// `customTracks` yet — used to warn before New Track / Back discard it.
 function editorHasUnsavedWork(){
-  if(editorPoints.length === 0) return false;
-  if(!editingCustomId) return true; // a fresh, never-saved drawing
+  if(editorPieces.length === 0) return false;
+  if(!editingCustomId) return true; // a fresh, never-saved build
   const ct = customTracks.find(c=>c.id===editingCustomId);
   if(!ct) return true;
-  const current = editorPoints.map(p=>[Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
-  if(current.length !== ct.points.length) return true;
-  return current.some((p,i)=> p[0]!==ct.points[i][0] || p[1]!==ct.points[i][1]);
+  const savedPieces = Array.isArray(ct.pieces) ? ct.pieces : [];
+  if(savedPieces.length !== editorPieces.length) return true;
+  if(savedPieces.some((id,i)=> id !== editorPieces[i])) return true;
+  const savedT = ct.transform || { dx:0, dz:0, rot:0 };
+  return savedT.dx !== editorTransform.dx || savedT.dz !== editorTransform.dz || savedT.rot !== editorTransform.rot;
 }
 
-// Writes the current editor drawing into `customTracks` and rebuilds STAGES
-// (so it shows up in the on-screen track list / stage grid immediately).
-// Returns the saved track object, or null if there aren't enough points yet
-// (a message is shown in that case). Shared by Save Track, Save & Test
-// Drive, and New Track (which auto-saves before clearing the canvas).
+// Writes the current piece-built track into `customTracks` and rebuilds
+// STAGES (so it shows up in the on-screen track list / stage grid
+// immediately). Returns the saved track object, or null if the loop isn't
+// closed yet (a message is shown in that case). Shared by Save Track,
+// Save & Test Drive, and New Track (which auto-saves before clearing).
 function persistCurrentEditorTrack(){
-  if(editorPoints.length < EDITOR_MIN_POINTS){
-    editorSetMsg('Add at least ' + EDITOR_MIN_POINTS + ' points to close the loop.');
+  const status = editorLoopStatus();
+  if(editorPieces.length < EDITOR_MIN_PIECES){
+    editorSetMsg('Add at least ' + EDITOR_MIN_PIECES + ' pieces to close the loop.');
+    return null;
+  }
+  if(!status.closed){
+    editorSetMsg('The loop isn\u2019t closed yet — steer it back within ' + EDITOR_CLOSE_DIST + ' units of the start gate, facing roughly the same way.');
     return null;
   }
   const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
@@ -3530,18 +3799,21 @@ function persistCurrentEditorTrack(){
   const difficulty = Math.max(1, Math.min(6, parseInt($('editorDifficultySelect').value,10) || 2));
   const laps = Math.max(2, Math.min(8, parseInt($('editorLapsInput').value,10) || DEFAULT_LAPS));
   const width = Math.max(14, Math.min(30, parseInt($('editorWidthInput').value,10) || TRACK_WIDTH));
-  const points = editorPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
+  const worldPoints = applyEditorTransform(status.chain.points, editorTransform);
+  const points = worldPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
+  const pieces = editorPieces.slice();
+  const transform = { ...editorTransform };
 
   let savedId = editingCustomId;
   let ct = null;
   if(editingCustomId){
     ct = customTracks.find(c=>c.id===editingCustomId);
-    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points });
+    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points, pieces, transform });
     else { savedId = null; }
   }
   if(!savedId){
     savedId = 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points };
+    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points, pieces, transform };
     customTracks.push(ct);
   }
   saveCustomTracksToStorage();
@@ -3553,7 +3825,7 @@ function persistCurrentEditorTrack(){
   return ct;
 }
 
-// Saves the current drawing (see persistCurrentEditorTrack above). Returns
+// Saves the current build (see persistCurrentEditorTrack above). Returns
 // the STAGES index of the saved track, or -1 if validation failed. When
 // `raceAfter` is true, jumps straight into a real 3D race on the track that
 // was just saved instead of returning home.
@@ -3639,11 +3911,12 @@ $('editorBackBtn').addEventListener('click', ()=>{
   showScreen('home');
 });
 $('editorNewBtn').addEventListener('click', ()=>{
-  // Whatever's currently drawn is saved into the track list first — so it
+  // Whatever's currently built is saved into the track list first — so it
   // shows up on the home screen / track list right away and you can race
-  // it — and a playable standalone copy is downloaded too. Nothing is lost
-  // by hitting New before Save.
-  if(editorPoints.length >= EDITOR_MIN_POINTS){
+  // it — and a playable standalone copy is downloaded too — but only if
+  // the loop is actually closed; otherwise it's simply discarded, same as
+  // Clear All, since a half-built track can't be raced anyway.
+  if(editorLoopStatus().closed){
     const ct = persistCurrentEditorTrack();
     if(ct){
       editorSetMsg('Saved \u201c' + ct.name + '\u201d to your track list \u2014 downloading a playable copy\u2026');
@@ -3652,16 +3925,16 @@ $('editorNewBtn').addEventListener('click', ()=>{
   }
   openEditorForNew();
 });
-$('editorUndoBtn').addEventListener('click', ()=>{ editorPoints.pop(); editorSetMsg(''); drawEditorCanvas(); });
+$('editorUndoBtn').addEventListener('click', ()=>{ editorPieces.pop(); editorSetMsg(''); drawEditorCanvas(); });
 $('editorClearBtn').addEventListener('click', ()=>{
-  if(editorPoints.length && !confirm('Clear all points?')) return;
-  editorPoints = []; editorSetMsg(''); drawEditorCanvas();
+  if(editorPieces.length && !confirm('Clear all pieces?')) return;
+  editorPieces = []; editorTransform = { dx:0, dz:0, rot:0 }; editorSetMsg(''); drawEditorCanvas();
 });
 $('editorSaveBtn').addEventListener('click', ()=> saveCustomTrack(false));
 $('editorTestBtn').addEventListener('click', ()=> saveCustomTrack(true));
 $('editorRotateLeftBtn').addEventListener('click', ()=> editorRotate(-Math.PI/6));
 $('editorRotateRightBtn').addEventListener('click', ()=> editorRotate(Math.PI/6));
-$('editorMoveModeBtn').addEventListener('click', ()=> setEditorMode(editorMode==='move' ? 'points' : 'move'));
+$('editorMoveModeBtn').addEventListener('click', ()=> setEditorMode(editorMode==='move' ? 'orbit' : 'move'));
 $('editorRotateTrackLeftBtn').addEventListener('click', ()=> rotateTrackPoints(-Math.PI/12));
 $('editorRotateTrackRightBtn').addEventListener('click', ()=> rotateTrackPoints(Math.PI/12));
 (function initEditorCanvas(){
@@ -3673,6 +3946,7 @@ $('editorRotateTrackRightBtn').addEventListener('click', ()=> rotateTrackPoints(
   canvas.addEventListener('pointercancel', editorPointerUp);
   canvas.addEventListener('wheel', (e)=>{ e.preventDefault(); editorZoom(e.deltaY*0.4); }, { passive:false });
 })();
+
 
 /* ---------- Championship screen ---------- */
 function renderCircuitScreen(){
