@@ -945,12 +945,14 @@
         <button class="btn secondary" id="editorNewBtn">&#65291; New Track</button>
       </div>
 
-      <p class="editorHint">Click empty space to add a point, drag a point to move it, click a point again to remove it. Add at least 4 points — the loop closes automatically and the finish line sits at your first (green) point.</p>
+      <p class="editorHint">This is a live 3D view. Click empty ground to add a point, drag a point to move it, click a point again (without dragging) to remove it. Use the rotate buttons or scroll/pinch to orbit and zoom the camera. Add at least 4 points — the loop closes automatically and the finish line sits at your first (green) point. Clicking &ldquo;New Track&rdquo; downloads a playable copy of your current track first.</p>
 
       <div class="editorCanvasWrap">
         <canvas id="editorCanvas" width="640" height="640" aria-label="Track shape drawing area"></canvas>
       </div>
       <div class="editorToolbar">
+        <button class="btn secondary" id="editorRotateLeftBtn" type="button">&#8634; Rotate</button>
+        <button class="btn secondary" id="editorRotateRightBtn" type="button">Rotate &#8635;</button>
         <button class="btn secondary" id="editorUndoBtn" type="button">Undo Point</button>
         <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
         <span class="stageMeta" style="align-self:center;"><span id="editorPointCount">0</span> points</span>
@@ -3165,19 +3167,104 @@ function editorPixelFromEvent(evt){
     py: (clientY - rect.top) / rect.height * canvas.height
   };
 }
+
+/* ---------- Track Editor 3D view ----------
+   The editor used to be a flat top-down 2D canvas. It's now a live Three.js
+   scene: the same world-space points drive a 3D camera projection (for
+   hit-testing existing markers) and a ground-plane raycast (for placing/
+   moving them), so all the point add/drag/remove logic above and below is
+   unchanged — only how a screen pixel maps to/from a world (x,z) changed. */
+let editorScene=null, editorCamera=null, editorRenderer=null, editorGroundMesh=null, editorMarkersGroup=null, editorRibbonMesh=null;
+let editorCamAzimuth = Math.PI*0.78, editorCamElevation = 0.85, editorCamDistance = 210;
+const EDITOR_CAM_MIN_DIST = 90, EDITOR_CAM_MAX_DIST = 420;
+const editorRaycaster = new THREE.Raycaster();
+const editorGroundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+let editorSphereGeo = null, editorStartMat = null, editorPointMat = null, editorDragMat = null, editorRibbonMat = null;
+
+function initEditorScene(){
+  if(editorScene) return;
+  const canvas = $('editorCanvas');
+  if(!canvas) return;
+  editorRenderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+  editorRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  editorRenderer.setSize(canvas.width, canvas.height, false);
+  editorScene = new THREE.Scene();
+  editorScene.background = new THREE.Color(0xcfe0ea);
+  editorScene.fog = new THREE.Fog(0xcfe0ea, 260, 560);
+  editorCamera = new THREE.PerspectiveCamera(45, canvas.width/canvas.height, 1, 1400);
+
+  editorScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.05));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+  sun.position.set(120,200,90);
+  editorScene.add(sun);
+
+  editorGroundMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1400,1400),
+    new THREE.MeshStandardMaterial({ color:0xe4d3b3, roughness:1 })
+  );
+  editorGroundMesh.rotation.x = -Math.PI/2;
+  editorScene.add(editorGroundMesh);
+
+  const grid = new THREE.GridHelper(EDITOR_RANGE*2.4, 16, 0x8a6f52, 0xb9a37c);
+  grid.position.y = 0.03;
+  editorScene.add(grid);
+
+  editorMarkersGroup = new THREE.Group();
+  editorScene.add(editorMarkersGroup);
+
+  editorSphereGeo = new THREE.SphereGeometry(3.4, 16, 12);
+  editorStartMat = new THREE.MeshStandardMaterial({ color:0x6f8f46, roughness:0.6 });
+  editorPointMat = new THREE.MeshStandardMaterial({ color:0xc1502e, roughness:0.6 });
+  editorDragMat  = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.5, emissive:0x3a1c00, emissiveIntensity:0.3 });
+  editorRibbonMat = new THREE.MeshStandardMaterial({ color:0x33394a, roughness:0.9, side:THREE.DoubleSide });
+
+  updateEditorCamera();
+}
+function updateEditorCamera(){
+  if(!editorCamera) return;
+  const az = editorCamAzimuth, el = editorCamElevation, d = editorCamDistance;
+  editorCamera.position.set(
+    d*Math.cos(el)*Math.sin(az),
+    d*Math.sin(el),
+    d*Math.cos(el)*Math.cos(az)
+  );
+  editorCamera.lookAt(0,0,0);
+}
+function editorRotate(deltaRad){
+  initEditorScene();
+  editorCamAzimuth += deltaRad;
+  updateEditorCamera();
+  drawEditorCanvas();
+}
+function editorZoom(deltaDist){
+  initEditorScene();
+  editorCamDistance = Math.max(EDITOR_CAM_MIN_DIST, Math.min(EDITOR_CAM_MAX_DIST, editorCamDistance + deltaDist));
+  updateEditorCamera();
+  drawEditorCanvas();
+}
+
+// Ground-plane raycast: turns a canvas pixel into a world (x,z), used when
+// adding a new point or dragging an existing one.
 function editorPixelToWorld(px, py){
   const canvas = $('editorCanvas');
-  return {
-    x: (px / canvas.width - 0.5) * 2 * EDITOR_RANGE,
-    z: (py / canvas.height - 0.5) * 2 * EDITOR_RANGE
-  };
+  initEditorScene();
+  const ndcX = (px/canvas.width)*2 - 1;
+  const ndcY = -(py/canvas.height)*2 + 1;
+  editorRaycaster.setFromCamera({ x:ndcX, y:ndcY }, editorCamera);
+  const hit = new THREE.Vector3();
+  const ok = editorRaycaster.ray.intersectPlane(editorGroundPlane, hit);
+  if(!ok) return { x:0, z:0 };
+  const R = EDITOR_RANGE*1.5;
+  return { x: Math.max(-R, Math.min(R, hit.x)), z: Math.max(-R, Math.min(R, hit.z)) };
 }
+// 3D-to-screen projection: used only for hit-testing which existing marker
+// a pointer is over (editorFindPointNear below), since markers now live at
+// a camera-dependent screen position rather than a fixed top-down one.
 function editorWorldToPixel(x, z){
   const canvas = $('editorCanvas');
-  return {
-    px: (x / (2*EDITOR_RANGE) + 0.5) * canvas.width,
-    py: (z / (2*EDITOR_RANGE) + 0.5) * canvas.height
-  };
+  initEditorScene();
+  const v = new THREE.Vector3(x, 3.4, z).project(editorCamera);
+  return { px: (v.x*0.5+0.5)*canvas.width, py: (-v.y*0.5+0.5)*canvas.height };
 }
 function editorFindPointNear(px, py){
   for(let i=0;i<editorPoints.length;i++){
@@ -3187,53 +3274,61 @@ function editorFindPointNear(px, py){
   return -1;
 }
 
+// Builds a flat 3D road ribbon from the raw editor points, reusing the same
+// spline-smoothing + offset math the real game uses to turn a drawn track
+// into a driveable one (see resampleCustomCenterline / computeTangentsNormals
+// below) — so the editor's 3D preview matches what you'll actually race on.
+function buildEditorRibbonGeometry(rawPoints, width){
+  const N = 96;
+  const centerline = resampleCustomCenterline(rawPoints, N);
+  const { normals } = computeTangentsNormals(centerline);
+  const half = width/2;
+  const positions = [];
+  for(let i=0;i<N;i++){
+    const c = centerline[i], n = normals[i];
+    positions.push(c.x + n.x*half, 0.05, c.z + n.z*half);
+    positions.push(c.x - n.x*half, 0.05, c.z - n.z*half);
+  }
+  const indices = [];
+  for(let i=0;i<N;i++){
+    const a = i*2, b = i*2+1, c = ((i+1)%N)*2, d = ((i+1)%N)*2+1;
+    indices.push(a,c,b, b,c,d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function drawEditorCanvas(){
   const canvas = $('editorCanvas');
   if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0,0,W,H); // canvas's own CSS background (theme-aware) shows through
+  initEditorScene();
 
-  // Reference grid
-  ctx.strokeStyle = 'rgba(128,128,128,0.18)';
-  ctx.lineWidth = 1;
-  const GRID = 8;
-  for(let i=1;i<GRID;i++){
-    const gx = W/GRID*i, gy = H/GRID*i;
-    ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke();
+  while(editorMarkersGroup.children.length){
+    editorMarkersGroup.remove(editorMarkersGroup.children[0]);
   }
-  ctx.strokeStyle = 'rgba(128,128,128,0.32)';
-  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
-
-  // Path preview
-  if(editorPoints.length >= 2){
-    ctx.strokeStyle = '#c1502e';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    editorPoints.forEach((p,i)=>{
-      const {px,py} = editorWorldToPixel(p.x,p.z);
-      if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-    });
-    if(editorPoints.length >= 3){
-      const first = editorWorldToPixel(editorPoints[0].x, editorPoints[0].z);
-      ctx.lineTo(first.px, first.py);
-    }
-    ctx.stroke();
-  }
-  // Points
   editorPoints.forEach((p,i)=>{
-    const {px,py} = editorWorldToPixel(p.x,p.z);
-    ctx.beginPath();
-    ctx.arc(px, py, i===0 ? 9 : 7, 0, Math.PI*2);
-    ctx.fillStyle = i===0 ? '#6f8f46' : '#c1502e';
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#fff8ef';
-    ctx.stroke();
+    const mat = i===editorDragIndex ? editorDragMat : (i===0 ? editorStartMat : editorPointMat);
+    const mesh = new THREE.Mesh(editorSphereGeo, mat);
+    mesh.position.set(p.x, 3.4, p.z);
+    editorMarkersGroup.add(mesh);
   });
 
+  if(editorRibbonMesh){
+    editorScene.remove(editorRibbonMesh);
+    editorRibbonMesh.geometry.dispose();
+    editorRibbonMesh = null;
+  }
+  if(editorPoints.length >= 3){
+    const widthEl = $('editorWidthInput');
+    const width = Math.max(14, Math.min(30, parseInt(widthEl && widthEl.value,10) || TRACK_WIDTH));
+    editorRibbonMesh = new THREE.Mesh(buildEditorRibbonGeometry(editorPoints, width), editorRibbonMat);
+    editorScene.add(editorRibbonMesh);
+  }
+
+  editorRenderer.render(editorScene, editorCamera);
   const countEl = $('editorPointCount');
   if(countEl) countEl.textContent = editorPoints.length;
 }
@@ -3431,12 +3526,68 @@ function deleteCustomTrack(id){
   renderStageGrid();
 }
 
+// Packages a track object into a full, self-contained, playable copy of
+// this game: it's just this same page's current HTML (screens reset to
+// their normal starting state by init()/showScreen() on load) with one
+// small script spliced in right after the normal loadCustomTracks() call,
+// pre-registering this track so it's sitting in the Custom Tracks list the
+// moment the downloaded file is opened. No server, no build step — the
+// file you get is literally something you can double-click and play.
+function buildPlayableExport(track){
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const marker = 'loadCustomTracks();';
+  const idx = html.indexOf(marker);
+  if(idx === -1) return html; // fallback: still a complete, playable copy of the game
+  const safeJson = JSON.stringify(track).replace(/<\//g, '<\\/');
+  const embed = marker +
+    '\ntry{ var __exportedTrack = ' + safeJson + '; ' +
+    'if(!customTracks.some(function(c){return c.id===__exportedTrack.id;})){ customTracks.push(__exportedTrack); saveCustomTracksToStorage(); } ' +
+    'rebuildStagesFromCustomTracks(); }catch(e){}';
+  return html.slice(0, idx) + embed + html.slice(idx + marker.length);
+}
+function downloadPlayableTrack(track){
+  const html = buildPlayableExport(track);
+  const blob = new Blob([html], { type:'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (track.name || 'custom-track').replace(/[^a-z0-9\-_]+/gi,'_').slice(0,60) + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+// Builds a track object from whatever's currently in the editor, in the
+// same shape saveCustomTrack() writes to customTracks — used for the New
+// Track download below without actually committing it to storage.
+function editorCurrentTrackForExport(){
+  const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
+  const name = rawName || ('Custom Track ' + (customTracks.length + 1));
+  return {
+    id: 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    name,
+    theme: $('editorThemeSelect').value,
+    weather: $('editorWeatherSelect').value,
+    difficulty: Math.max(1, Math.min(6, parseInt($('editorDifficultySelect').value,10) || 2)),
+    laps: Math.max(2, Math.min(8, parseInt($('editorLapsInput').value,10) || DEFAULT_LAPS)),
+    width: Math.max(14, Math.min(30, parseInt($('editorWidthInput').value,10) || TRACK_WIDTH)),
+    points: editorPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100])
+  };
+}
+
 $('openEditorBtn').addEventListener('click', ()=>{ openEditorForNew(); showScreen('editor'); });
 $('editorBackBtn').addEventListener('click', ()=>{
   if(editorHasUnsavedWork() && !confirm('Leave without saving? Your unsaved changes to this track will be lost.')) return;
   showScreen('home');
 });
 $('editorNewBtn').addEventListener('click', ()=>{
+  // Whatever's currently drawn becomes a downloadable, double-click-and-play
+  // copy of the game with this track already loaded — your work always
+  // leaves with you, even if you don't hit Save first.
+  if(editorPoints.length >= EDITOR_MIN_POINTS){
+    editorSetMsg('Downloading a playable copy of this track\u2026');
+    downloadPlayableTrack(editorCurrentTrackForExport());
+  }
   if(editorHasUnsavedWork() && !confirm('Start a new track? Your unsaved changes to the current one will be lost \u2014 click Cancel and use Save Track first if you want to keep it.')) return;
   openEditorForNew();
 });
@@ -3447,6 +3598,8 @@ $('editorClearBtn').addEventListener('click', ()=>{
 });
 $('editorSaveBtn').addEventListener('click', ()=> saveCustomTrack(false));
 $('editorTestBtn').addEventListener('click', ()=> saveCustomTrack(true));
+$('editorRotateLeftBtn').addEventListener('click', ()=> editorRotate(-Math.PI/6));
+$('editorRotateRightBtn').addEventListener('click', ()=> editorRotate(Math.PI/6));
 (function initEditorCanvas(){
   const canvas = $('editorCanvas');
   if(!canvas) return;
@@ -3454,6 +3607,7 @@ $('editorTestBtn').addEventListener('click', ()=> saveCustomTrack(true));
   canvas.addEventListener('pointermove', editorPointerMove);
   canvas.addEventListener('pointerup', editorPointerUp);
   canvas.addEventListener('pointercancel', editorPointerUp);
+  canvas.addEventListener('wheel', (e)=>{ e.preventDefault(); editorZoom(e.deltaY*0.4); }, { passive:false });
 })();
 
 /* ---------- Championship screen ---------- */
