@@ -723,7 +723,7 @@
           </div>
           <div style="margin-bottom:16px;">
             <strong style="display:block;margin-bottom:4px;">🌦️ Weather</strong>
-            <p class="statsSub" style="margin:0;">Some tracks have rain, snow, ash, or fog — grip and braking change with conditions, the same for every racer.</p>
+            <p class="statsSub" style="margin:0;">Some tracks have rain, snow, ash, or fog — grip, braking, and engine power all shift with conditions, the same for every racer. Rain and snow can also throw a crosswind gust or a hidden puddle/ice patch at you, and thick fog or ashfall cuts how far ahead you can see.</p>
           </div>
           <div style="margin-bottom:0;">
             <strong style="display:block;margin-bottom:4px;">🎨 Garage &amp; Upgrades</strong>
@@ -946,6 +946,7 @@
       <div class="speedo"><div class="speedNum" id="speedNum">0</div><div class="hudSmall" id="speedUnitLabel">mph</div></div>
       <div class="posWrap"><div class="posNum" id="posNum">1</div><div class="posLabel" id="posLabel">st</div></div>
       <div class="hudPanel" id="weatherChip" hidden style="position:absolute;top:60px;left:50%;transform:translateX(-50%);padding:6px 14px;font-weight:800;font-size:14px;"></div>
+      <div class="hudPanel" id="windChip" hidden style="position:absolute;top:96px;left:50%;transform:translateX(-50%);padding:4px 12px;font-weight:800;font-size:13px;opacity:.9;transition:opacity .15s;"></div>
       <div class="hudPanel leaderboardPanel" id="leaderboardPanel">
         <div class="leaderboardTitle">LEADERBOARD</div>
         <div id="leaderboardList"></div>
@@ -2228,6 +2229,13 @@ const BASE_ACCEL = 38;
 const BASE_TURN = 2.5;
 const BASE_BRAKE = 55;
 const DRAG = 0.55;
+// Weather hazard tuning (see WEATHER_DEFS + updateCar/updateWindPhase):
+const WIND_PUSH = 5.5;          // world units/sec of lateral push at windMult=1, full gust
+const SLIP_MIN_DURATION = 0.35; // seconds a hazard patch (puddle/ice) grips the wheels for
+const SLIP_MAX_DURATION = 0.70;
+const SLIP_GRIP_MULT = 0.35;    // steering grip retained while a slip event is active
+const SLIP_YAW_RATE = 1.2;      // rad/sec involuntary sideways kick while slipping
+const SLIP_SPEED_BLEED = 0.22;  // fraction of speed/sec bled off while slipping
 
 // MotoGP-style handling feel (player only — AI keeps its original, simpler
 // steering so its lines/difficulty tuning don't shift): real bikes lean into
@@ -2300,23 +2308,47 @@ function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGE
 
 /* ---------- Weather ----------
    Each stage carries a fixed `weather` tag (see STAGES above). WEATHER_DEFS
-   maps that tag to: a uniform grip multiplier applied to every car equally
-   (see updateCar — this is a track condition, not a stat, so it never
-   favors the player or the AI), a short HUD label, and the look of the
-   particle/fog effect layered into the 3D scene (see applyWeatherToScene /
-   updateWeatherFX). gripMult also nudges brakePower via WEATHER_BRAKE_MULT
-   below, since braking distance is the part of "slippery track" players
-   feel first. */
+   maps that tag to a uniform set of track-condition multipliers applied to
+   every car equally (see updateCar — these are track conditions, not
+   stats, so they never favor the player or the AI), a short HUD label, and
+   the look of the particle/fog effect layered into the 3D scene (see
+   applyWeatherToScene / updateWeatherFX).
+     gripMult   - steering grip; also nudges brakePower via brakeMult below,
+                  since braking distance is the part of "slippery track"
+                  players feel first.
+     brakeMult  - braking power multiplier.
+     powerMult  - engine power multiplier (accel + top speed) — thin/hot air
+                  and fouled intakes (ash) or cold, heavy air (snow) rob a
+                  bike of a bit of raw power, on top of the grip loss.
+     windMult   - strength of ambient crosswind gusts that shove every car
+                  sideways (see updateWindPhase/updateCar) — a hazard you
+                  have to steer against, distinct from lost grip.
+     slipChance - chance per second of hitting a localized hazard patch
+                  (a puddle to hydroplane through, a hidden ice patch) that
+                  briefly guts steering grip and kicks the bike sideways.
+     fogBoost   - shrinks the draw-distance fog, cutting how far ahead you
+                  can actually see. */
 const WEATHER_DEFS = {
-  clear: { label:'Clear',     emoji:'☀️', gripMult:1.00, brakeMult:1.00, particle:null,   fogBoost:0 },
-  rain:  { label:'Rain',      emoji:'🌧️', gripMult:0.88, brakeMult:0.85, particle:'rain', fogBoost:0.15 },
-  snow:  { label:'Snow',      emoji:'❄️', gripMult:0.80, brakeMult:0.78, particle:'snow', fogBoost:0.10 },
-  ash:   { label:'Ashfall',   emoji:'🌋', gripMult:0.92, brakeMult:0.90, particle:'ash',  fogBoost:0.30 },
-  fog:   { label:'Fog',       emoji:'🌫️', gripMult:1.00, brakeMult:1.00, particle:null,   fogBoost:0.55 }
+  clear: { label:'Clear',     emoji:'☀️', gripMult:1.00, brakeMult:1.00, powerMult:1.00, windMult:0.00, slipChance:0.000, particle:null,   fogBoost:0 },
+  rain:  { label:'Rain',      emoji:'🌧️', gripMult:0.88, brakeMult:0.85, powerMult:0.97, windMult:0.35, slipChance:0.045, particle:'rain', fogBoost:0.15 },
+  snow:  { label:'Snow',      emoji:'❄️', gripMult:0.80, brakeMult:0.78, powerMult:0.92, windMult:0.55, slipChance:0.065, particle:'snow', fogBoost:0.10 },
+  ash:   { label:'Ashfall',   emoji:'🌋', gripMult:0.92, brakeMult:0.90, powerMult:0.88, windMult:0.60, slipChance:0.020, particle:'ash',  fogBoost:0.30 },
+  fog:   { label:'Fog',       emoji:'🌫️', gripMult:1.00, brakeMult:1.00, powerMult:1.00, windMult:0.20, slipChance:0.000, particle:null,   fogBoost:0.55 }
 };
 function weatherForStage(stageIndex){
   const s = STAGES[stageIndex];
   return WEATHER_DEFS[(s && s.weather) || 'clear'] || WEATHER_DEFS.clear;
+}
+// Short human-readable hazard blurb for a weather key, used on stage cards
+// so players know what they're actually in for before they queue up.
+function weatherHazardBlurb(key){
+  switch(key){
+    case 'rain': return 'reduced grip, crosswinds, hydroplane puddles';
+    case 'snow': return 'reduced grip, crosswinds, hidden ice patches';
+    case 'ash':  return 'reduced grip, engine power loss, low visibility';
+    case 'fog':  return 'low visibility';
+    default:     return 'reduced grip';
+  }
 }
 
 /* ---------- Championship / circuit mode ----------
@@ -2753,7 +2785,7 @@ function renderStageGrid(){
       <p class="stageName">${unlocked ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
-      ${s.weather && s.weather !== 'clear' ? `<p class="stageMeta">${WEATHER_DEFS[s.weather].emoji} ${WEATHER_DEFS[s.weather].label} — reduced grip</p>` : ''}
+      ${s.weather && s.weather !== 'clear' ? `<p class="stageMeta">${WEATHER_DEFS[s.weather].emoji} ${WEATHER_DEFS[s.weather].label} — ${weatherHazardBlurb(s.weather)}</p>` : ''}
       <p class="stageMeta">${coinsPerLapForStage(s)} coins/lap &middot; ${s.laps || DEFAULT_LAPS} laps</p>
       ${unlocked
         ? `<p class="stageMeta">${best ? 'Best lap: '+formatTime(best) : 'No record yet'}</p>`
@@ -3367,6 +3399,13 @@ let countdown = 0;
 // race has actually started.
 let currentWeather = WEATHER_DEFS.clear;
 let weatherFX = null; // { points, velocities, type } — active rain/snow/ash particle system, or null
+// Ambient crosswind: a slowly-evolving gust value in [-1,1], shared by every
+// car so a gust hits everyone on track at the same instant (see
+// updateWindPhase). windLateral is the current gust value; windGustFlash
+// only drives the HUD wind indicator's flare on strong gusts.
+let windPhase = 0;
+let windLateral = 0;
+let windGustFlash = 0;
 let appState = 'login'; // login | home | garage | racing | paused | results
 let playerCarDef = CARS[0];
 
@@ -6911,7 +6950,22 @@ function teardownWeatherFX(){
   }
   weatherFX = null;
 }
+// Advances the shared crosswind gust value every frame, race or not (cheap,
+// and keeps it settled at 0 when currentWeather has no wind). Two
+// out-of-phase sine waves give an organic gust-and-lull feel rather than a
+// perfectly smooth oscillation; windLateral is in [-1,1] where positive
+// pushes toward the track's +normal side. windGustFlash eases toward
+// abs(windLateral) for the HUD indicator to fade in/out smoothly.
+function updateWindPhase(dt){
+  if(currentWeather.windMult <= 0){
+    windLateral = 0; windGustFlash = 0; return;
+  }
+  windPhase += dt;
+  windLateral = Math.sin(windPhase*0.55) * 0.65 + Math.sin(windPhase*1.7 + 1.3) * 0.35;
+  windGustFlash += (Math.abs(windLateral) - windGustFlash) * Math.min(1, dt*3);
+}
 function updateWeatherFX(dt){
+  updateWindPhase(dt);
   if(!weatherFX || !camera) return;
   const pos = weatherFX.geo.attributes.position;
   const arr = pos.array;
@@ -6944,6 +6998,7 @@ function updateWeatherFX(dt){
 function applyWeatherForStage(stageIndex){
   teardownWeatherFX();
   currentWeather = weatherForStage(stageIndex);
+  windPhase = 0; windLateral = 0; windGustFlash = 0;
   if(currentWeather.particle) weatherFX = createWeatherFX(currentWeather.particle);
   if(scene && scene.fog && currentWeather.fogBoost > 0){
     const shrink = 1 - currentWeather.fogBoost;
@@ -6959,6 +7014,8 @@ function applyWeatherForStage(stageIndex){
       chip.textContent = currentWeather.emoji + ' ' + currentWeather.label;
     }
   }
+  const windChip = $('windChip');
+  if(windChip) windChip.hidden = true;
 }
 
 // Harbor Sprint / Coastal Curves only: the ocean plane shifts toward a
@@ -7159,9 +7216,9 @@ function completeLap(car){
 function updateCar(car, dt){
   const rb = car.isPlayer ? 1 : (car.rubberBand || 1);
   let maxSpeed = (BASE_MAX_SPEED
-    + (car.isPlayer ? gameState.upgrades.speed*2.7 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb;
+    + (car.isPlayer ? gameState.upgrades.speed*2.7 + playerCarDef.speed*4 : (car.aiSkill-1)*20 + car.diffBonus)) * rb * currentWeather.powerMult;
   let accel = (BASE_ACCEL
-    + (car.isPlayer ? gameState.upgrades.accel*2.3 + playerCarDef.accel*3 : car.accelBonus)) * rb;
+    + (car.isPlayer ? gameState.upgrades.accel*2.3 + playerCarDef.accel*3 : car.accelBonus)) * rb * currentWeather.powerMult;
   // Crash boost: a rival hit a wall recently, so this car runs hotter.
   if(car.crashBoost > 0){
     car.crashBoost -= dt;
@@ -7189,6 +7246,26 @@ function updateCar(car, dt){
   const turnRate = (BASE_TURN
     + (car.isPlayer ? gameState.upgrades.handling*0.12 + playerCarDef.handling*0.12 : 0.35 + car.turnBonus)) * sensMult * currentWeather.gripMult;
   const brakePower = (BASE_BRAKE + (car.isPlayer ? gameState.upgrades.brake*3.0 : 0)) * currentWeather.brakeMult;
+
+  // Localized hazard patches: a hidden puddle (rain) or ice patch (snow) —
+  // rolled independently per car so it's random *where* it bites, but the
+  // odds and the effect are identical for player and AI (a track condition,
+  // not a stat). While one is active it guts steering grip and gives an
+  // involuntary sideways kick, on top of (not instead of) the ambient
+  // gripMult above.
+  if(car.slipTimer > 0){
+    car.slipTimer = Math.max(0, car.slipTimer - dt);
+  } else if(currentWeather.slipChance > 0 && !car.touchingWall && Math.random() < currentWeather.slipChance*dt){
+    car.slipTimer = SLIP_MIN_DURATION + Math.random()*(SLIP_MAX_DURATION - SLIP_MIN_DURATION);
+    car.slipDir = Math.random() < 0.5 ? -1 : 1;
+    if(car.isPlayer){
+      if(gameState.cameraShake !== false) cameraShakeTime = Math.max(cameraShakeTime, 0.25);
+      Gamepad.rumble(0.45, 0.45, 160);
+      announce(currentWeather.particle === 'snow' ? 'Ice patch!' : 'Hydroplane!');
+    }
+  }
+  const slipActive = car.slipTimer > 0;
+  const slipGripMult = slipActive ? SLIP_GRIP_MULT : 1;
 
   let throttle=0, brake=0, steer=0;
 
@@ -7304,7 +7381,7 @@ function updateCar(car, dt){
   }
   car.wasDrifting = drifting;
   car.drifting = drifting;
-  const effTurnRate = drifting ? turnRate*DRIFT_TURN_MULT : turnRate;
+  const effTurnRate = (drifting ? turnRate*DRIFT_TURN_MULT : turnRate) * slipGripMult;
 
   // Cornering scrub: a bike can't carry full corner speed without braking
   // first — turning hard while still going fast bleeds speed off on its own,
@@ -7350,8 +7427,26 @@ function updateCar(car, dt){
   const dir = car.speed < 0 ? -1 : 1;   // only ever -1 for the player now
   car.heading += driftSteer*effTurnRate*dt*speedFactor*dir;
 
+  // Slip hazard follow-through: the wheels aren't answering the bars right
+  // now, so the bike keeps drifting sideways on its own and bleeds a bit of
+  // speed, on top of whatever steering input still gets through above.
+  if(slipActive){
+    car.heading += car.slipDir * SLIP_YAW_RATE * dt;
+    car.speed -= car.speed * SLIP_SPEED_BLEED * dt;
+  }
+
   const fwd = forwardVec(car.heading);
   car.pos.addScaledVector(fwd, car.speed*dt);
+
+  // Ambient crosswind: pushes every car sideways by the same amount at the
+  // same instant (see updateWindPhase) — a hazard you have to actively
+  // steer against, separate from the grip/braking multipliers above.
+  if(currentWeather.windMult > 0 && track){
+    const wNormal = track.normals[car.trackIndex] || track.normals[0];
+    const push = currentWeather.windMult * windLateral * WIND_PUSH * dt;
+    car.pos.x += wNormal.x * push;
+    car.pos.z += wNormal.z * push;
+  }
 
   car.trackIndex = findNearestIndex(car);
   applyBoundary(car, dt);
@@ -8409,6 +8504,20 @@ function updateHUD(){
   $('speedNum').textContent = Math.round(gameState.units === 'kph' ? mph*1.60934 : mph);
   updateLeaderboard(standings);
   drawMinimap(standings);
+  const windChip = $('windChip');
+  if(windChip){
+    // Only surface the indicator once a gust is strong enough to actually
+    // matter (>0.35) — a constant HUD element for a barely-there breeze
+    // would just be noise.
+    if(currentWeather.windMult > 0 && windGustFlash > 0.35){
+      windChip.hidden = false;
+      const arrow = windLateral > 0 ? '\u2192' : '\u2190';
+      windChip.textContent = emo('\uD83D\uDCA8') + 'Crosswind ' + arrow;
+      windChip.style.opacity = Math.min(1, windGustFlash);
+    } else {
+      windChip.hidden = true;
+    }
+  }
 }
 function updateLeaderboard(standings){
   const list = $('leaderboardList');
