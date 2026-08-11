@@ -619,6 +619,10 @@
   .paintSwatch.equipped .swatchState{ color:var(--accent); font-weight:700; }
 
   /* ---------- Spectate ---------- */
+  .spectateScreen{ justify-content:flex-start; align-items:flex-start; }
+  .spectateCard{ position:relative; z-index:2; margin:16px; width:min(360px,calc(100vw - 32px));
+    max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto;
+    background:var(--panel-glass-strong); backdrop-filter:blur(6px); }
   .spectateBoard{ list-style:none; margin:0 0 16px; padding:0; max-height:260px; overflow-y:auto; }
   .spectateBoard li{ display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--border);
     border-radius:10px; padding:9px 12px; margin-bottom:7px; font-size:14px; }
@@ -704,13 +708,16 @@
   </section>
 
   <!-- SPECTATE -->
-  <section id="spectateScreen" class="screen" hidden>
-    <div class="lobbyCard">
+  <section id="spectateScreen" class="screen spectateScreen" hidden>
+    <div class="lobbyCard spectateCard">
       <h2 class="sectionTitle" style="margin-top:0;">Spectating</h2>
       <div class="lobbyStatus" id="spectateStatus">Connecting…</div>
-      <p class="lobbySub">Live standings from the current online race, updated in real time. You're just watching — nothing you do here affects the race.</p>
+      <p class="lobbySub">Live 3D view of the current online race. You're just watching — nothing you do here affects the race.</p>
+      <div class="btnRow" style="margin-bottom:12px;">
+        <button class="btn secondary" id="spectateFollowBtn" type="button" style="font-size:13px;padding:8px 14px;min-height:auto;">🎥 <span id="spectateFollowLabel">Following: Leader</span></button>
+      </div>
       <ul class="spectateBoard" id="spectateBoard"></ul>
-      <div class="chatLog" id="spectateChatLog" role="log" aria-live="polite" aria-label="Race chat (read-only)" style="max-height:140px;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:14px;"></div>
+      <div class="chatLog" id="spectateChatLog" role="log" aria-live="polite" aria-label="Race chat (read-only)" style="max-height:120px;border:1px solid var(--border);border-radius:10px;background:var(--panel);margin-bottom:14px;"></div>
       <div class="btnRow">
         <button class="btn ghost" id="spectateBackBtn">Leave</button>
       </div>
@@ -3199,11 +3206,9 @@ $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
    - Finite piece catalog (fixed turn angles/radii) instead of arbitrary
      freehand clicks means the centerline can't zig-zag into the tight,
      erratic curvature that used to make barrier geometry fold over itself.
-   - Each new piece is checked against every earlier piece's path (except
-     the immediate join and the start-gate region, see editorPieceCollides)
-     and rejected with a message if it would cross the track — the single
-     biggest cause of a car's collision boundary snapping to the wrong,
-     far-away part of the track (i.e. a wall appearing out of nowhere).
+   - Pieces are free to cross/overlap the existing track and there is no
+     cap on how many pieces a track can have (editorPieceCollides is kept
+     as a no-op stub for compatibility with the rest of this comment).
    - The loop must actually close — end back up near the start gate,
      facing a similar direction — before Save/Test unlock, so the closing
      stretch is always a smooth continuation rather than a sharp jump cut
@@ -3212,7 +3217,7 @@ $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
      buildTrack() (unchanged) remain as a second line of defense. */
 const EDITOR_RANGE = 140;        // world units from canvas center to its edge
 const EDITOR_MIN_PIECES = 6;
-const EDITOR_MAX_PIECES = 40;
+const EDITOR_MAX_PIECES = Infinity;   // no cap on how many pieces a track can have
 const EDITOR_CLOSE_DIST = 40;    // world units — how close the end must get to the start gate
 const EDITOR_CLOSE_ANGLE = Math.PI*0.30; // ~54° — how closely the end must face the start heading
 const EDITOR_CLOSE_HEIGHT = 4;   // world units — how close the end must get to the start's height
@@ -3323,18 +3328,8 @@ function applyEditorTransform(points, t){
 // points right at the join (expected to be close) and points right at the
 // start gate (the whole point of the last few pieces is to approach it).
 function editorPieceCollides(candidatePts, basePts){
-  const width = getEditorWidth();
-  const minDistSq = Math.pow(width + EDITOR_SELF_CLEARANCE_PAD, 2);
-  const joinSkip = 10;      // ~last 2 pieces' worth of points — naturally close to the new piece
-  const startSkip = 8;      // ~first piece's worth of points — the start gate the loop must approach
-  const hi = Math.max(0, basePts.length - joinSkip);
-  for(const cp of candidatePts){
-    for(let i=startSkip; i<hi; i++){
-      const bp = basePts[i];
-      const dx=cp.x-bp.x, dz=cp.z-bp.z;
-      if(dx*dx+dz*dz < minDistSq) return true;
-    }
-  }
+  // Self-crossing is allowed — tracks can loop over/under or cross
+  // themselves freely, so this guard is now a permanent no-op.
   return false;
 }
 
@@ -3365,18 +3360,11 @@ function updateEditorLoopStatusUI(status){
   }
 }
 
-// Tries to append a piece to the chain. Rejects (with a message, no
-// change) if it would cross the existing track or hit the piece cap.
+// Appends a piece to the chain. No cap on track length, and pieces are
+// free to cross/overlap the existing track.
 function tryAddPiece(pieceId){
   const piece = TRACK_PIECES[pieceId];
   if(!piece) return;
-  if(editorPieces.length >= EDITOR_MAX_PIECES){ editorSetMsg('That\u2019s the max — ' + EDITOR_MAX_PIECES + ' pieces.'); return; }
-  const chain = computeChain(editorPieces);
-  const res = piece.trace(chain.cursor);
-  if(editorPieceCollides(res.pathPoints, chain.points)){
-    editorSetMsg('That piece would cross the existing track — try a different one, or remove the last piece.');
-    return;
-  }
   editorPieces.push(pieceId);
   editorSetMsg('');
   drawEditorCanvas();
@@ -3568,10 +3556,9 @@ function renderEditorFrame(){
   editorRenderer.render(editorScene, editorCamera);
 }
 
-// Builds/refreshes the piece palette buttons, disabling any piece that
-// would immediately cross the existing track (so the "invisible wall"
-// guard is visible before the player even taps it) or that would exceed
-// the piece cap.
+// Builds/refreshes the piece palette buttons. Pieces are never disabled —
+// there's no cap on track length and pieces are free to cross/overlap the
+// existing track.
 function refreshPiecePalette(status){
   const grid = $('editorPieceGrid');
   if(!grid) return;
@@ -3589,18 +3576,9 @@ function refreshPiecePalette(status){
     });
     grid.dataset.built = '1';
   }
-  const atCap = editorPieces.length >= EDITOR_MAX_PIECES;
-  const chain = status ? status.chain : computeChain(editorPieces);
   Array.from(grid.children).forEach(btn=>{
-    const id = btn.dataset.pieceId;
-    const piece = TRACK_PIECES[id];
-    let blocked = atCap;
-    if(!blocked){
-      const res = piece.trace(chain.cursor);
-      blocked = editorPieceCollides(res.pathPoints, chain.points);
-    }
-    btn.disabled = blocked;
-    btn.title = blocked ? (atCap ? 'Track is at the max piece count' : 'Would cross the existing track') : '';
+    btn.disabled = false;
+    btn.title = '';
   });
 }
 
@@ -4480,6 +4458,17 @@ function onResize(){
   renderer.setSize(w,h,false);
   camera.aspect = w/h;
   camera.updateProjectionMatrix();
+}
+// Moves the single shared <canvas> (and its WebGL context — reparenting a
+// canvas node doesn't lose the context) between the Game screen and the
+// Spectate screen, whichever currently needs to actually show the 3D view.
+// A screen's contents are invisible while it's [hidden], so the canvas has
+// to physically live inside whichever screen is on-screen right now.
+function moveCanvasTo(containerId){
+  const canvas = $('canvas');
+  const container = $(containerId);
+  if(!canvas || !container) return;
+  if(canvas.parentElement !== container) container.insertBefore(canvas, container.firstChild);
 }
 
 function disposeObject(obj){
@@ -7593,12 +7582,28 @@ const Online = {
    racers) and connects to the same well-known matchmaking lobby id. The
    host accepts it as a spectator (see Online.hostOnMsg 'spectate' case
    above) and streams it the same lobby/start/pos/chat traffic racers get,
-   just never expects anything back except the initial 'spectate' hello. */
+   just never expects anything back except the initial 'spectate' hello.
+
+   Unlike the old text-only standings board, this drives the SAME 3D scene
+   / camera / renderer the actual race uses: it builds the real track with
+   buildTrack() (borrowing the shared `scene`/`camera`/`renderer`/`track`
+   globals startRace() also uses, since only one of racing/spectating is
+   ever active at a time) and spawns a lightweight car mesh per racer that
+   just glides toward each network 'pos' snapshot — no local physics, no
+   input, purely a read-only replay of what's actually happening on the
+   host's race. The shared <canvas> is physically reparented into the
+   Spectate screen while watching (see moveCanvasTo) since a screen's
+   contents are invisible while [hidden]. */
+const specCamTmp = new THREE.Vector3();
+const specLookTmp = new THREE.Vector3();
 const Spectate = {
-  peer: null, conn: null, connected: false,
+  peer: null, conn: null, connected: false, active: false,
   myId: 'spec-' + Math.random().toString(36).slice(2,10),
   cars: {},        // id -> { name, lap, trackIndex, speed, finished, key }
+  carMeshes: {},    // id -> { mesh, pos, heading, netTo, netAt, carIndex }
   roomInfo: null,   // last 'start' room, once a race is underway
+  builtStageIndex: null, // stageIndex the 3D scene is currently built for
+  followId: null,   // manually-picked car id to follow, or null for auto (leader)
   retryTimer: null,
 
   status(msg){ const el = $('spectateStatus'); if(el) el.textContent = msg; },
@@ -7609,9 +7614,17 @@ const Spectate = {
       return;
     }
     if(this.peer) return; // already connecting/connected
+    this.active = true;
     this.cars = {};
     this.roomInfo = null;
+    this.builtStageIndex = null;
+    this.followId = null;
+    this.clearCarMeshes();
+    moveCanvasTo('spectateScreen');
+    appState = 'spectating';
+    onResize();
     renderSpectateList();
+    updateSpectateFollowLabel();
     $('spectateChatLog').innerHTML = '';
     this.status('Connecting…');
     const p = new Peer(PEER_OPTS);
@@ -7646,7 +7659,128 @@ const Spectate = {
     if(this.retryTimer){ clearTimeout(this.retryTimer); this.retryTimer = null; }
     if(this.peer){ try{ this.peer.destroy(); }catch(e){} }
     this.peer = null; this.conn = null; this.connected = false;
-    this.cars = {}; this.roomInfo = null;
+    this.cars = {}; this.roomInfo = null; this.builtStageIndex = null; this.followId = null;
+    this.clearCarMeshes();
+    if(this.active){
+      this.active = false;
+      if(appState === 'spectating') appState = 'home';
+      if(trackGroup){ scene && disposeObject(trackGroup); trackGroup = null; }
+      teardownWeatherFX();
+      track = null; currentOceanMesh = null; currentSkyDome = null; propColliders = [];
+      moveCanvasTo('gameScreen');
+    }
+  },
+
+  // Builds the actual track scene for the race being spectated — the same
+  // buildTrack()/createStageScene() call startRace() makes, just without
+  // any player/AI cars. Cheap to call repeatedly: no-ops once already
+  // built for this stage.
+  enterTrackScene(stageIndex){
+    if(this.builtStageIndex === stageIndex) return;
+    if(trackGroup){ scene && disposeObject(trackGroup); trackGroup = null; }
+    teardownWeatherFX();
+    this.clearCarMeshes();
+    const stage = STAGES[stageIndex];
+    if(!stage) return;
+    const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
+    currentTrackDim = DIM_SKY_STYLES.has(theme.skyStyle);
+    currentTrackFoggedMinimap = !!theme.foggyMinimap;
+    scene = createStageScene(theme);
+    applyWeatherForStage(stageIndex);
+    const built = buildTrack(stageIndex);
+    trackGroup = built.group;
+    scene.add(trackGroup);
+    track = built;
+    currentOceanMesh = built.ocean || null;
+    currentSkyDome = built.skyDome || null;
+    propColliders = built.colliders || [];
+    this.builtStageIndex = stageIndex;
+    const p0 = track.points[0];
+    camera.position.set(p0.x, (p0.y||0)+30, p0.z+45);
+    camera.lookAt(p0.x, p0.y||0, p0.z);
+  },
+
+  ensureCarMesh(id, carIndex, name){
+    let c = this.carMeshes[id];
+    if(c) return c;
+    const carDef = CARS[carIndex] || CARS[0];
+    const mesh = createCarMesh(carDef.color);
+    if(scene) scene.add(mesh);
+    c = this.carMeshes[id] = {
+      mesh, pos: new THREE.Vector3(), heading: 0, speed: 0,
+      netTo: null, netAt: 0, name: name || 'Racer', carIndex: carIndex||0
+    };
+    return c;
+  },
+  clearCarMeshes(){
+    Object.values(this.carMeshes).forEach(c=>{
+      try{ if(scene) scene.remove(c.mesh); disposeObject(c.mesh); }catch(e){}
+    });
+    this.carMeshes = {};
+  },
+
+  // Smoothly glides every spawned car mesh toward its latest network
+  // snapshot — same dead-reckoning approach as Online.updateRemoteCars,
+  // just driving a plain mesh instead of a full physics car.
+  updateCars(dt){
+    const nowP = performance.now();
+    for(const id in this.carMeshes){
+      const c = this.carMeshes[id];
+      if(!c.netTo) continue;
+      const age = (nowP - c.netAt) / 1000;
+      const stale = age > 4;
+      const t = c.netTo;
+      const lead = stale ? 0 : Math.min(age, 0.3);
+      const tx = t.x + Math.sin(t.h) * t.s * lead;
+      const tz = t.z + Math.cos(t.h) * t.s * lead;
+      const k = Math.min(1, dt * 10);
+      c.pos.x += (tx - c.pos.x) * k;
+      c.pos.z += (tz - c.pos.z) * k;
+      c.heading += normalizeAngle(t.h - c.heading) * k;
+      c.speed = stale ? 0 : t.s;
+      if(track && track.points && track.points[t.ti]){
+        const groundY = track.points[t.ti].y || 0;
+        c.pos.y += (groundY - c.pos.y) * Math.min(1, dt*8);
+      }
+      c.mesh.position.copy(c.pos);
+      c.mesh.rotation.y = c.heading;
+    }
+  },
+
+  // Picks whichever car the camera should chase: a manual pick (via the
+  // Follow button) if one's set and still around, otherwise the current
+  // race leader by lap/track progress.
+  pickFollowCar(){
+    if(this.followId && this.carMeshes[this.followId]) return this.followId;
+    let best = null, bestScore = -1;
+    for(const id in this.carMeshes){
+      const info = this.cars[id];
+      const score = ((info && info.lap) || 0) * 100000 + ((info && info.trackIndex) || 0);
+      if(score > bestScore){ bestScore = score; best = id; }
+    }
+    return best;
+  },
+  cycleFollow(){
+    const ids = Object.keys(this.carMeshes);
+    if(!ids.length) return;
+    const current = this.pickFollowCar();
+    const idx = ids.indexOf(current);
+    // One extra slot at the end of the cycle = back to "auto/leader".
+    if(idx === -1 || idx === ids.length-1){ this.followId = null; }
+    else { this.followId = ids[idx+1]; }
+    updateSpectateFollowLabel();
+  },
+  updateCamera(dt){
+    const id = this.pickFollowCar();
+    const c = id && this.carMeshes[id];
+    if(!c || !camera) return;
+    const fwd = forwardVec(c.heading);
+    specCamTmp.copy(c.pos).addScaledVector(fwd, -10);
+    specCamTmp.y = c.pos.y + 5.2;
+    camera.position.lerp(specCamTmp, Math.min(1, dt*4));
+    specLookTmp.copy(c.pos).addScaledVector(fwd, 6);
+    specLookTmp.y = c.pos.y + 1.2;
+    camera.lookAt(specLookTmp);
   },
 
   onMsg(m){
@@ -7654,6 +7788,7 @@ const Spectate = {
     if(m.type === 'lobby'){
       this.roomInfo = null;
       this.cars = {};
+      this.clearCarMeshes();
       (m.players||[]).forEach(p=>{
         this.cars[p.id] = { name:p.name, key:p.key, lap:0, trackIndex:0, speed:0, finished:false };
       });
@@ -7663,23 +7798,51 @@ const Spectate = {
     } else if(m.type === 'start'){
       this.roomInfo = m.room;
       this.cars = {};
-      (m.room.players||[]).forEach(p=>{
+      this.followId = null;
+      if(m.room && STAGES[m.room.stageIndex]) this.enterTrackScene(m.room.stageIndex);
+      (m.room.players||[]).forEach((p, idx)=>{
         this.cars[p.id] = { name:p.name, key:p.key, lap:0, trackIndex:0, speed:0, finished:false };
+        const c = this.ensureCarMesh(p.id, p.car, p.name);
+        if(track){
+          const laneOffsets = [-4.0,-1.35,1.35,4.0];
+          const startNormal = track.normals[0];
+          const startTangent = new THREE.Vector3().subVectors(track.points[1], track.points[track.N-1]).normalize();
+          c.heading = Math.atan2(startTangent.x, startTangent.z);
+          c.pos.copy(track.points[0]).addScaledVector(startNormal, laneOffsets[idx % laneOffsets.length]);
+          c.pos.y = track.points[0].y||0;
+          c.mesh.position.copy(c.pos);
+          c.mesh.rotation.y = c.heading;
+        }
       });
       const stageName = (m.room && STAGES[m.room.stageIndex]) ? getStageName(m.room.stageIndex) : 'a track';
       this.status('Race in progress on ' + stageName + '.');
       renderSpectateList();
+      updateSpectateFollowLabel();
     } else if(m.type === 'pos'){
       let c = this.cars[m.id];
       if(!c){ c = this.cars[m.id] = { name:'Racer', lap:0, trackIndex:0, speed:0, finished:false }; }
       c.lap = m.l; c.trackIndex = m.ti; c.speed = m.s;
       if(m.f && !c.finished) c.finished = true;
+      const mc = this.ensureCarMesh(m.id, null, c.name);
+      mc.name = c.name;
+      mc.netTo = m; mc.netAt = performance.now();
       renderSpectateList();
+      updateSpectateFollowLabel();
     } else if(m.type === 'chat'){
       addSpectateChatLine(m.name, m.text);
     }
   }
 };
+
+function updateSpectateFollowLabel(){
+  const el = $('spectateFollowLabel');
+  if(!el) return;
+  const id = Spectate.pickFollowCar();
+  if(!id){ el.textContent = 'Following: Leader'; return; }
+  const c = Spectate.cars[id];
+  const isAuto = !Spectate.followId;
+  el.textContent = 'Following: ' + ((c && c.name) || 'Racer') + (isAuto ? ' (leader)' : '');
+}
 
 function renderSpectateList(){
   const ul = $('spectateBoard');
@@ -7732,6 +7895,7 @@ $('chooseSpectateBtn').addEventListener('click', ()=>{
   Spectate.start();
 });
 $('spectateBackBtn').addEventListener('click', ()=>{ Spectate.stop(); showScreen('mode'); });
+$('spectateFollowBtn').addEventListener('click', ()=>{ Spectate.cycleFollow(); });
 $('modeLogoutBtn').addEventListener('click', logout);
 $('homeMenuBtn').addEventListener('click', ()=>{ showScreen('mode'); });
 $('findMatchBtn').addEventListener('click', ()=>{ Online.startSearch(); });
@@ -7742,6 +7906,8 @@ function startRace(stageIndex, onlineRoom){
   // pause, an online match starting, etc.), Photo Mode and its floating
   // button bar must never carry over into a fresh race.
   if(PhotoMode.active) PhotoMode.exit();
+  if(Spectate.active) Spectate.stop();
+  moveCanvasTo('gameScreen');
   if(onlineResultsTimer){ clearInterval(onlineResultsTimer); onlineResultsTimer = null; }
   if(!onlineRoom) Online.leaveRace();
   // Snapshot current state before the race modifies coins / racesCompleted.
@@ -8134,58 +8300,16 @@ function applyPropCollisions(car){
 }
 
 function applyBoundary(car, dt){
-  dt = dt || 1/60;
-  // Owner-only noclip: skip wall collision entirely so the car can drive
-  // straight through barriers instead of being stopped/penalized by them.
-  if(car.isPlayer && isOwner && gameState.noclipWalls){
-    car.wallOffTime = (car.wallOffTime || 0) + dt;
-    car.touchingWall = false;
-    return;
-  }
-  const idx = car.trackIndex;
-  const center = track.points[idx], normal = track.normals[idx];
-  const rel = new THREE.Vector3().subVectors(car.pos, center);
-  const lateral = rel.dot(normal);
-  // Margin matches the car's real visual extent so nothing clips into the wall.
-  const WALL_HALF_WIDTH = 1.45;
-  const limit = track.width/2 - WALL_HALF_WIDTH;
-  if(lateral <= limit && lateral >= -limit){
-    car.wallOffTime = (car.wallOffTime || 0) + dt;
-    if(car.wallOffTime > 0.3){ car.wallPenaltyCd = 0; car.touchingWall = false; }
-    return;
-  }
-  car.wallOffTime = 0;
-  car.touchingWall = true;
-
-  const side = lateral > 0 ? 1 : -1;
-
-  // SMOOTH push-off: hold the car right at the wall (no visible hop — the
-  // camera never jumps) with only a whisper of separation.
-  const BOUNCE_GAP = 0.065;
-  car.pos.addScaledVector(normal, side*(limit - BOUNCE_GAP) - lateral);
-
-  // PENALTIES on any contact: 90% speed cut on touch and every 0.6s while
-  // touching — and each tick also hands every rival a crash boost.
-  car.wallPenaltyCd = (car.wallPenaltyCd || 0) - dt;
-  if(car.wallPenaltyCd <= 0){
-    car.speed *= 0.10;
-    car.wallPenaltyCd = 0.6;
-    giveCrashBoost(car);
-  }
-  // Continuous scrub while touching (~25%/sec).
-  const scrub = car.isPlayer ? Math.max(0.12, 0.25 - gameState.upgrades.grip*0.012) : 0.25;
-  car.speed *= Math.max(0, 1 - scrub*dt);
-
-  // Gently steer the nose away from the wall over time instead of snapping it.
-  const fwd = forwardVec(car.heading);
-  const fDotN = fwd.dot(normal);
-  const speedSign = car.speed < 0 ? -1 : 1;
-  if(speedSign * fDotN * side > 0){
-    const STEER_AWAY_RATE = 2.2;                    // rad/sec of correction
-    const correction = Math.min(Math.abs(fDotN), STEER_AWAY_RATE * dt);
-    const grad = speedSign * (Math.cos(car.heading)*normal.x - Math.sin(car.heading)*normal.z) * side;
-    car.heading = normalizeAngle(car.heading - Math.sign(grad) * correction);
-  }
+  // Invisible walls at the track edges have been removed entirely — cars
+  // are never pushed back, slowed, or steered by track boundaries anymore.
+  // This was also the source of the "wall out of nowhere" bug on custom
+  // tracks: findNearestIndex() can resolve to the wrong, far-away part of
+  // a track that crosses/overlaps itself (now allowed in the editor), so
+  // the boundary check below would occasionally clamp the car against a
+  // piece of track nowhere near where it actually was. Removing the check
+  // fixes that at the source instead of trying to special-case it.
+  car.wallOffTime = (car.wallOffTime || 0) + (dt || 0);
+  car.touchingWall = false;
 }
 
 const BOOST_LIGHT_INTENSITY = 2.6;
@@ -8244,45 +8368,56 @@ function completeLap(car){
       gameState.bestLaps[selectedStage] = lapTime;
       saveState();
     }
-    if(timeTrialMode){
-      // Judge this against the ghost's OWN recorded time, not the global
-      // gameState.bestLaps (which can be set from non-Time-Trial races and
-      // would otherwise block a ghost from ever being saved). If there's no
-      // ghost yet at all, this lap always qualifies — so finishing a race
-      // in Time Trial always saves a ghost the first time.
-      const beatsGhost = ghostRecordBuf.length > 1 && (!ghostFrames || lapTime < ghostLapDuration);
-      if(beatsGhost){
-        const recordedFrames = ghostRecordBuf.slice();
-        saveGhostForStage(selectedStage, recordedFrames);
-        if(ghostFrames){ // only counts as "beating" one that already existed, not setting the first ever ghost
-          gameState.ghostBeatsCount = (gameState.ghostBeatsCount||0) + 1;
-          checkAchievements();
-        }
-        // Also offer it up to the shared table if it beats the synced global
-        // best for this stage (or there isn't one yet) — best effort, and
-        // the local save above already happened regardless of this outcome.
-        const remoteBest = remoteGhostCache[selectedStage];
-        if(!remoteBest || lapTime < remoteBest.lapTime){
-          const ownerDisplay = Online.myName();
-          sbUpsertStageGhost(selectedStage, {
-            lap_time: lapTime,
-            owner_key: currentUser || 'guest',
-            owner_display: ownerDisplay,
-            frames: recordedFrames,
-            updated_at: new Date().toISOString()
-          }).then(()=>{
-            remoteGhostCache[selectedStage] = { lapTime, frames: recordedFrames, ownerDisplay };
-          }).catch(e=>{
-            console.warn('[VelocityCircuit] Could not sync this ghost to the shared table (falls back to local-only):', e);
-          });
-        }
-      }
-      ghostRecordBuf = [];
-    }
+    // Race-ending check runs FIRST and unconditionally, before any of the
+    // Time Trial ghost-saving logic below. That logic touches localStorage,
+    // the DOM, and a network call — if any of it throws, we must not let
+    // that swallow the "race is over" transition (an exception in the ghost
+    // block on the deciding lap used to leave car.finished false forever,
+    // so the race just never ended in Time Trial mode).
     if(car.lap >= raceLaps && !car.finished){
       car.finished = true;
       car.finishTime = raceClock;
       finishRace();
+    }
+    if(timeTrialMode){
+      try{
+        // Judge this against the ghost's OWN recorded time, not the global
+        // gameState.bestLaps (which can be set from non-Time-Trial races and
+        // would otherwise block a ghost from ever being saved). If there's no
+        // ghost yet at all, this lap always qualifies — so finishing a race
+        // in Time Trial always saves a ghost the first time.
+        const beatsGhost = ghostRecordBuf.length > 1 && (!ghostFrames || lapTime < ghostLapDuration);
+        if(beatsGhost){
+          const recordedFrames = ghostRecordBuf.slice();
+          saveGhostForStage(selectedStage, recordedFrames);
+          if(ghostFrames){ // only counts as "beating" one that already existed, not setting the first ever ghost
+            gameState.ghostBeatsCount = (gameState.ghostBeatsCount||0) + 1;
+            checkAchievements();
+          }
+          // Also offer it up to the shared table if it beats the synced global
+          // best for this stage (or there isn't one yet) — best effort, and
+          // the local save above already happened regardless of this outcome.
+          const remoteBest = remoteGhostCache[selectedStage];
+          if(!remoteBest || lapTime < remoteBest.lapTime){
+            const ownerDisplay = Online.myName();
+            sbUpsertStageGhost(selectedStage, {
+              lap_time: lapTime,
+              owner_key: currentUser || 'guest',
+              owner_display: ownerDisplay,
+              frames: recordedFrames,
+              updated_at: new Date().toISOString()
+            }).then(()=>{
+              remoteGhostCache[selectedStage] = { lapTime, frames: recordedFrames, ownerDisplay };
+            }).catch(e=>{
+              console.warn('[VelocityCircuit] Could not sync this ghost to the shared table (falls back to local-only):', e);
+            });
+          }
+        }
+        ghostRecordBuf = [];
+      }catch(e){
+        console.warn('[VelocityCircuit] Ghost save/sync failed, continuing race normally:', e);
+        ghostRecordBuf = [];
+      }
     }
   } else if(car.lap >= raceLaps && !car.finished){
     car.finished = true;
@@ -11019,6 +11154,12 @@ function animate(now){
     }
     updateHUD();
     renderer.render(scene, camera);
+  } else if(appState === 'spectating'){
+    if(Spectate.active && track && scene && camera){
+      Spectate.updateCars(dt);
+      Spectate.updateCamera(dt);
+      renderer.render(scene, camera);
+    }
   }
 }
 let lastAnnouncedCountdown = 99;
