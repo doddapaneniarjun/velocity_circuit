@@ -8335,7 +8335,7 @@ function applyBoundary(car, dt){
   if(dx*dx + dz*dz > SANITY_RANGE*SANITY_RANGE) return;
 
   const lateral = dx*n.x + dz*n.z;              // signed distance from centerline
-  const limit = half + 0.2;                     // road's shoulder, just inside the barrier ribbon
+  const limit = half;                           // exactly the track's edge — no shoulder buffer
   const over = Math.abs(lateral) - limit;
   if(over <= 0) return;
 
