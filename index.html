@@ -266,6 +266,7 @@
     border:2px solid var(--border-strong); border-radius:var(--radius); touch-action:none; cursor:crosshair; }
   .editorToolbar{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:center; margin-bottom:6px; }
   .editorToolbar .btn{ font-size:13px; padding:9px 16px; min-height:auto; }
+  .editorToolbar .btn.active{ background:var(--accent); color:#fff8ef; border-color:var(--accent); }
   .editorForm{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px 18px;
     max-width:780px; margin:14px auto 6px; text-align:left; }
   .editorForm .loginField{ margin-bottom:0; }
@@ -945,14 +946,19 @@
         <button class="btn secondary" id="editorNewBtn">&#65291; New Track</button>
       </div>
 
-      <p class="editorHint">This is a live 3D view. Click empty ground to add a point, drag a point to move it, click a point again (without dragging) to remove it. Use the rotate buttons or scroll/pinch to orbit and zoom the camera. Add at least 4 points — the loop closes automatically and the finish line sits at your first (green) point. Clicking &ldquo;New Track&rdquo; downloads a playable copy of your current track first.</p>
+      <p class="editorHint">This is a live 3D view. Click empty ground to add a point, drag a point to move it, click a point again (without dragging) to remove it. Use &ldquo;Move Track&rdquo; to drag the whole loop at once, &ldquo;Rotate Track&rdquo; to spin it in place, and the Orbit buttons or scroll/pinch to look around. Add at least 4 points — the loop closes automatically and the finish line sits at your first (green) point. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
 
       <div class="editorCanvasWrap">
         <canvas id="editorCanvas" width="640" height="640" aria-label="Track shape drawing area"></canvas>
       </div>
       <div class="editorToolbar">
-        <button class="btn secondary" id="editorRotateLeftBtn" type="button">&#8634; Rotate</button>
-        <button class="btn secondary" id="editorRotateRightBtn" type="button">Rotate &#8635;</button>
+        <button class="btn secondary" id="editorMoveModeBtn" type="button">&#9995; Move Track</button>
+        <button class="btn secondary" id="editorRotateTrackLeftBtn" type="button">&#8634; Rotate Track</button>
+        <button class="btn secondary" id="editorRotateTrackRightBtn" type="button">Rotate Track &#8635;</button>
+      </div>
+      <div class="editorToolbar">
+        <button class="btn secondary" id="editorRotateLeftBtn" type="button">&#8634; Orbit</button>
+        <button class="btn secondary" id="editorRotateRightBtn" type="button">Orbit &#8635;</button>
         <button class="btn secondary" id="editorUndoBtn" type="button">Undo Point</button>
         <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
         <span class="stageMeta" style="align-self:center;"><span id="editorPointCount">0</span> points</span>
@@ -3333,9 +3339,47 @@ function drawEditorCanvas(){
   if(countEl) countEl.textContent = editorPoints.length;
 }
 
+// 'points' (default): click empty ground to add a point, drag/click a
+// point to move/remove it. 'move': drag anywhere to translate the whole
+// track at once (used by the Move Track toggle button below).
+let editorMode = 'points';
+let editorMoveStart = null;
+let editorMoveOrigPoints = null;
+
+function setEditorMode(mode){
+  editorMode = mode;
+  const btn = $('editorMoveModeBtn');
+  const canvas = $('editorCanvas');
+  if(btn) btn.classList.toggle('active', mode==='move');
+  if(canvas) canvas.style.cursor = mode==='move' ? 'grab' : 'crosshair';
+}
+
+// Rotates every point in the drawing around the shape's own centroid, so
+// the track spins in place rather than orbiting around the world origin.
+function rotateTrackPoints(deltaRad){
+  if(editorPoints.length < 2) return;
+  const cx = editorPoints.reduce((s,p)=>s+p.x,0) / editorPoints.length;
+  const cz = editorPoints.reduce((s,p)=>s+p.z,0) / editorPoints.length;
+  const cos = Math.cos(deltaRad), sin = Math.sin(deltaRad);
+  editorPoints = editorPoints.map(p=>{
+    const dx = p.x - cx, dz = p.z - cz;
+    return { x: cx + dx*cos - dz*sin, z: cz + dx*sin + dz*cos };
+  });
+  editorSetMsg('');
+  drawEditorCanvas();
+}
+
 function editorPointerDown(e){
   e.preventDefault();
   const {px,py} = editorPixelFromEvent(e);
+  if(editorMode === 'move'){
+    if(editorPoints.length === 0) return;
+    editorMoveStart = editorPixelToWorld(px,py);
+    editorMoveOrigPoints = editorPoints.map(p=> ({ x:p.x, z:p.z }));
+    try{ $('editorCanvas').setPointerCapture(e.pointerId); }catch(err){}
+    $('editorCanvas').style.cursor = 'grabbing';
+    return;
+  }
   const hit = editorFindPointNear(px,py);
   if(hit !== -1){
     editorDragIndex = hit;
@@ -3349,6 +3393,16 @@ function editorPointerDown(e){
   }
 }
 function editorPointerMove(e){
+  if(editorMode === 'move'){
+    if(!editorMoveStart) return;
+    e.preventDefault();
+    const {px,py} = editorPixelFromEvent(e);
+    const cur = editorPixelToWorld(px,py);
+    const dx = cur.x - editorMoveStart.x, dz = cur.z - editorMoveStart.z;
+    editorPoints = editorMoveOrigPoints.map(p=> ({ x:p.x+dx, z:p.z+dz }));
+    drawEditorCanvas();
+    return;
+  }
   if(editorDragIndex === -1) return;
   e.preventDefault();
   editorDragMoved = true;
@@ -3357,6 +3411,12 @@ function editorPointerMove(e){
   drawEditorCanvas();
 }
 function editorPointerUp(e){
+  if(editorMode === 'move'){
+    editorMoveStart = null;
+    editorMoveOrigPoints = null;
+    $('editorCanvas').style.cursor = 'grab';
+    return;
+  }
   if(editorDragIndex === -1) return;
   const idx = editorDragIndex;
   if(!editorDragMoved){
@@ -3406,6 +3466,7 @@ function openEditorForNew(){
   editingCustomId = null;
   editorPoints = [];
   editorDragIndex = -1;
+  setEditorMode('points');
   $('editorScreenTitle').textContent = 'Track Editor \u2014 New Track';
   $('editorNameInput').value = '';
   $('editorThemeSelect').value = 'oval';
@@ -3423,6 +3484,7 @@ function openEditorForEdit(id){
   editingCustomId = id;
   editorPoints = ct.points.map(p=> ({ x:p[0], z:p[1] }));
   editorDragIndex = -1;
+  setEditorMode('points');
   $('editorScreenTitle').textContent = 'Track Editor \u2014 Editing "' + ct.name + '"';
   $('editorNameInput').value = ct.name;
   $('editorThemeSelect').value = ct.theme || 'oval';
@@ -3448,14 +3510,15 @@ function editorHasUnsavedWork(){
   return current.some((p,i)=> p[0]!==ct.points[i][0] || p[1]!==ct.points[i][1]);
 }
 
-// Saves the current drawing into `customTracks` and STAGES. Returns the
-// STAGES index of the saved track, or -1 if validation failed (a message is
-// shown in that case). When `raceAfter` is true, jumps straight into a real
-// 3D race on the track that was just saved instead of returning home.
-function saveCustomTrack(raceAfter){
+// Writes the current editor drawing into `customTracks` and rebuilds STAGES
+// (so it shows up in the on-screen track list / stage grid immediately).
+// Returns the saved track object, or null if there aren't enough points yet
+// (a message is shown in that case). Shared by Save Track, Save & Test
+// Drive, and New Track (which auto-saves before clearing the canvas).
+function persistCurrentEditorTrack(){
   if(editorPoints.length < EDITOR_MIN_POINTS){
     editorSetMsg('Add at least ' + EDITOR_MIN_POINTS + ' points to close the loop.');
-    return -1;
+    return null;
   }
   const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
   let name = rawName || ('Custom Track ' + (customTracks.length + 1));
@@ -3470,14 +3533,16 @@ function saveCustomTrack(raceAfter){
   const points = editorPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100]);
 
   let savedId = editingCustomId;
+  let ct = null;
   if(editingCustomId){
-    const ct = customTracks.find(c=>c.id===editingCustomId);
+    ct = customTracks.find(c=>c.id===editingCustomId);
     if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points });
     else { savedId = null; }
   }
   if(!savedId){
     savedId = 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    customTracks.push({ id: savedId, name, theme, weather, difficulty, laps, width, points });
+    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points };
+    customTracks.push(ct);
   }
   saveCustomTracksToStorage();
   rebuildStagesFromCustomTracks();
@@ -3485,8 +3550,17 @@ function saveCustomTrack(raceAfter){
   $('editorScreenTitle').textContent = 'Track Editor \u2014 Editing "' + name + '"';
   renderCustomTrackList();
   renderStageGrid();
+  return ct;
+}
 
-  const idx = STAGES.findIndex(s => s.customId === savedId);
+// Saves the current drawing (see persistCurrentEditorTrack above). Returns
+// the STAGES index of the saved track, or -1 if validation failed. When
+// `raceAfter` is true, jumps straight into a real 3D race on the track that
+// was just saved instead of returning home.
+function saveCustomTrack(raceAfter){
+  const ct = persistCurrentEditorTrack();
+  if(!ct) return -1;
+  const idx = STAGES.findIndex(s => s.customId === ct.id);
   if(raceAfter && idx !== -1){
     selectedStage = idx;
     startRace(idx); // startRace() switches to the game screen itself
@@ -3557,23 +3631,7 @@ function downloadPlayableTrack(track){
   document.body.removeChild(a);
   setTimeout(()=> URL.revokeObjectURL(url), 4000);
 }
-// Builds a track object from whatever's currently in the editor, in the
-// same shape saveCustomTrack() writes to customTracks — used for the New
-// Track download below without actually committing it to storage.
-function editorCurrentTrackForExport(){
-  const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
-  const name = rawName || ('Custom Track ' + (customTracks.length + 1));
-  return {
-    id: 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-    name,
-    theme: $('editorThemeSelect').value,
-    weather: $('editorWeatherSelect').value,
-    difficulty: Math.max(1, Math.min(6, parseInt($('editorDifficultySelect').value,10) || 2)),
-    laps: Math.max(2, Math.min(8, parseInt($('editorLapsInput').value,10) || DEFAULT_LAPS)),
-    width: Math.max(14, Math.min(30, parseInt($('editorWidthInput').value,10) || TRACK_WIDTH)),
-    points: editorPoints.map(p => [Math.round(p.x*100)/100, Math.round(p.z*100)/100])
-  };
-}
+
 
 $('openEditorBtn').addEventListener('click', ()=>{ openEditorForNew(); showScreen('editor'); });
 $('editorBackBtn').addEventListener('click', ()=>{
@@ -3581,14 +3639,17 @@ $('editorBackBtn').addEventListener('click', ()=>{
   showScreen('home');
 });
 $('editorNewBtn').addEventListener('click', ()=>{
-  // Whatever's currently drawn becomes a downloadable, double-click-and-play
-  // copy of the game with this track already loaded — your work always
-  // leaves with you, even if you don't hit Save first.
+  // Whatever's currently drawn is saved into the track list first — so it
+  // shows up on the home screen / track list right away and you can race
+  // it — and a playable standalone copy is downloaded too. Nothing is lost
+  // by hitting New before Save.
   if(editorPoints.length >= EDITOR_MIN_POINTS){
-    editorSetMsg('Downloading a playable copy of this track\u2026');
-    downloadPlayableTrack(editorCurrentTrackForExport());
+    const ct = persistCurrentEditorTrack();
+    if(ct){
+      editorSetMsg('Saved \u201c' + ct.name + '\u201d to your track list \u2014 downloading a playable copy\u2026');
+      downloadPlayableTrack(ct);
+    }
   }
-  if(editorHasUnsavedWork() && !confirm('Start a new track? Your unsaved changes to the current one will be lost \u2014 click Cancel and use Save Track first if you want to keep it.')) return;
   openEditorForNew();
 });
 $('editorUndoBtn').addEventListener('click', ()=>{ editorPoints.pop(); editorSetMsg(''); drawEditorCanvas(); });
@@ -3600,6 +3661,9 @@ $('editorSaveBtn').addEventListener('click', ()=> saveCustomTrack(false));
 $('editorTestBtn').addEventListener('click', ()=> saveCustomTrack(true));
 $('editorRotateLeftBtn').addEventListener('click', ()=> editorRotate(-Math.PI/6));
 $('editorRotateRightBtn').addEventListener('click', ()=> editorRotate(Math.PI/6));
+$('editorMoveModeBtn').addEventListener('click', ()=> setEditorMode(editorMode==='move' ? 'points' : 'move'));
+$('editorRotateTrackLeftBtn').addEventListener('click', ()=> rotateTrackPoints(-Math.PI/12));
+$('editorRotateTrackRightBtn').addEventListener('click', ()=> rotateTrackPoints(Math.PI/12));
 (function initEditorCanvas(){
   const canvas = $('editorCanvas');
   if(!canvas) return;
