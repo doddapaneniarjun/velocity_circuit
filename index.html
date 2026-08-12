@@ -990,13 +990,13 @@
         <button class="btn secondary" id="editorNewBtn">&#65291; New Track</button>
       </div>
 
-      <p class="editorHint">Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view, and Uphill/Downhill pieces raise or lower it in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too — and &ldquo;Save Track&rdquo; unlocks once it's closed. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
+      <p class="editorHint">Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view, and Uphill/Downhill pieces raise or lower it in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — an invisible wall will block the gap so cars can't drive through it. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
 
       <div class="editorCanvasWrap">
         <canvas id="editorCanvas" width="640" height="640" aria-label="3D track preview — drag to orbit"></canvas>
       </div>
 
-      <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces and steer back to the start gate to close the loop.</p>
+      <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces — close the loop for a lap circuit, or save it open and an invisible wall will block the gap.</p>
 
       <div class="editorPieceGrid" id="editorPieceGrid"><!-- piece buttons injected by JS --></div>
 
@@ -1457,6 +1457,12 @@ const DEFAULT_STATE = {
   gamepadDeadzone: 18,   // 0–50, stick deadzone as a percent (18 = 0.18)
   gamepadVibration: true, // rumble on collisions/boosts/mini-turbos, when the pad supports it
   noclipWalls: false,   // owner-only: drive straight through track barriers
+  cpuDifficultyPct: 100, // owner-only: scales CPU opponent strength, 100 = normal
+  noCollision: false,    // owner-only: ignore collisions with scenery props and other cars, alongside noclipWalls
+  rubberBandPct: 100,    // owner-only: scales how hard CPU catch-up/rubber-banding kicks in, separate from cpuDifficultyPct
+  coinMultPct: 100,      // owner-only: scales coin payouts, for testing economy changes
+  forceLaps: 0,          // owner-only: overrides the lap count for the next race regardless of the track's own laps; 0 = off
+  forceWeatherKey: '',   // owner-only: overrides weather for the next race regardless of the track's fixed weather; '' = off
   appliedOwnerCmdIds: [],  // ids of owner commands already applied, so a command
                            // delivered twice (once live, once from the offline
                            // queue) only ever takes effect once
@@ -1541,6 +1547,12 @@ function loadState(){
       gameState.gamepadDeadzone = Number.isFinite(parsed.gamepadDeadzone) ? parsed.gamepadDeadzone : DEFAULT_STATE.gamepadDeadzone;
       gameState.gamepadVibration = parsed.gamepadVibration !== false;
       gameState.noclipWalls    = parsed.noclipWalls === true;
+      gameState.cpuDifficultyPct = Number.isFinite(parsed.cpuDifficultyPct) ? Math.max(10, Math.min(500, parsed.cpuDifficultyPct)) : 100;
+      gameState.noCollision    = parsed.noCollision === true;
+      gameState.rubberBandPct  = Number.isFinite(parsed.rubberBandPct) ? Math.max(0, Math.min(300, parsed.rubberBandPct)) : 100;
+      gameState.coinMultPct    = Number.isFinite(parsed.coinMultPct) ? Math.max(0, Math.min(1000, parsed.coinMultPct)) : 100;
+      gameState.forceLaps      = Number.isFinite(parsed.forceLaps) ? Math.max(0, Math.min(20, parsed.forceLaps)) : 0;
+      gameState.forceWeatherKey = typeof parsed.forceWeatherKey === 'string' ? parsed.forceWeatherKey : '';
       gameState.appliedOwnerCmdIds = Array.isArray(parsed.appliedOwnerCmdIds) ? parsed.appliedOwnerCmdIds : [];
       gameState.unlockedAchievements = Array.isArray(parsed.unlockedAchievements) ? parsed.unlockedAchievements : [];
       gameState.lifetimeCoins   = Number.isFinite(parsed.lifetimeCoins) ? parsed.lifetimeCoins : 0;
@@ -2528,7 +2540,7 @@ function rebuildStagesFromCustomTracks(){
       name: ct.name, type: ct.theme || 'oval', desc: 'A custom track.',
       difficulty: ct.difficulty || 1, width: ct.width || TRACK_WIDTH,
       unlockRaces: 0, laps: ct.laps || DEFAULT_LAPS, weather: ct.weather || 'clear',
-      custom: true, customId: ct.id, customPoints: ct.points
+      custom: true, customId: ct.id, customPoints: ct.points, openEnd: !!ct.openEnd
     });
   });
 }
@@ -3215,10 +3227,15 @@ $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
    - Pieces are free to cross/overlap the existing track and there is no
      cap on how many pieces a track can have (editorPieceCollides is kept
      as a no-op stub for compatibility with the rest of this comment).
-   - The loop must actually close — end back up near the start gate,
-     facing a similar direction — before Save/Test unlock, so the closing
-     stretch is always a smooth continuation rather than a sharp jump cut
-     the spline would otherwise paper over.
+   - Closing the loop (ending back up near the start gate, facing a
+     similar direction) is no longer required to save — Save/Test only
+     need EDITOR_MIN_PIECES placed. A track that doesn't close is stored
+     with `openEnd: true`; at build time the closing stretch (still
+     generated as a smooth spline continuation, same as always, so the
+     geometry never folds or jump-cuts) gets an invisible wall placed
+     across it at the true end of the last placed piece — see wallIndex
+     in buildTrack() and applyEndWall() — so cars can't drive down that
+     phantom connector back to the start.
    - relaxCenterlineForWidth() and the barrier-overlap suppression in
      buildTrack() (unchanged) remain as a second line of defense. */
 const EDITOR_RANGE = 140;        // world units from canvas center to its edge
@@ -3355,13 +3372,16 @@ function updateEditorLoopStatusUI(status){
     el.textContent = '\u2705 Loop closed — ready to save!';
     el.className = 'editorLoopStatus closed';
   } else if(editorPieces.length === 0){
-    el.textContent = 'Place at least ' + EDITOR_MIN_PIECES + ' pieces and steer back to the start gate to close the loop.';
+    el.textContent = 'Place at least ' + EDITOR_MIN_PIECES + ' pieces — close the loop for a lap circuit, or save it open and an invisible wall will block the gap.';
     el.className = 'editorLoopStatus open';
   } else if(status.dist <= EDITOR_CLOSE_DIST && status.angDiff <= EDITOR_CLOSE_ANGLE && status.heightOff > EDITOR_CLOSE_HEIGHT){
-    el.textContent = 'Back at the start gate but ' + Math.round(status.heightOff) + ' units off in height — balance your uphill and downhill pieces so the loop lands back at start height.';
+    el.textContent = 'Back at the start gate but ' + Math.round(status.heightOff) + ' units off in height — balance your uphill and downhill pieces so the loop lands back at start height, or save it open as-is (an invisible wall will seal the gap).';
+    el.className = 'editorLoopStatus open';
+  } else if(editorPieces.length >= EDITOR_MIN_PIECES){
+    el.textContent = 'Not closed — ' + Math.round(status.dist) + ' units from the start gate. Keep building back around to close the loop, or save it open now (an invisible wall will block the gap).';
     el.className = 'editorLoopStatus open';
   } else {
-    el.textContent = 'Not closed yet — ' + Math.round(status.dist) + ' units from the start gate. Keep building the loop back around.';
+    el.textContent = 'Place at least ' + EDITOR_MIN_PIECES + ' pieces — close the loop for a lap circuit, or save it open and an invisible wall will block the gap.';
     el.className = 'editorLoopStatus open';
   }
 }
@@ -3801,19 +3821,19 @@ function editorHasUnsavedWork(){
 
 // Writes the current piece-built track into `customTracks` and rebuilds
 // STAGES (so it shows up in the on-screen track list / stage grid
-// immediately). Returns the saved track object, or null if the loop isn't
-// closed yet (a message is shown in that case). Shared by Save Track,
-// Save & Test Drive, and New Track (which auto-saves before clearing).
+// immediately). Returns the saved track object, or null if there aren't
+// enough pieces yet (a message is shown in that case). The loop no longer
+// has to be closed to save — an open track is stored with `openEnd: true`
+// and gets an invisible wall at its end when raced (see buildTrack() /
+// applyEndWall()). Shared by Save Track, Save & Test Drive, and New Track
+// (which auto-saves before clearing).
 function persistCurrentEditorTrack(){
   const status = editorLoopStatus();
   if(editorPieces.length < EDITOR_MIN_PIECES){
-    editorSetMsg('Add at least ' + EDITOR_MIN_PIECES + ' pieces to close the loop.');
+    editorSetMsg('Add at least ' + EDITOR_MIN_PIECES + ' pieces before saving.');
     return null;
   }
-  if(!status.closed){
-    editorSetMsg('The loop isn\u2019t closed yet — steer it back within ' + EDITOR_CLOSE_DIST + ' units of the start gate, facing roughly the same way.');
-    return null;
-  }
+  const openEnd = !status.closed;
   const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
   let name = rawName || ('Custom Track ' + (customTracks.length + 1));
   const collides = STAGES.some(s => s.name === name && s.customId !== editingCustomId);
@@ -3836,12 +3856,12 @@ function persistCurrentEditorTrack(){
   let ct = null;
   if(editingCustomId){
     ct = customTracks.find(c=>c.id===editingCustomId);
-    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points, pieces, transform });
+    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points, pieces, transform, openEnd });
     else { savedId = null; }
   }
   if(!savedId){
     savedId = 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points, pieces, transform };
+    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points, pieces, transform, openEnd };
     customTracks.push(ct);
   }
   saveCustomTracksToStorage();
@@ -3866,7 +3886,7 @@ function saveCustomTrack(raceAfter){
     startRace(idx); // startRace() switches to the game screen itself
     return idx;
   }
-  editorSetMsg('Track saved!');
+  editorSetMsg(ct.openEnd ? 'Track saved — an invisible wall seals the open end!' : 'Track saved!');
   if(editorMsgTimer) clearTimeout(editorMsgTimer);
   editorMsgTimer = setTimeout(()=>{ showScreen('home'); }, 700);
   return idx;
@@ -3901,14 +3921,26 @@ function deleteCustomTrack(id){
 }
 
 // Packages a track object into a full, self-contained, playable copy of
-// this game: it's just this same page's current HTML (screens reset to
-// their normal starting state by init()/showScreen() on load) with one
-// small script spliced in right after the normal loadCustomTracks() call,
+// this game: it's just this same page's current HTML, with one small
+// script spliced in right after the normal loadCustomTracks() call,
 // pre-registering this track so it's sitting in the Custom Tracks list the
 // moment the downloaded file is opened. No server, no build step — the
 // file you get is literally something you can double-click and play.
+//
+// We're exporting mid-session — usually from right inside the editor — so
+// the live DOM has the editor screen (and possibly an overlay) visible and
+// everything else hidden. init()/showScreen() normally correct that on
+// load, but that depends on the CDN scripts (three.js etc.) loading
+// successfully; if that ever fails (offline, blocked CDN, ad-blocker...),
+// init() throws before it gets that far and the file is stuck showing
+// whatever screen happened to be open at export time — a frozen editor
+// view rather than the game. So we bake the correct starting screen/overlay
+// state into the snapshot itself, rather than relying on JS to fix it up.
 function buildPlayableExport(track){
-  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const clone = document.documentElement.cloneNode(true);
+  clone.querySelectorAll('.screen').forEach(s=>{ s.hidden = (s.id !== 'homeScreen'); });
+  clone.querySelectorAll('.overlay').forEach(o=>{ o.hidden = true; });
+  const html = '<!DOCTYPE html>\n' + clone.outerHTML;
   const marker = 'loadCustomTracks();';
   const idx = html.indexOf(marker);
   if(idx === -1) return html; // fallback: still a complete, playable copy of the game
@@ -3942,9 +3974,10 @@ $('editorNewBtn').addEventListener('click', ()=>{
   // Whatever's currently built is saved into the track list first — so it
   // shows up on the home screen / track list right away and you can race
   // it — and a playable standalone copy is downloaded too — but only if
-  // the loop is actually closed; otherwise it's simply discarded, same as
-  // Clear All, since a half-built track can't be raced anyway.
-  if(editorLoopStatus().closed){
+  // there are enough pieces to save at all (closed or open); otherwise
+  // it's simply discarded, same as Clear All, since a barely-started track
+  // can't be raced anyway.
+  if(editorPieces.length >= EDITOR_MIN_PIECES){
     const ct = persistCurrentEditorTrack();
     if(ct){
       editorSetMsg('Saved \u201c' + ct.name + '\u201d to your track list \u2014 downloading a playable copy\u2026');
@@ -4431,7 +4464,7 @@ let currentSkyDome = null;
 let propColliders = [];
 let cars = [];
 let player = null;
-let track = null; // {points, normals, N, width}
+let track = null; // {points, normals, N, width, wallIndex, wallPos, wallDir, wallNormal} — wall* are null on closed-loop tracks
 let raceClock = 0;
 let countdown = 0;
 // Current stage's weather condition (see WEATHER_DEFS) — set in startRace(),
@@ -4677,14 +4710,18 @@ function genFoggyMansion(N){
 // spaced points around a smooth closed loop, via a closed Catmull-Rom spline
 // through the raw anchor points — same output shape as the procedural
 // gen* functions below, so it drops straight into the rest of buildTrack.
-function resampleCustomCenterline(rawPoints, N){
-  // Array points are [x,y,z] (new saves — real elevation) or the older
-  // [x,z] pairs (treated as flat, y=0) for backward compatibility with
-  // tracks saved before the editor supported hills. Object points (the
-  // editor's own live {x,y,z} anchors) carry y directly.
-  const anchors = rawPoints.map(p=> Array.isArray(p)
+// Array points are [x,y,z] (new saves — real elevation) or the older [x,z]
+// pairs (treated as flat, y=0) for backward compatibility with tracks saved
+// before the editor supported hills. Object points (the editor's own live
+// {x,y,z} anchors) carry y directly. Shared by resampleCustomCenterline and
+// the open-track end-wall placement in buildTrack().
+function customPointToVec3(p){
+  return Array.isArray(p)
     ? (p.length > 2 ? new THREE.Vector3(p[0], p[1], p[2]) : new THREE.Vector3(p[0], 0, p[1]))
-    : new THREE.Vector3(p.x, p.y||0, p.z));
+    : new THREE.Vector3(p.x, p.y||0, p.z);
+}
+function resampleCustomCenterline(rawPoints, N){
+  const anchors = rawPoints.map(customPointToVec3);
   const curve = new THREE.CatmullRomCurve3(anchors, true, 'catmullrom', 0.5);
   // getSpacedPoints(N) returns N+1 points (evenly spaced by arc length) for
   // a closed curve, with the last point duplicating the first — trim it.
@@ -5705,8 +5742,38 @@ function buildTrack(stageIndex){
   const trackWidth = stage.width || TRACK_WIDTH;
   const rawPoints = generateCenterline(stage.type, N_POINTS, stage.customPoints);
   const points = relaxCenterlineForWidth(rawPoints, trackWidth);
-  const { normals } = computeTangentsNormals(points);
+  const { tangents, normals } = computeTangentsNormals(points);
   const half = trackWidth/2;
+
+  // Open custom tracks (built in the editor without closing the loop back
+  // to the start gate) still get a full closed centerline under the hood —
+  // see resampleCustomCenterline() — so nothing else here has to change,
+  // but the stretch that closes the gap is a synthetic spline connector,
+  // not a real piece of the track. Find where the real track actually
+  // stops (the last anchor the editor placed) and record it as `wallIndex`
+  // so applyEndWall() can drop an invisible wall right there, sealing off
+  // that synthetic connector. Search only a window around where that point
+  // is expected to fall (by anchor order) rather than the whole track, so a
+  // self-crossing custom track can't accidentally match some other, nearer
+  // strand instead of its own true end.
+  let wallIndex = null;
+  if(stage.openEnd && stage.customPoints && stage.customPoints.length >= 2){
+    const endVec = customPointToVec3(stage.customPoints[stage.customPoints.length-1]);
+    const rawCount = stage.customPoints.length;
+    const estIdx = Math.round(((rawCount-1)/rawCount) * N_POINTS) % N_POINTS;
+    const searchWindow = Math.max(10, Math.round(N_POINTS*0.15));
+    let bestIdx = estIdx, bestDistSq = Infinity;
+    for(let d=-searchWindow; d<=searchWindow; d++){
+      const i = ((estIdx+d)%N_POINTS+N_POINTS)%N_POINTS;
+      const dx = points[i].x-endVec.x, dz = points[i].z-endVec.z;
+      const distSq = dx*dx+dz*dz;
+      if(distSq < bestDistSq){ bestDistSq = distSq; bestIdx = i; }
+    }
+    wallIndex = bestIdx;
+  }
+  const wallPos = wallIndex!=null ? points[wallIndex].clone() : null;
+  const wallDir = wallIndex!=null ? tangents[wallIndex].clone() : null;
+  const wallNormal = wallIndex!=null ? normals[wallIndex].clone() : null;
   const left = points.map((p,i)=> new THREE.Vector3().addVectors(p, normals[i].clone().multiplyScalar(half)));
   const right = points.map((p,i)=> new THREE.Vector3().addVectors(p, normals[i].clone().multiplyScalar(-half)));
 
@@ -5922,7 +5989,7 @@ function buildTrack(stageIndex){
 
   group.add(buildFinishLine(points, normals, trackWidth));
 
-  return { group, points, normals, width: trackWidth, N, ocean, skyDome, colliders };
+  return { group, points, normals, width: trackWidth, N, ocean, skyDome, colliders, wallIndex, wallPos, wallDir, wallNormal };
 }
 
 /* ---------- Finish line ---------- */
@@ -7117,7 +7184,7 @@ const Online = {
         // Private message: forward only to the intended recipient instead
         // of relaying to everyone.
         if(m.to === this.myId){
-          addChatMessage(m.name, m.text, false, true);
+          addChatMessage(m.name, m.text, false, true, null, m.id);
         } else {
           const target = this.conns[m.to];
           if(target){ try{ target.send(m); }catch(e){} }
@@ -7125,7 +7192,7 @@ const Online = {
       } else {
         this.relay(m, conn);
         this.broadcastToSpectators(m);
-        addChatMessage(m.name, m.text, false);
+        addChatMessage(m.name, m.text, false, false, null, m.id);
       }
     } else if(m.type === 'owner_cmd'){
       this.relay(m, conn);
@@ -7248,7 +7315,7 @@ const Online = {
     } else if(m.type === 'pong'){
       this.recordPong('host', m.ts);
     } else if(m.type === 'chat'){
-      addChatMessage(m.name, m.text, false, !!m.to);
+      addChatMessage(m.name, m.text, false, !!m.to, null, m.id);
     } else if(m.type === 'owner_cmd'){
       handleOwnerCmdReceived(m);
     } else if(m.type === 'chat_wipe'){
@@ -7846,6 +7913,7 @@ const Spectate = {
       renderSpectateList();
       updateSpectateFollowLabel();
     } else if(m.type === 'chat'){
+      if(isMutedSender(m.id, m.name)) return;
       addSpectateChatLine(m.name, m.text);
     }
   }
@@ -7938,7 +8006,7 @@ function startRace(stageIndex, onlineRoom){
   currentSkyDome = null;
   propColliders = [];
   const stage = STAGES[stageIndex];
-  raceLaps = stage.laps || DEFAULT_LAPS;
+  raceLaps = (isOwner && gameState.forceLaps > 0) ? gameState.forceLaps : (stage.laps || DEFAULT_LAPS);
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
   currentTrackDim = DIM_SKY_STYLES.has(theme.skyStyle);
   currentTrackFoggedMinimap = !!theme.foggyMinimap;
@@ -8031,15 +8099,21 @@ function startRace(stageIndex, onlineRoom){
   // a few points top-to-bottom, which got lost next to the skill/variance
   // terms and made "harder track" barely feel different from "easier track".
   const diffFrac = (stage.difficulty - 1) / 5;
+  // Owner-only knob (setcpudifficultytoxxx%, default 100) scales every CPU
+  // advantage term evenly — at 100% this multiplies by 1 and reproduces the
+  // exact numbers below, unchanged. 0% flattens CPUs to neutral (aiSkill=1,
+  // no bonuses); above 100% scales every term up proportionally.
+  const cpuDifficultyMult = Math.max(0, (Number.isFinite(gameState.cpuDifficultyPct) ? gameState.cpuDifficultyPct : 100)) / 100;
   if(!timeTrialMode)
   for(let n=0;n<3;n++){
     const ci = cpuColorPool[n % cpuColorPool.length];
     const variance = (Math.random() * 4) - 2;              // ±2 — kept small so skill, not luck, drives the pack
-    const aiSkill = 0.9 + skillFrac * 0.2 + diffFrac * 0.18 + Math.random() * 0.05;  // up to +0.18 extra on the hardest tracks
+    const rawAiSkill = 0.9 + skillFrac * 0.2 + diffFrac * 0.18 + Math.random() * 0.05;  // up to +0.18 extra on the hardest tracks
+    const aiSkill = 1 + (rawAiSkill - 1) * cpuDifficultyMult;
     const cpu = makeCar(false, CARS[ci].color, aiSkill);
-    cpu.diffBonus = playerSpeedBonus * 0.82 + diffFrac * 9 + (skillFrac - 0.5) * 8 + variance;
-    cpu.accelBonus = playerAccelBonus * 0.82 + diffFrac * 7 + (skillFrac - 0.5) * 6 + variance * 0.5;
-    cpu.turnBonus = diffFrac * 0.3;
+    cpu.diffBonus = (playerSpeedBonus * 0.82 + diffFrac * 9 + (skillFrac - 0.5) * 8 + variance) * cpuDifficultyMult;
+    cpu.accelBonus = (playerAccelBonus * 0.82 + diffFrac * 7 + (skillFrac - 0.5) * 6 + variance * 0.5) * cpuDifficultyMult;
+    cpu.turnBonus = (diffFrac * 0.3) * cpuDifficultyMult;
     cpu.laneOffset = cpuLaneOffsets[n];   // permanent lane assignment
     cpu.label = 'Rival ' + (n+1);
     cpu.carName = getCarName(ci);
@@ -8256,7 +8330,9 @@ function updateWeatherFX(dt){
 // startRace() after createStageScene() so `scene` already exists.
 function applyWeatherForStage(stageIndex){
   teardownWeatherFX();
-  currentWeather = weatherForStage(stageIndex);
+  currentWeather = (isOwner && gameState.forceWeatherKey && WEATHER_DEFS[gameState.forceWeatherKey])
+    ? WEATHER_DEFS[gameState.forceWeatherKey]
+    : weatherForStage(stageIndex);
   windPhase = 0; windLateral = 0; windGustFlash = 0;
   if(currentWeather.particle) weatherFX = createWeatherFX(currentWeather.particle);
   if(scene && scene.fog && currentWeather.fogBoost > 0){
@@ -8300,6 +8376,9 @@ function updateOceanProximity(){
 // only bypasses track barriers, not scenery.
 function applyPropCollisions(car){
   if(!propColliders.length) return;
+  // Same scoping as noclipWalls: only bypass for the player's own car, so
+  // turning this on doesn't also give every AI opponent prop-immunity.
+  if(gameState.noCollision && car.isPlayer) return;
   for(let i=0;i<propColliders.length;i++){
     const p = propColliders[i];
     const dx = car.pos.x - p.x, dz = car.pos.z - p.z;
@@ -8430,6 +8509,50 @@ function applyBoundary(car, dt){
   }
 }
 
+// Open tracks (built in the editor without closing the loop) still get a
+// full closed centerline internally (see buildTrack's wallIndex comment) —
+// this seals off the synthetic connector that bridges the gap with a flat,
+// invisible wall right at the true end of the track, so a car can never
+// actually drive down it. Acts like any other wall hit: hard stop, crash
+// boost on first contact. Only checks near the wall itself (both a distance
+// cap and a lateral-offset cap) so it can never trigger somewhere else on
+// the track, including a strand that happens to cross near the wall on a
+// self-crossing custom track.
+function applyEndWall(car){
+  if(!track || track.wallIndex == null) return;
+  if(gameState.noclipWalls && car.isPlayer) return;
+  const wasTouching = car.touchingEndWall;
+  const wallPos = track.wallPos, wallDir = track.wallDir, wallNormal = track.wallNormal;
+  const half = (track.width || TRACK_WIDTH) / 2;
+
+  const ddx = car.pos.x-wallPos.x, ddz = car.pos.z-wallPos.z;
+  if(ddx*ddx + ddz*ddz > 3600){ car.touchingEndWall = false; return; } // ~60 units — nowhere near the wall
+
+  const forward = forwardVec(car.heading);
+  const right = { x: forward.z, z: -forward.x };
+  const hl = CAR_HALF_LENGTH, hw = CAR_HALF_WIDTH;
+  const cornerSigns = [[1,1],[1,-1],[-1,1],[-1,-1]];
+  let maxOver = -Infinity;
+  for(const [fl, fw] of cornerSigns){
+    const cx = car.pos.x + forward.x*hl*fl + right.x*hw*fw;
+    const cz = car.pos.z + forward.z*hl*fl + right.z*hw*fw;
+    const along = (cx-wallPos.x)*wallDir.x + (cz-wallPos.z)*wallDir.z;
+    if(along > maxOver) maxOver = along;
+  }
+  if(maxOver <= 0){ car.touchingEndWall = false; return; }
+
+  const lateral = (car.pos.x-wallPos.x)*wallNormal.x + (car.pos.z-wallPos.z)*wallNormal.z;
+  if(Math.abs(lateral) > half + 8){ car.touchingEndWall = false; return; }
+
+  car.pos.x -= wallDir.x * maxOver;
+  car.pos.z -= wallDir.z * maxOver;
+  car.touchingWall = true;
+  car.touchingEndWall = true;
+  car.wallOffTime = 0;
+  car.speed = 0;
+  if(!wasTouching) giveCrashBoost(car);
+}
+
 const BOOST_LIGHT_INTENSITY = 2.6;
 const BOOST_LIGHT_INTENSITY_DIM = 6.5;
 const BOOST_LIGHT_DISTANCE = 36;
@@ -8471,7 +8594,8 @@ function completeLap(car){
   car.lapStartClock = raceClock;
   if(lapTime < car.bestLap) car.bestLap = lapTime;
   if(car.isPlayer){
-    const lapCoins = coinsPerLapForStage(STAGES[selectedStage]);
+    const coinMult = (isOwner ? Math.max(0, (gameState.coinMultPct!=null?gameState.coinMultPct:100)) : 100) / 100;
+    const lapCoins = Math.round(coinsPerLapForStage(STAGES[selectedStage]) * coinMult);
     gameState.coins += lapCoins;
     gameState.lifetimeCoins = (gameState.lifetimeCoins||0) + lapCoins;
     lapCoinsEarned += lapCoins;
@@ -8786,6 +8910,7 @@ function updateCar(car, dt){
   car.pos.y += (groundY - car.pos.y) * Math.min(1, dt*8);
   applyBoundary(car, dt);
   applyPropCollisions(car);
+  applyEndWall(car);
 
   // Lap detection. A crossing only counts once the car has genuinely been
   // out around the track (past the midpoint) since the last time it counted —
@@ -8895,6 +9020,9 @@ function resolveCollisions(dt){
         const a = cars[i], b = cars[j];
         if(a.remote && b.remote) continue; // two network cars resolve on their own screens
         if(a.finished && b.finished) continue;
+        // Owner-only nocollision: player's car passes straight through other
+        // cars, alongside the existing prop/wall bypasses above.
+        if(gameState.noCollision && (a.isPlayer || b.isPlayer)) continue;
 
         const dx = b.pos.x - a.pos.x;
         const dz = b.pos.z - a.pos.z;
@@ -9011,10 +9139,14 @@ function updateRubberBand(dt){
     ? Math.max(0, Math.min(1, Math.abs(player.speed) / player.maxSpeed))
     : 1;
   const speedEase = 1 - (1 - playerSpeedFrac) * 0.5;
+  // Owner-only knob (setrubberbandto###%, default 100): scales how hard the
+  // gap-based catch-up/ease-off effect below kicks in, independent of
+  // cpuDifficultyPct (which scales raw CPU pace, not this live coupling).
+  const rbScale = (isOwner ? Math.max(0, (gameState.rubberBandPct!=null?gameState.rubberBandPct:100)) : 100) / 100;
   cars.forEach(car=>{
     if(car.isPlayer || car.remote) return;
     const gap = (playerProgress - progressMetric(car)) / N; // >0: player ahead
-    const target = (1 + Math.max(-0.35, Math.min(0.35, gap*0.55))) * speedEase;
+    const target = (1 + Math.max(-0.35, Math.min(0.35, gap*0.55*rbScale))) * speedEase;
     // Fast-converging (dt*1.6) so the catch-up/ease-off is felt within a
     // second or two of the gap opening up, not gradually over a full lap.
     car.rubberBand += (target - car.rubberBand) * Math.min(1, dt*1.6);
@@ -9069,7 +9201,8 @@ function formatChatTime(ts){
     return new Date(ts).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
   }catch(e){ return ''; }
 }
-function addChatMessage(name, text, isMe, isPrivate, otherName){
+function addChatMessage(name, text, isMe, isPrivate, otherName, fromId){
+  if(!isMe && isMutedSender(fromId, name)) return; // muted locally — this client just doesn't show it
   const log = $('chatLog');
   if(!log) return;
   const row = document.createElement('div');
@@ -9201,6 +9334,32 @@ function handleOwnerCmdReceived(m){
       addSystemChatMessage('An owner ' + (delta < 0 ? 'reduced' : 'increased') + ' your bonus coins per race by ' + Math.abs(delta) + '.');
       break;
     }
+    case 'setrating': {
+      const val = Math.max(0, Math.round(m.amount|0));
+      gameState.skillRating = val;
+      saveState(); refreshCoinDisplays();
+      addSystemChatMessage('An owner set your driver rating to ' + val + '.');
+      break;
+    }
+    case 'giveallcars': {
+      const all = CARS.map((c,i)=>i);
+      gameState.ownedCars = all;
+      saveState();
+      if(typeof renderCarGrid === 'function') renderCarGrid();
+      addSystemChatMessage('An owner unlocked every car for your garage.');
+      break;
+    }
+    case 'maxupgrades': {
+      UPGRADE_DEFS.forEach(def=>{ gameState.upgrades[def.key] = MAX_UPGRADE_LEVEL; });
+      saveState();
+      if(typeof renderUpgrades === 'function') renderUpgrades();
+      addSystemChatMessage('An owner maxed out all your upgrades.');
+      break;
+    }
+    case 'kick': {
+      if(Online.room) kickFromOnlineRace('An owner removed you from the race.');
+      break;
+    }
     case 'rename': {
       const clean = String(m.newName||'').trim().slice(0,24);
       if(!clean) break;
@@ -9329,6 +9488,117 @@ function handleChatSubmission(rawText){
     return true;
   }
 
+  // setratingbobto500 — set a racer's driver rating directly, instead of
+  // nudging it race by race.
+  match = text.match(/^setrating\s*(.+?)\s*to\s*(\d+)\s*$/i);
+  if(match) return runTargetedOwnerCmd('setrating', parseInt(match[2],10), match[1]);
+
+  // giveallcarstobob — unlock every car for a racer's garage.
+  match = text.match(/^giveallcarsto\s*(.+?)\s*$/i);
+  if(match) return runTargetedOwnerCmd('giveallcars', null, match[1]);
+
+  // maxupgradesbob — max out a racer's whole upgrade tree.
+  match = text.match(/^maxupgrades\s*(.+?)\s*$/i);
+  if(match) return runTargetedOwnerCmd('maxupgrades', null, match[1]);
+
+  // kickbob — remove a racer from the current online race room.
+  match = text.match(/^kick\s*(.+?)\s*$/i);
+  if(match) return runTargetedOwnerCmd('kick', null, match[1]);
+
+  // mutebob / unmutebob — local only: block/unblock a racer's chat on your
+  // own screen. Nothing is sent to them or anyone else.
+  match = text.match(/^mute\s*(.+?)\s*$/i);
+  if(match){
+    const target = findRosterTarget(match[1]);
+    if(!target){ addSystemChatMessage('No racer named "' + match[1] + '" in this race.'); return true; }
+    muteRacer(target.key, target.name);
+    addSystemChatMessage('Muted ' + target.name + ' (only on your screen).');
+    return true;
+  }
+  match = text.match(/^unmute\s*(.+?)\s*$/i);
+  if(match){
+    const target = findRosterTarget(match[1]);
+    const key = target ? target.key : String(match[1]||'').trim().toLowerCase();
+    unmuteRacer(key);
+    addSystemChatMessage('Unmuted ' + (target ? target.name : match[1]) + '.');
+    return true;
+  }
+
+  // setlapsto5 / setlapsto5% (% ignored) — owner-only, local: overrides the
+  // lap count for your NEXT race regardless of what the track defines.
+  match = text.match(/^setlapsto(\d+)\s*$/i);
+  if(match){
+    const laps = Math.max(1, Math.min(20, parseInt(match[1],10)));
+    gameState.forceLaps = laps;
+    saveState();
+    addSystemChatMessage('Lap count for your next race set to ' + laps + '.');
+    return true;
+  }
+  if(/^setlapstotrack$/i.test(text)){
+    gameState.forceLaps = 0;
+    saveState();
+    addSystemChatMessage('Lap count override cleared — back to each track\u2019s own lap count.');
+    return true;
+  }
+
+  // setweathertorain / setweathertoclear / etc — owner-only, local: forces a
+  // weather condition for your NEXT race instead of the track's fixed one.
+  match = text.match(/^setweatherto(clear|rain|snow|ash|fog)\s*$/i);
+  if(match){
+    const key = match[1].toLowerCase();
+    gameState.forceWeatherKey = key;
+    saveState();
+    addSystemChatMessage('Weather for your next race set to ' + WEATHER_DEFS[key].label + '.');
+    return true;
+  }
+  if(/^setweathertotrack$/i.test(text)){
+    gameState.forceWeatherKey = '';
+    saveState();
+    addSystemChatMessage('Weather override cleared — back to each track\u2019s own weather.');
+    return true;
+  }
+
+  // setrubberbandto150% / setrubberbandto0% — owner-only, local: scales how
+  // hard CPU catch-up/rubber-banding kicks in, separate from raw difficulty.
+  match = text.match(/^setrubberbandto(\d+)%?\s*$/i);
+  if(match){
+    const pct = Math.max(0, Math.min(300, parseInt(match[1],10)));
+    gameState.rubberBandPct = pct;
+    saveState();
+    addSystemChatMessage('Rubber-banding set to ' + pct + '% for your races.');
+    return true;
+  }
+
+  // nocollision — owner-only, local toggle: ignore collisions with scenery
+  // props and other cars, alongside the existing noclip-walls setting.
+  if(/^nocollision$/i.test(text)){
+    gameState.noCollision = !gameState.noCollision;
+    saveState();
+    addSystemChatMessage('No-collision ' + (gameState.noCollision ? 'enabled' : 'disabled') + ' for your car.');
+    return true;
+  }
+
+  // setcoinmultto200% / setcoinmultto50% — owner-only, local: scales coin
+  // payouts, for testing economy changes.
+  match = text.match(/^setcoinmultto(\d+)%?\s*$/i);
+  if(match){
+    const pct = Math.max(0, Math.min(1000, parseInt(match[1],10)));
+    gameState.coinMultPct = pct;
+    saveState();
+    addSystemChatMessage('Coin payouts set to ' + pct + '% for your races.');
+    return true;
+  }
+
+  // clearleaderboard — owner-only: resets the local best-lap cache on this
+  // device (this is the local Track Records cache used for ghosts; the
+  // synced online Leaderboard itself lives in the shared database).
+  if(/^clearleaderboard$/i.test(text)){
+    gameState.bestLaps = {};
+    saveState();
+    addSystemChatMessage('Local best-lap cache cleared.');
+    return true;
+  }
+
   if(/^\/commands$/i.test(text)){ printOwnerCommandHelp(); return true; }
   if(/^\/stats$/i.test(text)){ printKnownStats(); return true; }
 
@@ -9337,24 +9607,45 @@ function handleChatSubmission(rawText){
 function runTargetedOwnerCmd(cmd, signedAmount, targetRaw){
   const target = findRosterTarget(targetRaw);
   if(!target){ addSystemChatMessage('No racer named "' + targetRaw + '" in this race.'); return true; }
-  if(cmd !== 'delete' && !(Number.isFinite(signedAmount) && signedAmount !== 0)){
+  if((cmd === 'coins' || cmd === 'cpr') && !(Number.isFinite(signedAmount) && signedAmount !== 0)){
     addSystemChatMessage('Amount must be a non-zero whole number.');
     return true;
   }
+  if(cmd === 'setrating' && !(Number.isFinite(signedAmount) && signedAmount >= 0)){
+    addSystemChatMessage('Rating must be a whole number 0 or greater.');
+    return true;
+  }
   sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
-  const verb = cmd === 'delete' ? 'Reset command' : (signedAmount < 0 ? 'Deduction' : 'Command');
+  const verb = cmd === 'delete' ? 'Reset command'
+    : cmd === 'kick' ? 'Kick command'
+    : cmd === 'giveallcars' ? 'Unlock-all-cars command'
+    : cmd === 'maxupgrades' ? 'Max-upgrades command'
+    : cmd === 'setrating' ? 'Rating-set command'
+    : (signedAmount < 0 ? 'Deduction' : 'Command');
   addSystemChatMessage(verb + ' sent to ' + target.name + '.');
   return true;
 }
 function printOwnerCommandHelp(){
   addSystemChatMessage('--- Chat commands (everyone) ---');
   addSystemChatMessage('/clear — clear the chat on your screen only');
-  addSystemChatMessage('--- Owner commands ---');
+  addSystemChatMessage('--- Owner commands: aimed at another racer ---');
   addSystemChatMessage('/wipe — wipe the chat for everyone in the race');
   addSystemChatMessage('addAmountCoinsToTarget / takeAmountCoinsFromTarget — give or take coins (e.g. add100coinstobob / take100coinsfrombob)');
   addSystemChatMessage('addAmountCprToTarget / takeAmountCprFromTarget — give or take bonus coins per finished race (e.g. add50cprtobob / take50cprfrombob)');
+  addSystemChatMessage('setratingtargetto### — set a racer\u2019s driver rating directly (e.g. setratingbobto500)');
+  addSystemChatMessage('giveallcarstotarget — unlock every car for a racer (e.g. giveallcarstobob)');
+  addSystemChatMessage('maxupgradestarget — max out a racer\u2019s upgrade tree (e.g. maxupgradesbob)');
+  addSystemChatMessage('mutetarget / unmutetarget — block/unblock a racer\u2019s chat on your own screen only (e.g. mutebob / unmutebob)');
   addSystemChatMessage('/resettarget — delete a racer\u2019s account (e.g. /resetbob)');
   addSystemChatMessage('/renametarget — rename a racer\u2019s account, asks for the new name next (e.g. /renamebob)');
+  addSystemChatMessage('kicktarget — remove a racer from the current race room (e.g. kickbob)');
+  addSystemChatMessage('--- Owner commands: local settings, this device only ---');
+  addSystemChatMessage('setlapstoxxx — override the lap count for your next race (setlapstotrack to clear)');
+  addSystemChatMessage('setweathertoxxx — force weather for your next race: clear/rain/snow/ash/fog (setweathertotrack to clear)');
+  addSystemChatMessage('setrubberbandto###% — scale CPU catch-up/rubber-banding strength, default 100%');
+  addSystemChatMessage('nocollision — toggle driving through props and other cars');
+  addSystemChatMessage('setcoinmultto###% — scale coin payouts, default 100%');
+  addSystemChatMessage('clearleaderboard — reset the local best-lap cache');
   addSystemChatMessage('/stats — show stats for everyone in this race');
   addSystemChatMessage('/commands — show this list');
 }
@@ -10945,10 +11236,13 @@ function finishRace(){
   const pos = standings.indexOf(player) + 1;
   const stage = STAGES[selectedStage];
   const diffMult = stageCoinMult(stage);
+  // Owner-only knob (setcoinmultto###%, default 100): scales race payouts
+  // for testing economy changes — separate from the per-stage diffMult above.
+  const ownerCoinMult = (isOwner ? Math.max(0, (gameState.coinMultPct!=null?gameState.coinMultPct:100)) : 100) / 100;
   // Time Trial races have no CPUs to place against, so there's no position
   // bonus to farm — coins there come from lap coins and the finish bonus only.
-  const bonus = timeTrialMode ? 0 : Math.round((POSITION_BONUS[pos-1] || 0) * diffMult);
-  const finishBonus = Math.round(FINISH_BONUS * diffMult);
+  const bonus = Math.round((timeTrialMode ? 0 : (POSITION_BONUS[pos-1] || 0) * diffMult) * ownerCoinMult);
+  const finishBonus = Math.round(FINISH_BONUS * diffMult * ownerCoinMult);
   // Daily/weekly challenges only make sense against real CPU fields, not a
   // solo Time Trial run, and only count on an actual win (pos 1).
   const challengeBonus = (!timeTrialMode) ? checkChallengeCompletion(selectedStage, pos === 1) : 0;
@@ -11544,6 +11838,48 @@ function setMyGlobalChatClearedAt(ts){
   map[currentUser] = ts;
   try{ localStorage.setItem(GLOBAL_CHAT_CLEARED_KEY, JSON.stringify(map)); }catch(e){}
 }
+// mutetarget/unmutetarget: purely local — silences a racer's chat on THIS
+// owner's screen only. Nothing is sent to the target or anyone else, unlike
+// the owner_cmd family above; it's just a per-owner-account map of muted
+// identities kept in localStorage, same pattern as GLOBAL_CHAT_CLEARED_KEY.
+const MUTED_RACERS_KEY = 'velocityCircuit_mutedRacers';
+function readMutedMap(){ try{ return JSON.parse(localStorage.getItem(MUTED_RACERS_KEY)) || {}; }catch(e){ return {}; } }
+function myMutedList(){ if(!currentUser) return []; return readMutedMap()[currentUser] || []; }
+function writeMyMutedList(list){
+  if(!currentUser) return;
+  const map = readMutedMap();
+  map[currentUser] = list;
+  try{ localStorage.setItem(MUTED_RACERS_KEY, JSON.stringify(map)); }catch(e){}
+}
+function isMutedKey(key){
+  const k = String(key||'').toLowerCase();
+  if(!k) return false;
+  return myMutedList().some(m => m.key === k);
+}
+function muteRacer(key, name){
+  const k = String(key||'').toLowerCase();
+  if(!k) return;
+  const list = myMutedList();
+  if(list.some(m=>m.key===k)) return;
+  list.push({ key:k, name: name || k });
+  writeMyMutedList(list);
+}
+function unmuteRacer(key){
+  writeMyMutedList(myMutedList().filter(m=>m.key !== String(key||'').toLowerCase()));
+}
+// Race/spectate chat messages only carry an ephemeral session id + display
+// name (see Online.send({type:'chat', id, name, ...})), not the sender's
+// stable account key that mute/unmute stores — so muting there is resolved
+// through the current room roster (the same lookup /renametarget uses),
+// falling back to a name match if the roster entry can't be found.
+function isMutedSender(id, name){
+  if(!myMutedList().length) return false;
+  const list = (Online.room && Online.room.players) || Online.roster || [];
+  const r = (id && list.find(p => p.id === id)) || (name ? list.find(p => p.name && p.name.toLowerCase() === String(name).toLowerCase()) : null);
+  if(r && r.key && isMutedKey(r.key)) return true;
+  return name ? myMutedList().some(m => m.name && m.name.toLowerCase() === String(name).toLowerCase()) : false;
+}
+
 let globalChatOpen = false;
 let globalChatPendingRename = null; // { key, raw, display } while awaiting the new name after /renametarget typed in the global chat
 // Resolves a typed name/username to a known account, for owner commands run
@@ -11572,13 +11908,22 @@ async function resolveOwnerCmdTarget(raw){
   return null;
 }
 async function runGlobalTargetedOwnerCmd(cmd, signedAmount, targetRaw){
-  if(cmd !== 'delete' && !(Number.isFinite(signedAmount) && signedAmount !== 0)){
+  if((cmd === 'coins' || cmd === 'cpr') && !(Number.isFinite(signedAmount) && signedAmount !== 0)){
     addLocalSystemGlobalMessage('Amount must be a non-zero whole number.');
+    return;
+  }
+  if(cmd === 'setrating' && !(Number.isFinite(signedAmount) && signedAmount >= 0)){
+    addLocalSystemGlobalMessage('Rating must be a whole number 0 or greater.');
     return;
   }
   const target = await resolveOwnerCmdTarget(targetRaw);
   if(!target){ addLocalSystemGlobalMessage('No known account named "' + targetRaw + '".'); return; }
-  const verb = cmd === 'delete' ? 'Reset command' : (signedAmount < 0 ? 'Deduction' : 'Command');
+  const verb = cmd === 'delete' ? 'Reset command'
+    : cmd === 'kick' ? 'Kick command'
+    : cmd === 'giveallcars' ? 'Unlock-all-cars command'
+    : cmd === 'maxupgrades' ? 'Max-upgrades command'
+    : cmd === 'setrating' ? 'Rating-set command'
+    : (signedAmount < 0 ? 'Deduction' : 'Command');
   const { liveSent, queued } = await sendOwnerCmd({ cmd, amount:signedAmount, targetKey:target.key, targetRaw });
   if(liveSent){
     addLocalSystemGlobalMessage(verb + ' sent to ' + target.name + ' — delivered instantly, they\u2019re online right now.');
@@ -11615,12 +11960,25 @@ function addLocalSystemGlobalMessage(text){
 function printGlobalChatCommandHelp(){
   addLocalSystemGlobalMessage('--- Chat commands (everyone) ---');
   addLocalSystemGlobalMessage('/clear — clear the chat on your screen only');
-  addLocalSystemGlobalMessage('--- Owner commands ---');
+  addLocalSystemGlobalMessage('--- Owner commands: aimed at another racer ---');
   addLocalSystemGlobalMessage('/wipe — wipe the chat for everyone');
   addLocalSystemGlobalMessage('addAmountCoinsToTarget / takeAmountCoinsFromTarget — give or take coins (e.g. add100coinstobob / take100coinsfrombob)');
   addLocalSystemGlobalMessage('addAmountCprToTarget / takeAmountCprFromTarget — give or take bonus coins per finished race (e.g. add50cprtobob / take50cprfrombob)');
+  addLocalSystemGlobalMessage('setratingtargetto### — set a racer\u2019s driver rating directly (e.g. setratingbobto500)');
+  addLocalSystemGlobalMessage('giveallcarstotarget — unlock every car for a racer (e.g. giveallcarstobob)');
+  addLocalSystemGlobalMessage('maxupgradestarget — max out a racer\u2019s upgrade tree (e.g. maxupgradesbob)');
+  addLocalSystemGlobalMessage('mutetarget / unmutetarget — block/unblock a racer\u2019s chat on your own screen only (e.g. mutebob / unmutebob)');
   addLocalSystemGlobalMessage('/resettarget — delete a racer\u2019s account (e.g. /resetbob)');
   addLocalSystemGlobalMessage('/renametarget — rename a racer\u2019s account, asks for the new name next (e.g. /renamebob)');
+  addLocalSystemGlobalMessage('kicktarget — remove a racer from the online race room they\u2019re currently in, if any (e.g. kickbob)');
+  addLocalSystemGlobalMessage('--- Owner commands: local settings, this device only ---');
+  addLocalSystemGlobalMessage('setcpudifficultytoxxx% — set CPU opponent strength for your own races (e.g. setcpudifficultyto150%, default 100%)');
+  addLocalSystemGlobalMessage('setlapstoxxx — override the lap count for your next race (setlapstotrack to clear)');
+  addLocalSystemGlobalMessage('setweathertoxxx — force weather for your next race: clear/rain/snow/ash/fog (setweathertotrack to clear)');
+  addLocalSystemGlobalMessage('setrubberbandto###% — scale CPU catch-up/rubber-banding strength, default 100%');
+  addLocalSystemGlobalMessage('nocollision — toggle driving through props and other cars');
+  addLocalSystemGlobalMessage('setcoinmultto###% — scale coin payouts, default 100%');
+  addLocalSystemGlobalMessage('clearleaderboard — reset the local best-lap cache');
   addLocalSystemGlobalMessage('/stats — show a table of every player\u2019s coins, cars, upgrades, playing time, online status, and driver rating');
   addLocalSystemGlobalMessage('/commands — show this list');
   addLocalSystemGlobalMessage('Target by username — doesn\u2019t need to be online right now.');
@@ -11629,7 +11987,7 @@ function renderGlobalChat(){
   const log = $('globalChatLog');
   if(!log) return;
   const clearedAt = myGlobalChatClearedAt();
-  const messages = readGlobalChat().filter(m => (m.ts||0) > clearedAt);
+  const messages = readGlobalChat().filter(m => (m.ts||0) > clearedAt && !isMutedKey(m.senderKey));
   log.innerHTML = messages.map(m=>{
     const isMe = m.senderKey === currentUser;
     return '<div class="chatMsg' + (isMe ? ' me' : '') + '">' +
@@ -11649,6 +12007,7 @@ function recordIncomingGlobalMessage(senderKey, senderDisplay, text){
   const messages = readGlobalChat();
   messages.push({ senderKey, senderDisplay: String(senderDisplay||senderKey).slice(0,16), text: clean, ts: Date.now() });
   writeGlobalChat(messages);
+  if(isMutedKey(senderKey)) return; // muted locally — kept in storage in case they're ever unmuted, but no ding/notification now
   Sound.ding();
   if(globalChatOpen){
     renderGlobalChat();
@@ -11824,6 +12183,159 @@ $('globalChatForm').addEventListener('submit', async (e)=>{
       if(!target){ addLocalSystemGlobalMessage('No known account named "' + match[1] + '".'); return; }
       globalChatPendingRename = { key:target.key, raw:match[1], display:target.name };
       addLocalSystemGlobalMessage('Type the new name for ' + target.name + ', or /cancel.');
+      return;
+    }
+
+    // setratingbobto500 — set a racer's driver rating directly.
+    match = text.match(/^setrating\s*(.+?)\s*to\s*(\d+)\s*$/i);
+    if(match){
+      input.value = '';
+      await runGlobalTargetedOwnerCmd('setrating', parseInt(match[2],10), match[1]);
+      return;
+    }
+
+    // giveallcarstobob — unlock every car for a racer's garage.
+    match = text.match(/^giveallcarsto\s*(.+?)\s*$/i);
+    if(match){
+      input.value = '';
+      await runGlobalTargetedOwnerCmd('giveallcars', null, match[1]);
+      return;
+    }
+
+    // maxupgradesbob — max out a racer's whole upgrade tree.
+    match = text.match(/^maxupgrades\s*(.+?)\s*$/i);
+    if(match){
+      input.value = '';
+      await runGlobalTargetedOwnerCmd('maxupgrades', null, match[1]);
+      return;
+    }
+
+    // kickbob — remove a racer from the online race room they're currently
+    // in, if any (no-ops on their end otherwise).
+    match = text.match(/^kick\s*(.+?)\s*$/i);
+    if(match){
+      input.value = '';
+      await runGlobalTargetedOwnerCmd('kick', null, match[1]);
+      return;
+    }
+
+    // mutebob / unmutebob — local only: block/unblock a racer's chat on
+    // your own screen. Nothing is sent to them or anyone else.
+    match = text.match(/^mute\s*(.+?)\s*$/i);
+    if(match){
+      input.value = '';
+      const target = await resolveOwnerCmdTarget(match[1]);
+      if(!target){ addLocalSystemGlobalMessage('No known account named "' + match[1] + '".'); return; }
+      muteRacer(target.key, target.name);
+      renderGlobalChat();
+      addLocalSystemGlobalMessage('Muted ' + target.name + ' (only on your screen).');
+      return;
+    }
+    match = text.match(/^unmute\s*(.+?)\s*$/i);
+    if(match){
+      input.value = '';
+      const target = await resolveOwnerCmdTarget(match[1]);
+      const key = target ? target.key : String(match[1]||'').trim().toLowerCase();
+      unmuteRacer(key);
+      renderGlobalChat();
+      addLocalSystemGlobalMessage('Unmuted ' + (target ? target.name : match[1]) + '.');
+      return;
+    }
+
+    // setcpudifficultyto150%  setcpudifficultyto75  — local-only, no target:
+    // scales how strong CPU opponents are in your own races (100 = normal,
+    // the default). The % sign is optional.
+    match = text.match(/^setcpudifficultyto(\d+)%?\s*$/i);
+    if(match){
+      input.value = '';
+      const pct = Math.max(10, Math.min(500, parseInt(match[1],10)));
+      gameState.cpuDifficultyPct = pct;
+      saveState();
+      addLocalSystemGlobalMessage('CPU difficulty set to ' + pct + '% for your races.');
+      return;
+    }
+
+    // setlapsto5 — local-only: overrides the lap count for your next race
+    // regardless of what the track defines. setlapstotrack clears it.
+    match = text.match(/^setlapsto(\d+)\s*$/i);
+    if(match){
+      input.value = '';
+      const laps = Math.max(1, Math.min(20, parseInt(match[1],10)));
+      gameState.forceLaps = laps;
+      saveState();
+      addLocalSystemGlobalMessage('Lap count for your next race set to ' + laps + '.');
+      return;
+    }
+    if(/^setlapstotrack$/i.test(text)){
+      input.value = '';
+      gameState.forceLaps = 0;
+      saveState();
+      addLocalSystemGlobalMessage('Lap count override cleared — back to each track\u2019s own lap count.');
+      return;
+    }
+
+    // setweathertorain / setweathertoclear / etc — local-only: forces a
+    // weather condition for your next race instead of the track's fixed
+    // one. setweathertotrack clears it.
+    match = text.match(/^setweatherto(clear|rain|snow|ash|fog)\s*$/i);
+    if(match){
+      input.value = '';
+      const key = match[1].toLowerCase();
+      gameState.forceWeatherKey = key;
+      saveState();
+      addLocalSystemGlobalMessage('Weather for your next race set to ' + WEATHER_DEFS[key].label + '.');
+      return;
+    }
+    if(/^setweathertotrack$/i.test(text)){
+      input.value = '';
+      gameState.forceWeatherKey = '';
+      saveState();
+      addLocalSystemGlobalMessage('Weather override cleared — back to each track\u2019s own weather.');
+      return;
+    }
+
+    // setrubberbandto150% / setrubberbandto0% — local-only: scales how hard
+    // CPU catch-up/rubber-banding kicks in, separate from raw difficulty.
+    match = text.match(/^setrubberbandto(\d+)%?\s*$/i);
+    if(match){
+      input.value = '';
+      const pct = Math.max(0, Math.min(300, parseInt(match[1],10)));
+      gameState.rubberBandPct = pct;
+      saveState();
+      addLocalSystemGlobalMessage('Rubber-banding set to ' + pct + '% for your races.');
+      return;
+    }
+
+    // nocollision — local-only toggle: ignore collisions with scenery props
+    // and other cars, alongside the existing noclip-walls setting.
+    if(/^nocollision$/i.test(text)){
+      input.value = '';
+      gameState.noCollision = !gameState.noCollision;
+      saveState();
+      addLocalSystemGlobalMessage('No-collision ' + (gameState.noCollision ? 'enabled' : 'disabled') + ' for your car.');
+      return;
+    }
+
+    // setcoinmultto200% / setcoinmultto50% — local-only: scales coin
+    // payouts, for testing economy changes.
+    match = text.match(/^setcoinmultto(\d+)%?\s*$/i);
+    if(match){
+      input.value = '';
+      const pct = Math.max(0, Math.min(1000, parseInt(match[1],10)));
+      gameState.coinMultPct = pct;
+      saveState();
+      addLocalSystemGlobalMessage('Coin payouts set to ' + pct + '% for your races.');
+      return;
+    }
+
+    // clearleaderboard — local-only: resets the local best-lap cache on
+    // this device (the synced online Leaderboard itself lives in the
+    // shared database and isn't touched by this).
+    if(/^clearleaderboard$/i.test(text)){
+      input.value = '';
+      gameState.bestLaps = {};
+      saveState();
+      addLocalSystemGlobalMessage('Local best-lap cache cleared.');
       return;
     }
   }
