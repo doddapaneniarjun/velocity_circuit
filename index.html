@@ -8314,15 +8314,55 @@ function applyBoundary(car, dt){
   const wasTouching = car.touchingWall;
   car.wallOffTime = (car.wallOffTime || 0) + (dt || 0);
   car.touchingWall = false;
-  if(gameState.noclipWalls || !track) return;
+  // Owner setting is "Barriers no longer stop or slow YOUR car" — scope it
+  // to the player's own car only. gameState.noclipWalls is a single global
+  // flag but applyBoundary() runs for every car (player + local AI bots);
+  // without the car.isPlayer check here, turning this on also gave every
+  // AI opponent wall-immunity, which isn't what the setting says it does.
+  if((gameState.noclipWalls && car.isPlayer) || !track) return;
 
   const idx = car.trackIndex;
-  const pt = track.points[idx];
-  const n = track.normals[idx];
-  if(!pt || !n) return;
+  const N = track.points.length;
+  const half = (track.width || TRACK_WIDTH) / 2;
+
+  // The rendered road surface is built as straight quads connecting
+  // consecutive sample points' edges (point[i] + normal[i]*half). Snapping
+  // to whichever single sample is nearest — as before — approximates that
+  // edge with a point instead of the actual line between two points, which
+  // leaves a small gap near curves where the car can clip the visual edge
+  // before the clamp reacts. Projecting onto both neighboring segments and
+  // picking the true closest point removes that gap: the physics boundary
+  // now matches the same straight-edge geometry the road mesh is built
+  // from, point for point.
+  function closestOnSegment(a, b){
+    const abx = b.x-a.x, abz = b.z-a.z;
+    const apx = car.pos.x-a.x, apz = car.pos.z-a.z;
+    const len2 = abx*abx + abz*abz;
+    let t = len2 > 0 ? (apx*abx + apz*abz)/len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    return { x: a.x + abx*t, z: a.z + abz*t, t };
+  }
+  const iPrev = ((idx-1)%N+N)%N, iNext = (idx+1)%N;
+  const pA = track.points[idx];
+  if(!pA) return;
+  const candidates = [];
+  if(track.points[iPrev]) candidates.push({ p: closestOnSegment(track.points[iPrev], pA), nA: track.normals[iPrev], nB: track.normals[idx] });
+  if(track.points[iNext]) candidates.push({ p: closestOnSegment(pA, track.points[iNext]), nA: track.normals[idx], nB: track.normals[iNext] });
+  let best = candidates[0], bestDistSq = Infinity;
+  for(const c of candidates){
+    const ddx = car.pos.x - c.p.x, ddz = car.pos.z - c.p.z;
+    const dSq = ddx*ddx + ddz*ddz;
+    if(dSq < bestDistSq){ bestDistSq = dSq; best = c; }
+  }
+  const pt = best.p;
+  // Interpolate the normal across the same segment/t so it stays consistent
+  // with the interpolated point instead of jumping between sample normals.
+  const nx0 = best.nA.x + (best.nB.x - best.nA.x) * best.p.t;
+  const nz0 = best.nA.z + (best.nB.z - best.nA.z) * best.p.t;
+  const nLen = Math.hypot(nx0, nz0) || 1;
+  const n = { x: nx0/nLen, z: nz0/nLen };
 
   const dx = car.pos.x - pt.x, dz = car.pos.z - pt.z;
-  const half = (track.width || TRACK_WIDTH) / 2;
 
   // Guard against the old "wall out of nowhere" bug: findNearestIndex()
   // only searches a small window around the car's last known index, so it
@@ -8335,7 +8375,14 @@ function applyBoundary(car, dt){
   if(dx*dx + dz*dz > SANITY_RANGE*SANITY_RANGE) return;
 
   const lateral = dx*n.x + dz*n.z;              // signed distance from centerline
-  const limit = half;                           // exactly the track's edge — no shoulder buffer
+  // Clamp using the car's OUTER edge, not its center point. car.pos is the
+  // car's center, but the body extends CAR_HALF_WIDTH to either side — if we
+  // only clamp the center to the track edge, the outer half of the car still
+  // visually overlaps/glitches into the boundary. Pulling the limit in by
+  // CAR_HALF_WIDTH means the car's actual edge, not its center, is what
+  // stops exactly at the line. Guard against ultra-narrow tracks so the
+  // limit never goes negative.
+  const limit = Math.max(0, half - CAR_HALF_WIDTH);
   const over = Math.abs(lateral) - limit;
   if(over <= 0) return;
 
