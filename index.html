@@ -8339,11 +8339,15 @@ function applyBoundary(car, dt){
   const over = Math.abs(lateral) - limit;
   if(over <= 0) return;
 
-  // Smooth push-off rather than an instant snap back to the boundary.
+  // Hard clamp: snap the car exactly onto the boundary line every frame.
+  // No easing here — an eased push-off lets a fast-moving car sit beyond
+  // the edge for several frames while it's gradually corrected back, which
+  // reads as "driving past the wall". Clamping the full `over` amount in
+  // one step means the car's lateral distance from centerline is capped at
+  // exactly `limit` the instant it crosses it, and never further.
   const sign = lateral < 0 ? -1 : 1;
-  const pushEase = Math.min(1, dt*10);
-  car.pos.x -= n.x * sign * over * pushEase;
-  car.pos.z -= n.z * sign * over * pushEase;
+  car.pos.x -= n.x * sign * over;
+  car.pos.z -= n.z * sign * over;
   car.touchingWall = true;
   car.wallOffTime = 0;
   if(!wasTouching){
