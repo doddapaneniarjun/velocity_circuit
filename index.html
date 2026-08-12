@@ -8416,8 +8416,16 @@ function applyBoundary(car, dt){
   car.pos.z -= n.z * sign * over;
   car.touchingWall = true;
   car.wallOffTime = 0;
+  // Completely stop on wall contact — every frame it's touching, not just
+  // the first. A partial cut (the old 90%) left enough speed for the
+  // tangential component (the part running along the wall rather than into
+  // it) to keep carrying the car sideways along the boundary each frame,
+  // which read as skidding/grinding along the wall instead of a hard stop.
+  // Zeroing it every frame kills that slide outright; the car only moves
+  // again once the player/AI actively steers and accelerates back onto
+  // the track.
+  car.speed = 0;
   if(!wasTouching){
-    car.speed *= 0.1; // 90% speed cut on first contact
     giveCrashBoost(car);
   }
 }
