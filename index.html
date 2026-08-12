@@ -3406,6 +3406,73 @@ let editorCamTarget = { x:0, z:0 };
 const EDITOR_CAM_MIN_DIST = 60, EDITOR_CAM_MAX_DIST = 620;
 let editorSphereGeo = null, editorStartMat = null, editorPointMat = null, editorCursorMat = null, editorRibbonMat = null;
 let editorGateMatOpen = null, editorGateMatClosed = null;
+let editorEnvGroup = null, editorEnvTheme = null;
+
+// Returns the currently-selected scenery theme object (same shape used by
+// buildTrack/createStageScene for an actual race), so the editor's world can
+// be built with the exact same helpers instead of a generic placeholder.
+function getEditorSceneryTheme(){
+  const sel = $('editorThemeSelect');
+  const key = sel ? sel.value : 'oval';
+  return SCENERY_THEMES[key] || SCENERY_THEMES.oval;
+}
+
+// Builds the sky/lighting/ground/scenery for the editor's world using the
+// exact same functions a real race screen uses (createStageScene's lighting
+// recipe + buildTrack's ground/scenery setup) driven by the track's chosen
+// theme — so an empty editor reads as the same place you'll actually race,
+// just without any track laid down yet. Rebuilt whenever the theme changes.
+function rebuildEditorEnvironment(){
+  if(!editorScene) return;
+  const theme = getEditorSceneryTheme();
+  if(editorEnvGroup){
+    editorScene.remove(editorEnvGroup);
+    disposeObject(editorEnvGroup);
+    editorEnvGroup = null;
+  }
+  const group = new THREE.Group();
+
+  editorScene.background = new THREE.Color(theme.sky[0]);
+  editorScene.fog = new THREE.Fog(new THREE.Color(theme.sky[1]).getHex(), theme.fogNear || 90, theme.fogFar || 340);
+
+  const preset = SKY_PRESETS[theme.skyStyle] || SKY_PRESETS.clearDay;
+  const hemi = new THREE.HemisphereLight(new THREE.Color(theme.sky[1]), new THREE.Color(theme.ground).multiplyScalar(0.45), preset.sun ? 0.75 : 0.5);
+  group.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  if(preset.sun){
+    const phi = preset.sun.u * Math.PI * 2;
+    const theta = Math.PI * (1 - preset.sun.v) / 2;
+    const R = 240;
+    dir.position.set(-Math.cos(phi)*Math.sin(theta)*R, Math.max(25, Math.cos(theta)*R), Math.sin(phi)*Math.sin(theta)*R);
+    dir.color = new THREE.Color(preset.sun.core);
+    dir.intensity = 0.45 + preset.sun.v * 0.6;
+  } else {
+    dir.position.set(60,120,40);
+    dir.color = new THREE.Color(theme.sky[1]);
+    dir.intensity = 0.5;
+  }
+  group.add(dir);
+  const fill = new THREE.DirectionalLight(new THREE.Color(theme.sky[0]).lerp(new THREE.Color('#ffffff'), 0.3), 0.35);
+  fill.position.set(-dir.position.x, 60, -dir.position.z);
+  group.add(fill);
+
+  group.add(buildSkyDome(theme, 900));
+  group.add(buildScenery(theme));
+
+  const oceanTheme = theme.deco==='coastal' || theme.deco==='harbor';
+  const groundSize = oceanTheme ? 900 : 2000;
+  editorGroundMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(groundSize, groundSize),
+    new THREE.MeshStandardMaterial({ map: makeGroundTexture(theme.ground, theme.groundStyle), roughness: theme.groundStyle==='snow' ? 0.75 : 1 })
+  );
+  editorGroundMesh.rotation.x = -Math.PI/2;
+  editorGroundMesh.position.y = -0.05;
+  group.add(editorGroundMesh);
+
+  editorScene.add(group);
+  editorEnvGroup = group;
+  editorEnvTheme = $('editorThemeSelect') ? $('editorThemeSelect').value : 'oval';
+}
 
 function initEditorScene(){
   if(editorScene) return;
@@ -3415,25 +3482,9 @@ function initEditorScene(){
   editorRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
   editorRenderer.setSize(canvas.width, canvas.height, false);
   editorScene = new THREE.Scene();
-  editorScene.background = new THREE.Color(0xcfe0ea);
-  editorScene.fog = new THREE.Fog(0xcfe0ea, 260, 700);
   editorCamera = new THREE.PerspectiveCamera(45, canvas.width/canvas.height, 1, 1800);
 
-  editorScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.05));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.85);
-  sun.position.set(120,200,90);
-  editorScene.add(sun);
-
-  editorGroundMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(2200,2200),
-    new THREE.MeshStandardMaterial({ color:0xe4d3b3, roughness:1 })
-  );
-  editorGroundMesh.rotation.x = -Math.PI/2;
-  editorScene.add(editorGroundMesh);
-
-  const grid = new THREE.GridHelper(EDITOR_RANGE*2.4, 16, 0x8a6f52, 0xb9a37c);
-  grid.position.y = 0.03;
-  editorScene.add(grid);
+  rebuildEditorEnvironment();
 
   editorMarkersGroup = new THREE.Group();
   editorScene.add(editorMarkersGroup);
@@ -3451,6 +3502,15 @@ function initEditorScene(){
   editorScene.add(editorGateMesh);
 
   updateEditorCamera();
+}
+
+// Called when the "Scenery theme" dropdown changes so the live 3D preview
+// matches the theme the track will actually be raced in, instead of only
+// applying it at save time.
+function onEditorThemeChange(){
+  if(!editorScene){ return; }
+  rebuildEditorEnvironment();
+  renderEditorFrame();
 }
 function updateEditorCamera(){
   if(!editorCamera) return;
@@ -3524,6 +3584,8 @@ function drawEditorCanvas(){
   const canvas = $('editorCanvas');
   if(!canvas) return;
   initEditorScene();
+  const selectedTheme = $('editorThemeSelect') ? $('editorThemeSelect').value : 'oval';
+  if(selectedTheme !== editorEnvTheme) rebuildEditorEnvironment();
 
   const status = editorLoopStatus();
   const worldPoints = applyEditorTransform(status.chain.points, editorTransform);
@@ -3966,6 +4028,7 @@ function downloadPlayableTrack(track){
 
 
 $('openEditorBtn').addEventListener('click', ()=>{ openEditorForNew(); showScreen('editor'); });
+$('editorThemeSelect').addEventListener('change', onEditorThemeChange);
 $('editorBackBtn').addEventListener('click', ()=>{
   if(editorHasUnsavedWork() && !confirm('Leave without saving? Your unsaved changes to this track will be lost.')) return;
   showScreen('home');
@@ -5064,9 +5127,9 @@ function makeSkyTexture(styleName){
   return tex;
 }
 
-function buildSkyDome(theme){
+function buildSkyDome(theme, radius){
   const tex = makeSkyTexture(theme.skyStyle);
-  const geo = new THREE.SphereGeometry(420, 48, 32);
+  const geo = new THREE.SphereGeometry(radius || 420, 48, 32);
   const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog:false, depthWrite:false });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = -1;
