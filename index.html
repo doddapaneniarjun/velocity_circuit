@@ -2309,6 +2309,12 @@ const DEFAULT_LAPS = 3;
 let raceLaps = DEFAULT_LAPS;   // set per-race in startRace() from the stage's `laps` field
 const TRACK_WIDTH = 20;
 const CAR_HALF_WIDTH = 1.05;
+// Half the car body's length along its heading (body mesh is BoxGeometry(2,0.6,4),
+// so 4 units nose-to-tail). Used so boundary checks can look at the car's front/rear
+// extent, not just its center point — otherwise the nose can poke past the wall
+// while the center is still comfortably inside the limit, e.g. approaching a
+// boundary at an angle.
+const CAR_HALF_LENGTH = 2.0;
 const N_POINTS = 200;
 const COINS_PER_LAP = 40;
 const POSITION_BONUS = [450, 220, 100, 30];
@@ -8374,25 +8380,38 @@ function applyBoundary(car, dt){
   const SANITY_RANGE = half + 40;
   if(dx*dx + dz*dz > SANITY_RANGE*SANITY_RANGE) return;
 
-  const lateral = dx*n.x + dz*n.z;              // signed distance from centerline
-  // Clamp using the car's OUTER edge, not its center point. car.pos is the
-  // car's center, but the body extends CAR_HALF_WIDTH to either side — if we
-  // only clamp the center to the track edge, the outer half of the car still
-  // visually overlaps/glitches into the boundary. Pulling the limit in by
-  // CAR_HALF_WIDTH means the car's actual edge, not its center, is what
-  // stops exactly at the line. Guard against ultra-narrow tracks so the
-  // limit never goes negative.
-  const limit = Math.max(0, half - CAR_HALF_WIDTH);
-  const over = Math.abs(lateral) - limit;
-  if(over <= 0) return;
+  const lateral = dx*n.x + dz*n.z;              // signed distance from centerline, for the sanity/early-out check only
+
+  // Check the car's actual corners against the boundary, not just its
+  // center point. car.pos is the center, but the body extends
+  // CAR_HALF_LENGTH forward/back and CAR_HALF_WIDTH side-to-side — when
+  // the car meets the wall at an angle (cornering, drifting, clipping a
+  // curve), the nose or a front corner can reach the boundary well before
+  // the center does, so a center-only check let the front visibly poke
+  // through. Building all four corners from the car's heading and testing
+  // each one's distance from the boundary line catches that.
+  const forward = forwardVec(car.heading);
+  const right = { x: forward.z, z: -forward.x };
+  const hl = CAR_HALF_LENGTH, hw = CAR_HALF_WIDTH;
+  const cornerSigns = [[1,1],[1,-1],[-1,1],[-1,-1]];
+  let maxOver = -Infinity, maxSign = 1;
+  for(const [fl, fw] of cornerSigns){
+    const cx = car.pos.x + forward.x*hl*fl + right.x*hw*fw;
+    const cz = car.pos.z + forward.z*hl*fl + right.z*hw*fw;
+    const cLateral = (cx - pt.x)*n.x + (cz - pt.z)*n.z;
+    const cOver = Math.abs(cLateral) - half;
+    if(cOver > maxOver){ maxOver = cOver; maxSign = cLateral < 0 ? -1 : 1; }
+  }
+  if(maxOver <= 0) return;
 
   // Hard clamp: snap the car exactly onto the boundary line every frame.
   // No easing here — an eased push-off lets a fast-moving car sit beyond
   // the edge for several frames while it's gradually corrected back, which
-  // reads as "driving past the wall". Clamping the full `over` amount in
-  // one step means the car's lateral distance from centerline is capped at
-  // exactly `limit` the instant it crosses it, and never further.
-  const sign = lateral < 0 ? -1 : 1;
+  // reads as "driving past the wall". Pushing the whole car (a rigid
+  // translation) back by the worst corner's overshoot means every corner —
+  // including the nose — ends up at or inside the boundary, never past it.
+  const sign = maxSign;
+  const over = maxOver;
   car.pos.x -= n.x * sign * over;
   car.pos.z -= n.z * sign * over;
   car.touchingWall = true;
