@@ -257,50 +257,67 @@
   .garageHeader{ display:flex; align-items:center; justify-content:space-between; margin:-24px -24px 18px; padding:16px 24px; gap:10px; flex-wrap:wrap; position:sticky; top:-24px; background:var(--bg); z-index:5; border-bottom:1px solid #e3d2b3; }
   .sectionTitle{ font-size:20px; font-weight:800; margin:22px 0 12px; }
 
-  /* ---------- Track Editor ---------- */
+  /* ---------- Track Editor (full-screen 3D view, HUD-style controls,
+     same pattern as the Race screen: a full-bleed canvas with floating
+     overlay panels on top rather than a scrolling page). ---------- */
   .btn.danger{ background:var(--danger); color:#fff8ef; }
-  .editorWrap{ padding-bottom:10px; }
-  .editorHint{ color:var(--muted); font-size:13px; text-align:center; max-width:640px; margin:0 auto 14px; line-height:1.5; }
-  .editorCanvasWrap{ width:min(560px,92vw); margin:0 auto 14px; position:relative; }
-  #editorCanvas{ width:100%; aspect-ratio:1/1; display:block; background:var(--track-bg);
-    border:2px solid var(--border-strong); border-radius:var(--radius); touch-action:none; cursor:grab; }
+  #editorScreen{ background:#000; }
+  #editorCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block;
+    background:var(--track-bg); touch-action:none; cursor:grab; }
   #editorCanvas.dragging{ cursor:grabbing; }
-  .editorToolbar{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:center; margin-bottom:6px; }
+  #editorHud{ position:absolute; inset:0; pointer-events:none; }
+  .editorTopBar{ position:absolute; top:14px; left:14px; right:14px; z-index:5;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; pointer-events:all; }
+  .editorTopBtns{ display:flex; gap:8px; flex-wrap:wrap; }
+  .editorTitleWrap{ flex:1; min-width:200px; max-width:520px; text-align:center; padding:9px 16px; }
+  .editorScreenTitle{ margin:0 0 4px; font-size:15px; font-weight:800; color:var(--text); }
+  .editorLoopStatus{ font-weight:700; font-size:12.5px; margin:0; }
+  .editorLoopStatus.open{ color:var(--danger); }
+  .editorLoopStatus.closed{ color:var(--good); }
+  .editorHintToggle{ position:absolute; top:80px; left:50%; transform:translateX(-50%); z-index:5; pointer-events:all; }
+  .editorHintPanel{ position:absolute; top:122px; left:50%; transform:translateX(-50%); z-index:5;
+    width:min(520px,88vw); pointer-events:all; text-align:center; margin:0; }
+  .editorHint{ color:var(--muted); font-size:12.5px; line-height:1.5; background:var(--panel-glass-strong);
+    border:1px solid var(--border); border-radius:12px; padding:10px 14px; backdrop-filter:blur(4px);
+    box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
+  .editorBottomPanel{ position:absolute; left:0; right:0; bottom:0; z-index:5; pointer-events:all;
+    background:var(--panel-glass-strong); border-top:1px solid var(--border); backdrop-filter:blur(6px);
+    padding:12px 14px calc(12px + env(safe-area-inset-bottom)); max-height:52vh; max-height:52dvh; overflow-y:auto; }
+  .editorMsgLine{ min-height:0; margin:0 0 8px; background:none; border:none; padding:0; box-shadow:none; text-align:center; }
+  .editorMsgLine:empty{ display:none; }
+  .editorToolbar{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center; margin-bottom:8px; }
   .editorToolbar .btn{ font-size:13px; padding:9px 16px; min-height:auto; }
   .editorToolbar .btn.active{ background:var(--accent); color:#fff8ef; border-color:var(--accent); }
-  .editorPieceGrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(108px,1fr)); gap:10px;
-    width:min(640px,94vw); margin:0 auto 12px; }
-  .editorPieceBtn{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px;
+  .editorPieceGrid{ display:flex; gap:8px; overflow-x:auto; padding:2px 2px 10px; margin:0 0 4px;
+    -webkit-overflow-scrolling:touch; }
+  .editorPieceBtn{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 10px;
     border-radius:12px; border:2px solid var(--border-strong); background:var(--panel); color:var(--text);
-    font:inherit; font-weight:700; font-size:12px; cursor:pointer; transition:border-color .15s, transform .1s; }
+    font:inherit; font-weight:700; font-size:11px; cursor:pointer; transition:border-color .15s, transform .1s;
+    flex:none; width:84px; }
   .editorPieceBtn:hover{ border-color:var(--accent); transform:translateY(-1px); }
   .editorPieceBtn:active{ transform:translateY(0); }
   .editorPieceBtn .pieceEmoji{ font-size:22px; line-height:1; }
   .editorPieceBtn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
-  .editorLoopStatus{ text-align:center; font-weight:700; font-size:13px; margin:0 0 10px; }
-  .editorLoopStatus.open{ color:var(--danger); }
-  .editorLoopStatus.closed{ color:var(--good); }
   .editorForm{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px 18px;
     max-width:780px; margin:14px auto 6px; text-align:left; }
   .editorForm .loginField{ margin-bottom:0; }
   select.loginInput{ appearance:auto; }
-  .customTrackList{ display:flex; flex-direction:column; gap:8px; max-width:720px; margin:0 auto 20px; }
+  #editorSettingsCard{ width:min(640px,92vw); }
+  .customTrackList{ display:flex; flex-direction:column; gap:8px; max-width:720px; margin:0 auto 4px; }
 
-  /* Compact Track Editor layout for iPad-class screens (portrait or
+  /* Compact Track Editor HUD for iPad-class screens (portrait or
      landscape). Targets tablet widths with a touch-first pointer so we
      don't also shrink things on small phones (which already get squeezed
      by the vw-based sizing above) or on desktop/laptop trackpads. */
   @media (max-width: 1024px) and (pointer: coarse){
-    .editorWrap{ padding-bottom:6px; }
-    .editorHint{ font-size:11.5px; max-width:520px; margin:0 auto 8px; line-height:1.35; }
-    .editorCanvasWrap{ width:min(360px,72vw); margin:0 auto 8px; }
-    #editorCanvas{ border-radius:10px; }
-    .editorLoopStatus{ font-size:11.5px; margin:0 0 6px; }
-    .editorPieceGrid{ grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:6px;
-      width:min(520px,94vw); margin:0 auto 8px; }
-    .editorPieceBtn{ padding:6px 4px; border-radius:9px; gap:2px; font-size:10px; }
+    .editorTitleWrap{ padding:6px 12px; }
+    .editorScreenTitle{ font-size:13px; }
+    .editorLoopStatus{ font-size:11px; }
+    .editorHint{ font-size:11px; }
+    .editorBottomPanel{ padding:8px 10px calc(8px + env(safe-area-inset-bottom)); max-height:58vh; max-height:58dvh; }
+    .editorPieceBtn{ padding:6px 6px; border-radius:9px; gap:2px; font-size:10px; width:66px; }
     .editorPieceBtn .pieceEmoji{ font-size:16px; }
-    .editorToolbar{ gap:6px; margin-bottom:4px; }
+    .editorToolbar{ gap:6px; margin-bottom:6px; }
     .editorToolbar .btn{ font-size:11px; padding:6px 10px; }
     .editorForm{ grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px 10px; max-width:600px; margin:8px auto 4px; }
     .editorForm .loginField label{ font-size:12px; margin-bottom:3px; }
@@ -983,101 +1000,116 @@
 
   <!-- TRACK EDITOR SCREEN -->
   <section id="editorScreen" class="screen" hidden>
-    <div class="garageWrap editorWrap">
-      <div class="garageHeader">
-        <button class="btn ghost" id="editorBackBtn">Back</button>
-        <h2 class="sectionTitle" id="editorScreenTitle" style="margin:0;">Track Editor</h2>
-        <button class="btn secondary" id="editorNewBtn">&#65291; New Track</button>
-      </div>
+    <canvas id="editorCanvas" aria-label="3D track editor — drag to orbit, scroll or pinch to zoom"></canvas>
 
-      <p class="editorHint">Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view, and Uphill/Downhill pieces raise or lower it in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — an invisible wall will block the gap so cars can't drive through it. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
-
-      <div class="editorCanvasWrap">
-        <canvas id="editorCanvas" width="640" height="640" aria-label="3D track preview — drag to orbit"></canvas>
-      </div>
-
-      <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces — close the loop for a lap circuit, or save it open and an invisible wall will block the gap.</p>
-
-      <div class="editorPieceGrid" id="editorPieceGrid"><!-- piece buttons injected by JS --></div>
-
-      <div class="editorToolbar">
-        <button class="btn secondary" id="editorUndoBtn" type="button">&#8617; Remove Last Piece</button>
-        <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
-        <span class="stageMeta" style="align-self:center;"><span id="editorPointCount">0</span> pieces placed</span>
-      </div>
-      <div class="editorToolbar">
-        <button class="btn secondary" id="editorMoveModeBtn" type="button">&#9995; Move Track</button>
-        <button class="btn secondary" id="editorRotateTrackLeftBtn" type="button">&#8634; Rotate Track</button>
-        <button class="btn secondary" id="editorRotateTrackRightBtn" type="button">Rotate Track &#8635;</button>
-        <button class="btn secondary" id="editorRotateLeftBtn" type="button">&#8634; Orbit</button>
-        <button class="btn secondary" id="editorRotateRightBtn" type="button">Orbit &#8635;</button>
-      </div>
-      <p class="editorHint" id="editorMsg" role="status" aria-live="polite"></p>
-
-      <div class="editorForm">
-        <div class="loginField">
-          <label for="editorNameInput">Track name</label>
-          <input class="loginInput" id="editorNameInput" type="text" maxlength="40" placeholder="My Custom Track">
+    <div id="editorHud">
+      <div class="editorTopBar">
+        <button class="btn secondary" id="editorBackBtn">Back</button>
+        <div class="editorTitleWrap hudPanel">
+          <h2 class="editorScreenTitle" id="editorScreenTitle">Track Editor</h2>
+          <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces — close the loop for a lap circuit, or save it open and an invisible wall will block the gap.</p>
         </div>
-        <div class="loginField">
-          <label for="editorThemeSelect">Scenery theme</label>
-          <select class="loginInput" id="editorThemeSelect">
-            <option value="oval">Sunset Desert</option>
-            <option value="stadium">Green Stadium</option>
-            <option value="iceRibbon">Icy Ribbon</option>
-            <option value="wavy">Coastal Curves</option>
-            <option value="canyon">Red Rock Canyon</option>
-            <option value="switchback">Mountain Switchback</option>
-            <option value="serpent">Forest Serpent</option>
-            <option value="neonSerpent">Neon Night</option>
-            <option value="citygrid">Downtown City</option>
-            <option value="volcano">Volcano Ember</option>
-            <option value="cavern">Crystal Cavern</option>
-            <option value="lunar">Lunar Moonscape</option>
-            <option value="harbor">Harbor Docks</option>
-            <option value="redwood">Redwood Forest</option>
-            <option value="glacier">Glacier Ice</option>
-            <option value="foggyMansion">Foggy Mansion</option>
-          </select>
-        </div>
-        <div class="loginField">
-          <label for="editorWeatherSelect">Weather</label>
-          <select class="loginInput" id="editorWeatherSelect">
-            <option value="clear">Clear</option>
-            <option value="rain">Rain</option>
-            <option value="snow">Snow</option>
-            <option value="ash">Ashfall</option>
-            <option value="fog">Fog</option>
-          </select>
-        </div>
-        <div class="loginField">
-          <label for="editorDifficultySelect">Difficulty</label>
-          <select class="loginInput" id="editorDifficultySelect">
-            <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734;&#9734;</option>
-            <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734;&#9734;</option>
-            <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734;&#9734;</option>
-            <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734;&#9734;</option>
-            <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733;&#9734;</option>
-            <option value="6">&#9733;&#9733;&#9733;&#9733;&#9733;&#9733;</option>
-          </select>
-        </div>
-        <div class="loginField">
-          <label for="editorLapsInput">Laps</label>
-          <input class="loginInput" id="editorLapsInput" type="number" min="2" max="8" value="3">
-        </div>
-        <div class="loginField">
-          <label for="editorWidthInput">Track width</label>
-          <input class="loginInput" id="editorWidthInput" type="number" min="14" max="30" value="20">
+        <div class="editorTopBtns">
+          <button class="btn secondary" id="editorNewBtn">&#65291; New</button>
+          <button class="btn secondary" id="editorSettingsBtn">&#9881;&#65039; Settings</button>
         </div>
       </div>
 
-      <div class="btnRow" style="margin-bottom:26px;">
-        <button class="btn" id="editorSaveBtn" type="button">Save Track</button>
-        <button class="btn" id="editorTestBtn" type="button" style="background:var(--good);">&#127937; Save &amp; Test Drive</button>
-      </div>
+      <button class="soundBtn editorHintToggle" id="editorHintBtn" type="button" aria-expanded="false" aria-controls="editorHintPanel">
+        <span class="emoji" aria-hidden="true">&#8505;&#65039;</span><span>How to build</span>
+      </button>
+      <p class="editorHint editorHintPanel" id="editorHintPanel" hidden>Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view, and Uphill/Downhill pieces raise or lower it in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — an invisible wall will block the gap so cars can't drive through it. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
 
-      <h2 class="sectionTitle">Your Custom Tracks</h2>
-      <div class="customTrackList" id="editorTrackList"></div>
+      <div class="editorBottomPanel">
+        <p class="editorHint editorMsgLine" id="editorMsg" role="status" aria-live="polite"></p>
+        <div class="editorPieceGrid" id="editorPieceGrid"><!-- piece buttons injected by JS --></div>
+        <div class="editorToolbar">
+          <button class="btn secondary" id="editorUndoBtn" type="button">&#8617; Remove Last</button>
+          <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
+          <span class="stageMeta" style="align-self:center;color:var(--muted);"><span id="editorPointCount">0</span> pieces placed</span>
+        </div>
+        <div class="editorToolbar">
+          <button class="btn secondary" id="editorMoveModeBtn" type="button">&#9995; Move Track</button>
+          <button class="btn secondary" id="editorRotateTrackLeftBtn" type="button">&#8634; Rotate Track</button>
+          <button class="btn secondary" id="editorRotateTrackRightBtn" type="button">Rotate Track &#8635;</button>
+          <button class="btn secondary" id="editorRotateLeftBtn" type="button">&#8634; Orbit</button>
+          <button class="btn secondary" id="editorRotateRightBtn" type="button">Orbit &#8635;</button>
+        </div>
+        <div class="btnRow">
+          <button class="btn" id="editorSaveBtn" type="button">Save Track</button>
+          <button class="btn" id="editorTestBtn" type="button" style="background:var(--good);">&#127937; Save &amp; Test Drive</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay" id="editorSettingsOverlay" hidden>
+      <div class="overlayCard" id="editorSettingsCard">
+        <h2>Track Settings</h2>
+        <div class="settingsScrollArea">
+          <div class="editorForm">
+            <div class="loginField">
+              <label for="editorNameInput">Track name</label>
+              <input class="loginInput" id="editorNameInput" type="text" maxlength="40" placeholder="My Custom Track">
+            </div>
+            <div class="loginField">
+              <label for="editorThemeSelect">Scenery theme</label>
+              <select class="loginInput" id="editorThemeSelect">
+                <option value="oval">Sunset Desert</option>
+                <option value="stadium">Green Stadium</option>
+                <option value="iceRibbon">Icy Ribbon</option>
+                <option value="wavy">Coastal Curves</option>
+                <option value="canyon">Red Rock Canyon</option>
+                <option value="switchback">Mountain Switchback</option>
+                <option value="serpent">Forest Serpent</option>
+                <option value="neonSerpent">Neon Night</option>
+                <option value="citygrid">Downtown City</option>
+                <option value="volcano">Volcano Ember</option>
+                <option value="cavern">Crystal Cavern</option>
+                <option value="lunar">Lunar Moonscape</option>
+                <option value="harbor">Harbor Docks</option>
+                <option value="redwood">Redwood Forest</option>
+                <option value="glacier">Glacier Ice</option>
+                <option value="foggyMansion">Foggy Mansion</option>
+              </select>
+            </div>
+            <div class="loginField">
+              <label for="editorWeatherSelect">Weather</label>
+              <select class="loginInput" id="editorWeatherSelect">
+                <option value="clear">Clear</option>
+                <option value="rain">Rain</option>
+                <option value="snow">Snow</option>
+                <option value="ash">Ashfall</option>
+                <option value="fog">Fog</option>
+              </select>
+            </div>
+            <div class="loginField">
+              <label for="editorDifficultySelect">Difficulty</label>
+              <select class="loginInput" id="editorDifficultySelect">
+                <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734;&#9734;</option>
+                <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734;&#9734;</option>
+                <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734;&#9734;</option>
+                <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734;&#9734;</option>
+                <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733;&#9734;</option>
+                <option value="6">&#9733;&#9733;&#9733;&#9733;&#9733;&#9733;</option>
+              </select>
+            </div>
+            <div class="loginField">
+              <label for="editorLapsInput">Laps</label>
+              <input class="loginInput" id="editorLapsInput" type="number" min="2" max="8" value="3">
+            </div>
+            <div class="loginField">
+              <label for="editorWidthInput">Track width</label>
+              <input class="loginInput" id="editorWidthInput" type="number" min="14" max="30" value="20">
+            </div>
+          </div>
+
+          <h2 class="sectionTitle">Your Custom Tracks</h2>
+          <div class="customTrackList" id="editorTrackList"></div>
+        </div>
+        <div class="btnRow settingsFooter">
+          <button class="btn secondary" id="editorSettingsCloseBtn" type="button">Close</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -3003,6 +3035,7 @@ function showScreen(name){
   circuitScreen.hidden = name!=='circuit';
   editorScreen.hidden = name!=='editor';
   gameScreen.hidden = name!=='game';
+  if(name==='editor') requestAnimationFrame(onEditorResize);
 }
 
 // Driver rating has no ceiling (it can only ever go down to 0), so the visual
@@ -3480,9 +3513,10 @@ function initEditorScene(){
   if(!canvas) return;
   editorRenderer = new THREE.WebGLRenderer({ canvas, antialias:true });
   editorRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  editorRenderer.setSize(canvas.width, canvas.height, false);
+  const w = window.innerWidth, h = window.innerHeight;
+  editorRenderer.setSize(w, h, false);
   editorScene = new THREE.Scene();
-  editorCamera = new THREE.PerspectiveCamera(45, canvas.width/canvas.height, 1, 1800);
+  editorCamera = new THREE.PerspectiveCamera(45, w/h, 1, 1800);
 
   rebuildEditorEnvironment();
 
@@ -3503,6 +3537,20 @@ function initEditorScene(){
 
   updateEditorCamera();
 }
+
+// Keeps the editor's 3D view filling the whole screen (same idea as
+// onResize() for the main race canvas) instead of the old fixed
+// 640x640 preview box — called on window resize and whenever the
+// Track Editor screen is opened.
+function onEditorResize(){
+  if(!editorRenderer || !editorCamera) return;
+  const w = window.innerWidth, h = window.innerHeight;
+  editorRenderer.setSize(w, h, false);
+  editorCamera.aspect = w/h;
+  editorCamera.updateProjectionMatrix();
+  renderEditorFrame();
+}
+window.addEventListener('resize', onEditorResize);
 
 // Called when the "Scenery theme" dropdown changes so the live 3D preview
 // matches the theme the track will actually be raced in, instead of only
@@ -3828,6 +3876,9 @@ function openEditorForNew(){
   editorTransform = { dx:0, dz:0, rot:0 };
   editorCamAzimuth = Math.PI*0.78; editorCamElevation = 0.85; editorCamDistance = 210;
   setEditorMode('orbit');
+  $('editorSettingsOverlay').hidden = true;
+  $('editorHintPanel').hidden = true;
+  $('editorHintBtn').setAttribute('aria-expanded', 'false');
   $('editorScreenTitle').textContent = 'Track Editor \u2014 New Track';
   $('editorNameInput').value = '';
   $('editorThemeSelect').value = 'oval';
@@ -3845,6 +3896,9 @@ function openEditorForEdit(id){
   editingCustomId = id;
   editorTransform = ct.transform ? { ...ct.transform } : { dx:0, dz:0, rot:0 };
   setEditorMode('orbit');
+  $('editorSettingsOverlay').hidden = true;
+  $('editorHintPanel').hidden = true;
+  $('editorHintBtn').setAttribute('aria-expanded', 'false');
   if(Array.isArray(ct.pieces) && ct.pieces.length){
     editorPieces = ct.pieces.slice();
     editorSetMsg('');
@@ -4061,6 +4115,14 @@ $('editorRotateRightBtn').addEventListener('click', ()=> editorRotate(Math.PI/6)
 $('editorMoveModeBtn').addEventListener('click', ()=> setEditorMode(editorMode==='move' ? 'orbit' : 'move'));
 $('editorRotateTrackLeftBtn').addEventListener('click', ()=> rotateTrackPoints(-Math.PI/12));
 $('editorRotateTrackRightBtn').addEventListener('click', ()=> rotateTrackPoints(Math.PI/12));
+$('editorSettingsBtn').addEventListener('click', ()=>{ $('editorSettingsOverlay').hidden = false; });
+$('editorSettingsCloseBtn').addEventListener('click', ()=>{ $('editorSettingsOverlay').hidden = true; });
+$('editorHintBtn').addEventListener('click', ()=>{
+  const panel = $('editorHintPanel');
+  const show = panel.hidden;
+  panel.hidden = !show;
+  $('editorHintBtn').setAttribute('aria-expanded', String(show));
+});
 (function initEditorCanvas(){
   const canvas = $('editorCanvas');
   if(!canvas) return;
