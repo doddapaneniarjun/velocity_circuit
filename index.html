@@ -1026,7 +1026,7 @@
         <button class="btn secondary" id="editorBackBtn">Back</button>
         <div class="editorTitleWrap hudPanel">
           <h2 class="editorScreenTitle" id="editorScreenTitle">Track Editor</h2>
-          <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces — close the loop for a lap circuit, or save it open for a point-to-point track (the gap stays open and driveable).</p>
+          <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces — close the loop for a lap circuit, or save it open for a point-to-point track (an invisible wall closes off the gap at the end).</p>
         </div>
         <div class="editorTopBtns">
           <button class="btn secondary" id="editorNewBtn">&#65291; New</button>
@@ -1037,7 +1037,7 @@
       <button class="soundBtn editorHintToggle" id="editorHintBtn" type="button" aria-expanded="false" aria-controls="editorHintPanel">
         <span class="emoji" aria-hidden="true">&#8505;&#65039;</span><span>How to build</span>
       </button>
-      <p class="editorHint editorHintPanel" id="editorHintPanel" hidden>Build your track by picking pieces below — picking one doesn't place it right away: it arms that piece (it'll glow in the list), then tap anywhere in this live 3D view to drop it. Tap near the glowing end of your track to extend it normally; tap anywhere else and the piece is dropped loose, right there, disconnected — handy for planning ahead or just decorating. Uphill/Downhill pieces raise or lower the track in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 connected pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — the gap just stays open and driveable (no invisible wall), unless you've stacked pieces directly above one another, where a wall keeps cars from driving through the overlap. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
+      <p class="editorHint editorHintPanel" id="editorHintPanel" hidden>Build your track by picking pieces below — picking one doesn't place it right away: it arms that piece (it'll glow in the list), then tap anywhere in this live 3D view to drop it. Tap near the glowing end of your track to extend it normally; tap anywhere else and the piece is dropped loose, right there, disconnected — handy for planning ahead or just decorating. Uphill/Downhill pieces raise or lower the track in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 connected pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — an invisible wall automatically closes off the gap at the track's true end, so cars stop there instead of driving onto empty space. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
 
       <div class="editorBottomBar">
         <p class="editorHint editorMsgLine" id="editorMsg" role="status" aria-live="polite"></p>
@@ -3272,24 +3272,27 @@ $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
    ones. `editorPieces` (the piece-id sequence) is stored alongside so a
    saved track can be re-opened and continued in piece form.
 
-   Playability / "no invisible walls" safeguards:
+   Playability / "no invisible walls (mid-track)" safeguards:
    - Finite piece catalog (fixed turn angles/radii) instead of arbitrary
      freehand clicks means the centerline can't zig-zag into the tight,
      erratic curvature that used to make barrier geometry fold over itself.
    - Pieces are free to cross/overlap the existing track and there is no
      cap on how many pieces a track can have (editorPieceCollides is kept
      as a no-op stub for compatibility with the rest of this comment).
+   - Placing a piece checks pieceGoesUnderground() first, so a Downhill
+     piece (or a chain of them) can never dip below ground level — that
+     applies to both the connected chain and loose/decorative pieces.
    - Closing the loop (ending back up near the start gate, facing a
      similar direction) is no longer required to save — Save/Test only
      need EDITOR_MIN_PIECES placed. A track that doesn't close is stored
      with `openEnd: true`; at build time the closing stretch (still
      generated as a smooth spline continuation, same as always, so the
-     geometry never folds or jump-cuts) is just left driveable — no wall.
-     The one exception: if that synthetic stretch happens to pass directly
-     through another part of the real track at a different height (pieces
-     stacked into a bridge/overpass), a wall goes across it at the true end
-     of the last placed piece — see wallIndex in buildTrack() and
-     applyEndWall() — so a car can't glitch through the overlap.
+     geometry never folds or jump-cuts) is a synthetic connector that was
+     never traced/validated like a real piece, so a wall goes across the
+     real track's true end (see wallIndex in buildTrack() and
+     applyEndWall()) for every open track — not just ones with a stacked
+     bridge/overpass — stopping a car before it can drive onto that
+     unvalidated stretch (and potentially glitch below ground).
    - relaxCenterlineForWidth() and the barrier-overlap suppression in
      buildTrack() (unchanged) remain as a second line of defense. */
 const EDITOR_RANGE = 140;        // world units from canvas center to its edge
@@ -4242,7 +4245,7 @@ function saveCustomTrack(raceAfter){
     startRace(idx); // startRace() switches to the game screen itself
     return idx;
   }
-  editorSetMsg(ct.openEnd ? 'Track saved — it\'s a point-to-point track, the gap is open and driveable!' : 'Track saved!');
+  editorSetMsg(ct.openEnd ? 'Track saved — it\'s a point-to-point track, the gap is walled off at the end!' : 'Track saved!');
   if(editorMsgTimer) clearTimeout(editorMsgTimer);
   editorMsgTimer = setTimeout(()=>{ showScreen('home'); }, 700);
   return idx;
@@ -5102,7 +5105,21 @@ function resampleCustomCenterline(rawPoints, N){
   const curve = new THREE.CatmullRomCurve3(anchors, true, 'catmullrom', 0.5);
   // getSpacedPoints(N) returns N+1 points (evenly spaced by arc length) for
   // a closed curve, with the last point duplicating the first — trim it.
-  return curve.getSpacedPoints(N).slice(0, N);
+  const pts = curve.getSpacedPoints(N).slice(0, N);
+  // Defensive floor. Pieces placed in the editor are already checked
+  // against dipping below ground (see pieceGoesUnderground), and an open
+  // track's synthetic closing stretch is now walled off entirely (see
+  // buildTrack's wallIndex) — but a "closed" loop only has to land within
+  // EDITOR_CLOSE_HEIGHT of the start gate's height, not exactly at it, and
+  // that curve is ALWAYS built as a closed spline here regardless of
+  // openEnd, so the stretch bridging that leftover height gap is normal,
+  // driveable track with no wall on a closed loop. Catmull-Rom curves can
+  // also overshoot past their own anchor points' y-values on top of that.
+  // Clamping every resampled point to ground level here is the last line
+  // of defense so no custom track — open or closed — can ever dip a car
+  // below ground.
+  pts.forEach(p=>{ if(p.y < 0) p.y = 0; });
+  return pts;
 }
 function generateCenterline(type, N, customPoints){
   if(customPoints && customPoints.length >= 3) return resampleCustomCenterline(customPoints, N);
@@ -6126,18 +6143,17 @@ function buildTrack(stageIndex){
   // to the start gate) still get a full closed centerline under the hood —
   // see resampleCustomCenterline() — so nothing else here has to change.
   // The stretch that closes the gap is a synthetic spline connector, not a
-  // real piece of the track, and by default it's just left driveable: no
-  // invisible wall. The one exception is if that synthetic stretch happens
-  // to run directly through another part of the real track at a different
-  // height — pieces stacked into a bridge/overpass — where letting a car
-  // drive it would glitch through overlapping geometry; only then does a
-  // wall get placed, right at the real track's true end (wallIndex), same
-  // as before. Search only a window around where that end point is
+  // real piece of the track: it was never traced/validated the way real
+  // pieces are (see pieceGoesUnderground in the editor), so nothing stops
+  // it from dipping below ground or drifting far off the intended route
+  // between the track's true end and the start gate. So a wall always goes
+  // right at the real track's true end (wallIndex) for any open track —
+  // not just when the synthetic stretch happens to overlap another part of
+  // the real track (a bridge/overpass) — closing off that unvalidated
+  // stretch entirely. Search only a window around where that end point is
   // expected to fall (by anchor order) rather than the whole track, so a
   // self-crossing custom track can't accidentally match some other, nearer
   // strand instead of its own true end.
-  const WALL_STACK_XZ = 14;   // world units — how close in x/z counts as "the same spot"
-  const WALL_STACK_Y = 5;     // world units — how far apart in height counts as "stacked", not just touching
   let wallIndex = null;
   if(stage.openEnd && stage.customPoints && stage.customPoints.length >= 2){
     const endVec = customPointToVec3(stage.customPoints[stage.customPoints.length-1]);
@@ -6151,18 +6167,7 @@ function buildTrack(stageIndex){
       const distSq = dx*dx+dz*dz;
       if(distSq < bestDistSq){ bestDistSq = distSq; bestIdx = i; }
     }
-    let stacked = false;
-    for(let s = bestIdx+1; s < N_POINTS && !stacked; s++){
-      const sp = points[s];
-      for(let r = 0; r <= bestIdx; r += 2){
-        const rp = points[r];
-        const dx = sp.x-rp.x, dz = sp.z-rp.z;
-        if(dx*dx+dz*dz <= WALL_STACK_XZ*WALL_STACK_XZ && Math.abs(sp.y-rp.y) >= WALL_STACK_Y){
-          stacked = true; break;
-        }
-      }
-    }
-    if(stacked) wallIndex = bestIdx;
+    wallIndex = bestIdx;
   }
   const wallPos = wallIndex!=null ? points[wallIndex].clone() : null;
   const wallDir = wallIndex!=null ? tangents[wallIndex].clone() : null;
@@ -8953,15 +8958,14 @@ function applyBoundary(car, dt){
 
 // Open tracks (built in the editor without closing the loop) still get a
 // full closed centerline internally (see buildTrack's wallIndex comment),
-// and by default that's left fully driveable — no wall. wallIndex/wallPos
-// are only ever set when the synthetic closing stretch overlaps another
-// part of the real track at a different height (pieces stacked into a
-// bridge/overpass), where a flat, invisible wall at the true end of the
-// track stops a car from driving through that overlap. Acts like any other
-// wall hit: hard stop, crash boost on first contact. Only checks near the
-// wall itself (both a distance cap and a lateral-offset cap) so it can
-// never trigger somewhere else on the track, including a strand that
-// happens to cross near the wall on a self-crossing custom track.
+// but that closing stretch is a synthetic spline, never traced/validated
+// like a real piece — so it's walled off at the track's true end (wallIndex)
+// for every open track, not just ones with a stacked bridge/overpass. Acts
+// like any other wall hit: hard stop, crash boost on first contact. Only
+// checks near the wall itself (both a distance cap and a lateral-offset
+// cap) so it can never trigger somewhere else on the track, including a
+// strand that happens to cross near the wall on a self-crossing custom
+// track.
 function applyEndWall(car){
   if(!track || track.wallIndex == null) return;
   if(gameState.noclipWalls && car.isPlayer) return;
