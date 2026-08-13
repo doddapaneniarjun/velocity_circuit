@@ -280,24 +280,43 @@
   .editorHint{ color:var(--muted); font-size:12.5px; line-height:1.5; background:var(--panel-glass-strong);
     border:1px solid var(--border); border-radius:12px; padding:10px 14px; backdrop-filter:blur(4px);
     box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
-  .editorBottomPanel{ position:absolute; left:0; right:0; bottom:0; z-index:5; pointer-events:all;
-    background:var(--panel-glass-strong); border-top:1px solid var(--border); backdrop-filter:blur(6px);
-    padding:12px 14px calc(12px + env(safe-area-inset-bottom)); max-height:52vh; max-height:52dvh; overflow-y:auto; }
-  .editorMsgLine{ min-height:0; margin:0 0 8px; background:none; border:none; padding:0; box-shadow:none; text-align:center; }
-  .editorMsgLine:empty{ display:none; }
-  .editorToolbar{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center; margin-bottom:8px; }
-  .editorToolbar .btn{ font-size:13px; padding:9px 16px; min-height:auto; }
+  /* Bottom controls float directly over the live 3D track — no big opaque
+     dock behind them — so the piece buttons, toolbar and Save actions all
+     sit on top of the fullscreen view the same way the boost button /
+     touch keys sit on top of the race screen. The wrapper itself ignores
+     pointer events so drag-to-orbit still works in the gaps between rows;
+     each row (and the pill/button backgrounds within it) re-enables them. */
+  .editorBottomBar{ position:absolute; left:0; right:0; bottom:0; z-index:5; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom)); }
+  .editorBottomBar > *{ pointer-events:all; }
+  .editorMsgLine{ min-height:0; margin:0; background:var(--panel-glass-strong); border:1px solid var(--border);
+    border-radius:999px; padding:6px 16px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15);
+    text-align:center; font-size:12.5px; }
+  .editorMsgLine:empty{ display:none; padding:0; border:none; background:none; box-shadow:none; }
+  .editorToolbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; }
+  .editorToolbar .btn{ font-size:12.5px; padding:8px 14px; min-height:auto; background:var(--panel-glass-strong);
+    border:1px solid var(--border); backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
   .editorToolbar .btn.active{ background:var(--accent); color:#fff8ef; border-color:var(--accent); }
-  .editorPieceGrid{ display:flex; gap:8px; overflow-x:auto; padding:2px 2px 10px; margin:0 0 4px;
+  .editorToolbar .stageMeta{ background:var(--panel-glass-strong); border:1px solid var(--border); border-radius:999px;
+    padding:7px 14px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
+  .editorPieceGrid{ display:flex; gap:8px; overflow-x:auto; max-width:100%; padding:2px 2px 4px;
     -webkit-overflow-scrolling:touch; }
   .editorPieceBtn{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 10px;
-    border-radius:12px; border:2px solid var(--border-strong); background:var(--panel); color:var(--text);
+    border-radius:12px; border:2px solid var(--border-strong); background:var(--panel-glass-strong); color:var(--text);
+    backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15);
     font:inherit; font-weight:700; font-size:11px; cursor:pointer; transition:border-color .15s, transform .1s;
     flex:none; width:84px; }
   .editorPieceBtn:hover{ border-color:var(--accent); transform:translateY(-1px); }
   .editorPieceBtn:active{ transform:translateY(0); }
   .editorPieceBtn .pieceEmoji{ font-size:22px; line-height:1; }
   .editorPieceBtn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+  .editorPieceBtn.armed{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), 0 2px 10px rgba(var(--shadow-rgb),.15);
+    background:rgba(var(--accent-rgb),.14); animation:editorArmedPulse 1.1s ease-in-out infinite; }
+  @keyframes editorArmedPulse{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-2px); } }
+  #editorCanvas.armed{ cursor:crosshair; }
+  .editorBottomBar .btnRow{ margin:0; }
+  .editorBottomBar .btnRow .btn{ box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
   .editorForm{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px 18px;
     max-width:780px; margin:14px auto 6px; text-align:left; }
   .editorForm .loginField{ margin-bottom:0; }
@@ -314,10 +333,10 @@
     .editorScreenTitle{ font-size:13px; }
     .editorLoopStatus{ font-size:11px; }
     .editorHint{ font-size:11px; }
-    .editorBottomPanel{ padding:8px 10px calc(8px + env(safe-area-inset-bottom)); max-height:58vh; max-height:58dvh; }
+    .editorBottomBar{ padding:6px 10px calc(6px + env(safe-area-inset-bottom)); gap:6px; }
     .editorPieceBtn{ padding:6px 6px; border-radius:9px; gap:2px; font-size:10px; width:66px; }
     .editorPieceBtn .pieceEmoji{ font-size:16px; }
-    .editorToolbar{ gap:6px; margin-bottom:6px; }
+    .editorToolbar{ gap:6px; }
     .editorToolbar .btn{ font-size:11px; padding:6px 10px; }
     .editorForm{ grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px 10px; max-width:600px; margin:8px auto 4px; }
     .editorForm .loginField label{ font-size:12px; margin-bottom:3px; }
@@ -1018,9 +1037,9 @@
       <button class="soundBtn editorHintToggle" id="editorHintBtn" type="button" aria-expanded="false" aria-controls="editorHintPanel">
         <span class="emoji" aria-hidden="true">&#8505;&#65039;</span><span>How to build</span>
       </button>
-      <p class="editorHint editorHintPanel" id="editorHintPanel" hidden>Build your track by picking pieces below — each one snaps onto the end of your track in this live 3D view, and Uphill/Downhill pieces raise or lower it in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — an invisible wall will block the gap so cars can't drive through it. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
+      <p class="editorHint editorHintPanel" id="editorHintPanel" hidden>Build your track by picking pieces below — picking one doesn't place it right away: it arms that piece (it'll glow in the list), then tap anywhere in this live 3D view to drop it. Tap near the glowing end of your track to extend it normally; tap anywhere else and the piece is dropped loose, right there, disconnected — handy for planning ahead or just decorating. Uphill/Downhill pieces raise or lower the track in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 connected pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — an invisible wall will block the gap so cars can't drive through it. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
 
-      <div class="editorBottomPanel">
+      <div class="editorBottomBar">
         <p class="editorHint editorMsgLine" id="editorMsg" role="status" aria-live="polite"></p>
         <div class="editorPieceGrid" id="editorPieceGrid"><!-- piece buttons injected by JS --></div>
         <div class="editorToolbar">
@@ -3278,6 +3297,7 @@ const EDITOR_CLOSE_DIST = 40;    // world units — how close the end must get t
 const EDITOR_CLOSE_ANGLE = Math.PI*0.30; // ~54° — how closely the end must face the start heading
 const EDITOR_CLOSE_HEIGHT = 4;   // world units — how close the end must get to the start's height
 const EDITOR_SELF_CLEARANCE_PAD = 6;     // extra margin (world units) added to track width for the self-cross check
+const EDITOR_SNAP_DIST = 20;     // world units — tapping this close to the track's current end still connects it normally
 
 /* ---------- Piece catalog ----------
    Each piece traces a path forward from an entry cursor {x,z,heading,y} (a
@@ -3338,6 +3358,21 @@ let editingCustomId = null;    // id of the custom track being edited, or null f
 let editorTransform = { dx:0, dz:0, rot:0 }; // whole-track move/rotate, applied on top of the piece chain
 let editorPoints = [];         // dense (x,z) anchors in WORLD space (chain + transform) — what gets saved/raced
 let editorMsgTimer = null;
+
+// Pieces placed loose/disconnected from the main chain: clicking a piece
+// button no longer snaps it onto the track immediately — it "arms" that
+// piece, and the next tap on the 3D view drops it exactly there, wherever
+// that is, connected or not. Each entry is { id, x, z, heading } already in
+// WORLD space (the same space the ground-plane raycast returns), since that
+// keeps placement pixel-accurate regardless of the whole-track Move/Rotate
+// transform. They're visual/decorative — not part of the driveable
+// centerline — but they stay exactly where dropped and persist with the
+// track (saved as `freePieces` alongside the connected `pieces` chain).
+let editorFreePieces = [];
+let editorArmedPieceId = null; // piece id waiting for a placement tap, or null
+// Combined undo order across both the connected chain and the loose
+// pieces, so Undo always removes whatever was placed most recently.
+let editorActionStack = [];
 
 function editorSetMsg(text){
   const el = $('editorMsg');
@@ -3425,7 +3460,78 @@ function tryAddPiece(pieceId){
   const piece = TRACK_PIECES[pieceId];
   if(!piece) return;
   editorPieces.push(pieceId);
+  editorActionStack.push('chain');
   editorSetMsg('');
+  drawEditorCanvas();
+}
+
+// Arms/disarms a piece for loose placement. Clicking a piece button no
+// longer adds it to the track right away — it just marks that piece as
+// "held", and the next tap anywhere on the 3D view drops it there. Clicking
+// the same button again (or clicking a different piece button) cancels or
+// swaps the armed piece without placing anything.
+function armPieceForPlacement(pieceId){
+  editorArmedPieceId = (editorArmedPieceId === pieceId) ? null : pieceId;
+  if(editorArmedPieceId){
+    editorSetMsg('Tap anywhere on the 3D view to drop ' + TRACK_PIECES[editorArmedPieceId].label + ' there.');
+  } else {
+    editorSetMsg('');
+  }
+  updateArmedPieceUI();
+}
+function updateArmedPieceUI(){
+  const grid = $('editorPieceGrid');
+  if(grid){
+    Array.from(grid.children).forEach(btn=>{
+      btn.classList.toggle('armed', !!editorArmedPieceId && btn.dataset.pieceId === editorArmedPieceId);
+    });
+  }
+  const canvas = $('editorCanvas');
+  if(canvas){
+    canvas.classList.toggle('armed', !!editorArmedPieceId);
+    canvas.style.cursor = editorArmedPieceId ? 'crosshair' : (editorMode==='move' ? 'move' : 'grab');
+  }
+}
+
+// Traces a loose piece's own short path from a flat local origin (so it
+// gets the same real geometry — length, curve, rise — as it would in the
+// chain), then shifts those points to the world position it was dropped
+// at. Returns dense WORLD-space points, first one being the drop point.
+function computeFreePiecePoints(fp){
+  const piece = TRACK_PIECES[fp.id];
+  if(!piece) return [{ x:fp.x, z:fp.z, y:0 }];
+  const cursor = { x:0, z:0, heading:fp.heading||0, y:0 };
+  const res = piece.trace(cursor);
+  const local = [{ x:0, z:0, y:0 }, ...res.pathPoints];
+  return local.map(p=> ({ x:p.x+fp.x, z:p.z+fp.z, y:p.y||0 }));
+}
+
+// Places the currently-armed piece at a canvas pixel, converting it to a
+// world (x,z) via the same ground-plane raycast Move-mode dragging uses —
+// so it lands exactly under the tap, on or off the existing track. Tapping
+// near where the connected chain currently ends still extends that chain
+// normally (so the track stays buildable/raceable); tapping anywhere else
+// drops the piece loose, exactly there, disconnected.
+function placeArmedPieceAt(px, py){
+  if(!editorArmedPieceId) return;
+  const id = editorArmedPieceId;
+  const world = editorPixelToWorld(px, py);
+  let connect = editorPieces.length === 0; // nothing built yet — first piece always starts the chain at the start gate
+  if(!connect){
+    const status = editorLoopStatus();
+    const chainEnd = applyEditorTransform([{ x: status.chain.cursor.x, z: status.chain.cursor.z, y: status.chain.cursor.y||0 }], editorTransform)[0];
+    connect = Math.hypot(world.x-chainEnd.x, world.z-chainEnd.z) <= EDITOR_SNAP_DIST;
+  }
+  editorArmedPieceId = null;
+  if(connect){
+    editorPieces.push(id);
+    editorActionStack.push('chain');
+  } else {
+    editorFreePieces.push({ id, x: world.x, z: world.z, heading: 0 });
+    editorActionStack.push('free');
+  }
+  editorSetMsg('');
+  updateArmedPieceUI();
   drawEditorCanvas();
 }
 
@@ -3434,6 +3540,7 @@ function tryAddPiece(pieceId){
    dragging the canvas only orbits the camera around it (or, in Move mode,
    drags the whole track). */
 let editorScene=null, editorCamera=null, editorRenderer=null, editorGroundMesh=null, editorMarkersGroup=null, editorRibbonMesh=null, editorGateMesh=null;
+let editorFreePiecesGroup=null, editorFreeRibbonMat=null, editorFreeMarkerMat=null;
 let editorCamAzimuth = Math.PI*0.78, editorCamElevation = 0.85, editorCamDistance = 210;
 let editorCamTarget = { x:0, z:0 };
 const EDITOR_CAM_MIN_DIST = 60, EDITOR_CAM_MAX_DIST = 620;
@@ -3528,6 +3635,13 @@ function initEditorScene(){
   editorPointMat = new THREE.MeshStandardMaterial({ color:0xc1502e, roughness:0.6 });
   editorCursorMat = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.5, emissive:0x3a1c00, emissiveIntensity:0.4 });
   editorRibbonMat = new THREE.MeshStandardMaterial({ color:0x33394a, roughness:0.9, side:THREE.DoubleSide });
+  // Loose/disconnected pieces get their own dashed-looking, semi-transparent
+  // look so they read as "placed but not part of the driveable track" at a
+  // glance, distinct from the solid connected ribbon.
+  editorFreeRibbonMat = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.7, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+  editorFreeMarkerMat = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.5, emissive:0x3a1c00, emissiveIntensity:0.5 });
+  editorFreePiecesGroup = new THREE.Group();
+  editorScene.add(editorFreePiecesGroup);
   editorGateMatOpen = new THREE.MeshBasicMaterial({ color:0xd98c3d, transparent:true, opacity:0.55, side:THREE.DoubleSide });
   editorGateMatClosed = new THREE.MeshBasicMaterial({ color:0x6f8f46, transparent:true, opacity:0.55, side:THREE.DoubleSide });
   editorGateMesh = new THREE.Mesh(new THREE.RingGeometry(EDITOR_CLOSE_DIST-1.4, EDITOR_CLOSE_DIST, 48), editorGateMatOpen);
@@ -3624,6 +3738,40 @@ function buildEditorRibbonGeometry(rawPoints, width){
   return geo;
 }
 
+// Builds a short, OPEN ribbon strip for a single loose piece — unlike
+// buildEditorRibbonGeometry (which treats its points as a closed loop, fine
+// for the whole connected track), a free piece is just a handful of points
+// with a clear start and end, so it's built as a plain triangle strip
+// instead of being spline-closed back on itself.
+function buildOpenRibbonGeometry(pts, width){
+  const n = pts.length;
+  const geo = new THREE.BufferGeometry();
+  if(n < 2) return geo;
+  const half = width/2;
+  const positions = [];
+  for(let i=0;i<n;i++){
+    let tx, tz;
+    if(i===0){ tx = pts[1].x-pts[0].x; tz = pts[1].z-pts[0].z; }
+    else if(i===n-1){ tx = pts[i].x-pts[i-1].x; tz = pts[i].z-pts[i-1].z; }
+    else { tx = pts[i+1].x-pts[i-1].x; tz = pts[i+1].z-pts[i-1].z; }
+    const len = Math.hypot(tx,tz) || 1;
+    tx/=len; tz/=len;
+    const nx = -tz, nz = tx; // left-perpendicular in the xz plane
+    const c = pts[i];
+    positions.push(c.x+nx*half, (c.y||0)+0.08, c.z+nz*half);
+    positions.push(c.x-nx*half, (c.y||0)+0.08, c.z-nz*half);
+  }
+  const indices = [];
+  for(let i=0;i<n-1;i++){
+    const a=i*2, b=i*2+1, c=(i+1)*2, d=(i+1)*2+1;
+    indices.push(a,c,b, b,c,d);
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 // Recomputes editorPoints (world space) from editorPieces + editorTransform,
 // refreshes the piece-palette buttons (disabling ones that would cross the
 // track), and re-renders the 3D scene. This is the single entry point every
@@ -3682,10 +3830,32 @@ function drawEditorCanvas(){
     editorScene.add(editorRibbonMesh);
   }
 
-  autoFitEditorCamera(worldPoints);
+  // Loose pieces — dropped wherever they were tapped, connected or not.
+  // Each gets its own small ribbon segment plus start/end markers, rebuilt
+  // fresh every draw same as the connected chain's markers above.
+  while(editorFreePiecesGroup.children.length){
+    const child = editorFreePiecesGroup.children[0];
+    editorFreePiecesGroup.remove(child);
+    if(child.geometry) child.geometry.dispose();
+  }
+  editorFreePieces.forEach(fp=>{
+    const pts = computeFreePiecePoints(fp);
+    if(pts.length >= 2){
+      const width = getEditorWidth();
+      const ribbon = new THREE.Mesh(buildOpenRibbonGeometry(pts, width), editorFreeRibbonMat);
+      editorFreePiecesGroup.add(ribbon);
+    }
+    [pts[0], pts[pts.length-1]].forEach(p=>{
+      const mesh = new THREE.Mesh(editorSphereGeo, editorFreeMarkerMat);
+      mesh.position.set(p.x, (p.y||0)+3.4, p.z);
+      editorFreePiecesGroup.add(mesh);
+    });
+  });
+
+  autoFitEditorCamera(worldPoints.concat(editorFreePieces.map(fp=>({x:fp.x,z:fp.z}))));
   renderEditorFrame();
   const countEl = $('editorPointCount');
-  if(countEl) countEl.textContent = editorPieces.length;
+  if(countEl) countEl.textContent = editorPieces.length + editorFreePieces.length;
 }
 function renderEditorFrame(){
   if(!editorRenderer || !editorScene || !editorCamera) return;
@@ -3707,7 +3877,7 @@ function refreshPiecePalette(status){
       btn.className = 'editorPieceBtn';
       btn.dataset.pieceId = id;
       btn.innerHTML = '<span class="pieceEmoji" aria-hidden="true">' + piece.emoji + '</span><span>' + piece.label + '</span>';
-      btn.addEventListener('click', ()=> tryAddPiece(id));
+      btn.addEventListener('click', ()=> armPieceForPlacement(id));
       grid.appendChild(btn);
     });
     grid.dataset.built = '1';
@@ -3715,6 +3885,7 @@ function refreshPiecePalette(status){
   Array.from(grid.children).forEach(btn=>{
     btn.disabled = false;
     btn.title = '';
+    btn.classList.toggle('armed', !!editorArmedPieceId && btn.dataset.pieceId === editorArmedPieceId);
   });
 }
 
@@ -3725,13 +3896,16 @@ let editorDragActive = false;
 let editorDragLast = null;
 let editorMoveStartWorld = null;
 let editorMoveOrigTransform = null;
+let editorPointerDownPixel = null; // where this pointer gesture started, for tap-vs-drag detection
+let editorPointerMovedDist = 0;    // max distance (px) the pointer has travelled since pointerdown
+const EDITOR_TAP_MAX_DIST = 6;     // px — under this counts as a tap (place piece), not a drag
 
 function setEditorMode(mode){
   editorMode = mode;
   const btn = $('editorMoveModeBtn');
   const canvas = $('editorCanvas');
   if(btn) btn.classList.toggle('active', mode==='move');
-  if(canvas) canvas.style.cursor = mode==='move' ? 'move' : 'grab';
+  if(canvas) canvas.style.cursor = editorArmedPieceId ? 'crosshair' : (mode==='move' ? 'move' : 'grab');
 }
 
 // Rotates the whole track transform around the track's own current
@@ -3790,6 +3964,8 @@ function editorPointerDown(e){
   e.preventDefault();
   const canvas = $('editorCanvas');
   editorDragActive = true;
+  editorPointerDownPixel = editorPixelFromEvent(e);
+  editorPointerMovedDist = 0;
   try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
   canvas.classList.add('dragging');
   if(editorMode === 'move'){
@@ -3804,6 +3980,11 @@ function editorPointerDown(e){
 function editorPointerMove(e){
   if(!editorDragActive) return;
   e.preventDefault();
+  if(editorPointerDownPixel){
+    const { px, py } = editorPixelFromEvent(e);
+    const d = Math.hypot(px-editorPointerDownPixel.px, py-editorPointerDownPixel.py);
+    if(d > editorPointerMovedDist) editorPointerMovedDist = d;
+  }
   if(editorMode === 'move'){
     if(!editorMoveStartWorld) return;
     const {px,py} = editorPixelFromEvent(e);
@@ -3827,12 +4008,21 @@ function editorPointerMove(e){
   editorDragLast = { px, py };
 }
 function editorPointerUp(e){
+  // A "tap" (barely any movement since pointerdown) with a piece armed
+  // places it right there — a drag (orbiting the camera or moving the
+  // track) never does, so looking around doesn't accidentally drop pieces.
+  if(editorArmedPieceId && editorPointerMovedDist < EDITOR_TAP_MAX_DIST && e.clientX != null){
+    const { px, py } = editorPixelFromEvent(e);
+    placeArmedPieceAt(px, py);
+  }
   editorDragActive = false;
   editorDragLast = null;
   editorMoveStartWorld = null;
   editorMoveOrigTransform = null;
+  editorPointerDownPixel = null;
+  editorPointerMovedDist = 0;
   const canvas = $('editorCanvas');
-  if(canvas){ canvas.classList.remove('dragging'); canvas.style.cursor = editorMode==='move' ? 'move' : 'grab'; }
+  if(canvas){ canvas.classList.remove('dragging'); canvas.style.cursor = editorArmedPieceId ? 'crosshair' : (editorMode==='move' ? 'move' : 'grab'); }
 }
 
 function renderCustomTrackList(){
@@ -3873,6 +4063,9 @@ function renderCustomTrackList(){
 function openEditorForNew(){
   editingCustomId = null;
   editorPieces = [];
+  editorFreePieces = [];
+  editorActionStack = [];
+  editorArmedPieceId = null;
   editorTransform = { dx:0, dz:0, rot:0 };
   editorCamAzimuth = Math.PI*0.78; editorCamElevation = 0.85; editorCamDistance = 210;
   setEditorMode('orbit');
@@ -3895,6 +4088,9 @@ function openEditorForEdit(id){
   if(!ct) return;
   editingCustomId = id;
   editorTransform = ct.transform ? { ...ct.transform } : { dx:0, dz:0, rot:0 };
+  editorFreePieces = Array.isArray(ct.freePieces) ? ct.freePieces.map(fp=>({ ...fp })) : [];
+  editorActionStack = [];
+  editorArmedPieceId = null;
   setEditorMode('orbit');
   $('editorSettingsOverlay').hidden = true;
   $('editorHintPanel').hidden = true;
@@ -3924,13 +4120,16 @@ function openEditorForEdit(id){
 // True when the piece chain (or transform) hasn't been written to
 // `customTracks` yet — used to warn before New Track / Back discard it.
 function editorHasUnsavedWork(){
-  if(editorPieces.length === 0) return false;
+  if(editorPieces.length === 0 && editorFreePieces.length === 0) return false;
   if(!editingCustomId) return true; // a fresh, never-saved build
   const ct = customTracks.find(c=>c.id===editingCustomId);
   if(!ct) return true;
   const savedPieces = Array.isArray(ct.pieces) ? ct.pieces : [];
   if(savedPieces.length !== editorPieces.length) return true;
   if(savedPieces.some((id,i)=> id !== editorPieces[i])) return true;
+  const savedFree = Array.isArray(ct.freePieces) ? ct.freePieces : [];
+  if(savedFree.length !== editorFreePieces.length) return true;
+  if(savedFree.some((fp,i)=> fp.id !== editorFreePieces[i].id || fp.x !== editorFreePieces[i].x || fp.z !== editorFreePieces[i].z)) return true;
   const savedT = ct.transform || { dx:0, dz:0, rot:0 };
   return savedT.dx !== editorTransform.dx || savedT.dz !== editorTransform.dz || savedT.rot !== editorTransform.rot;
 }
@@ -3967,17 +4166,21 @@ function persistCurrentEditorTrack(){
   const points = worldPoints.map(p => [Math.round(p.x*100)/100, Math.round((p.y||0)*100)/100, Math.round(p.z*100)/100]);
   const pieces = editorPieces.slice();
   const transform = { ...editorTransform };
+  // Loose/disconnected pieces are decorative — not part of the driveable
+  // `points` centerline above — but they're saved alongside it so they're
+  // still there, exactly where dropped, next time this track is opened.
+  const freePieces = editorFreePieces.map(fp=>({ ...fp }));
 
   let savedId = editingCustomId;
   let ct = null;
   if(editingCustomId){
     ct = customTracks.find(c=>c.id===editingCustomId);
-    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points, pieces, transform, openEnd });
+    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points, pieces, freePieces, transform, openEnd });
     else { savedId = null; }
   }
   if(!savedId){
     savedId = 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points, pieces, transform, openEnd };
+    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points, pieces, freePieces, transform, openEnd };
     customTracks.push(ct);
   }
   saveCustomTracksToStorage();
@@ -4103,10 +4306,22 @@ $('editorNewBtn').addEventListener('click', ()=>{
   }
   openEditorForNew();
 });
-$('editorUndoBtn').addEventListener('click', ()=>{ editorPieces.pop(); editorSetMsg(''); drawEditorCanvas(); });
+$('editorUndoBtn').addEventListener('click', ()=>{
+  // Undo removes whichever was placed most recently — a connected chain
+  // piece or a loose dropped one — so the two placement modes share one
+  // predictable undo history.
+  const last = editorActionStack.pop();
+  if(last === 'free') editorFreePieces.pop();
+  else if(last === 'chain') editorPieces.pop();
+  else { editorPieces.pop(); } // fallback for any pre-existing state with no stack entries
+  editorSetMsg('');
+  drawEditorCanvas();
+});
 $('editorClearBtn').addEventListener('click', ()=>{
-  if(editorPieces.length && !confirm('Clear all pieces?')) return;
-  editorPieces = []; editorTransform = { dx:0, dz:0, rot:0 }; editorSetMsg(''); drawEditorCanvas();
+  if((editorPieces.length || editorFreePieces.length) && !confirm('Clear all pieces?')) return;
+  editorPieces = []; editorFreePieces = []; editorActionStack = [];
+  editorArmedPieceId = null; updateArmedPieceUI();
+  editorTransform = { dx:0, dz:0, rot:0 }; editorSetMsg(''); drawEditorCanvas();
 });
 $('editorSaveBtn').addEventListener('click', ()=> saveCustomTrack(false));
 $('editorTestBtn').addEventListener('click', ()=> saveCustomTrack(true));
