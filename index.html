@@ -257,98 +257,6 @@
   .garageHeader{ display:flex; align-items:center; justify-content:space-between; margin:-24px -24px 18px; padding:16px 24px; gap:10px; flex-wrap:wrap; position:sticky; top:-24px; background:var(--bg); z-index:5; border-bottom:1px solid #e3d2b3; }
   .sectionTitle{ font-size:20px; font-weight:800; margin:22px 0 12px; }
 
-  /* ---------- Track Editor (full-screen 3D view, HUD-style controls,
-     same pattern as the Race screen: a full-bleed canvas with floating
-     overlay panels on top rather than a scrolling page). ---------- */
-  .btn.danger{ background:var(--danger); color:#fff8ef; }
-  #editorScreen{ background:#000; }
-  #editorCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block;
-    background:var(--track-bg); touch-action:none; cursor:grab; }
-  #editorCanvas.dragging{ cursor:grabbing; }
-  #editorHud{ position:absolute; inset:0; pointer-events:none; }
-  .editorTopBar{ position:absolute; top:14px; left:14px; right:14px; z-index:5;
-    display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; pointer-events:all; }
-  .editorTopBtns{ display:flex; gap:8px; flex-wrap:wrap; }
-  .editorTitleWrap{ flex:1; min-width:200px; max-width:520px; text-align:center; padding:9px 16px; }
-  .editorScreenTitle{ margin:0 0 4px; font-size:15px; font-weight:800; color:var(--text); }
-  .editorLoopStatus{ font-weight:700; font-size:12.5px; margin:0; }
-  .editorLoopStatus.open{ color:var(--danger); }
-  .editorLoopStatus.closed{ color:var(--good); }
-  .editorHintToggle{ position:absolute; top:80px; left:50%; transform:translateX(-50%); z-index:5; pointer-events:all; }
-  .editorHintPanel{ position:absolute; top:122px; left:50%; transform:translateX(-50%); z-index:5;
-    width:min(520px,88vw); pointer-events:all; text-align:center; margin:0; }
-  .editorHint{ color:var(--muted); font-size:12.5px; line-height:1.5; background:var(--panel-glass-strong);
-    border:1px solid var(--border); border-radius:12px; padding:10px 14px; backdrop-filter:blur(4px);
-    box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
-  /* Bottom controls float directly over the live 3D track — no big opaque
-     dock behind them — so the piece buttons, toolbar and Save actions all
-     sit on top of the fullscreen view the same way the boost button /
-     touch keys sit on top of the race screen. The wrapper itself ignores
-     pointer events so drag-to-orbit still works in the gaps between rows;
-     each row (and the pill/button backgrounds within it) re-enables them. */
-  .editorBottomBar{ position:absolute; left:0; right:0; bottom:0; z-index:5; pointer-events:none;
-    display:flex; flex-direction:column; align-items:center; gap:8px;
-    padding:10px 14px calc(10px + env(safe-area-inset-bottom)); }
-  .editorBottomBar > *{ pointer-events:all; }
-  .editorMsgLine{ min-height:0; margin:0; background:var(--panel-glass-strong); border:1px solid var(--border);
-    border-radius:999px; padding:6px 16px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15);
-    text-align:center; font-size:12.5px; }
-  .editorMsgLine:empty{ display:none; padding:0; border:none; background:none; box-shadow:none; }
-  .editorToolbar{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; }
-  .editorToolbar .btn{ font-size:12.5px; padding:8px 14px; min-height:auto; background:var(--panel-glass-strong);
-    border:1px solid var(--border); backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
-  .editorToolbar .btn.active{ background:var(--accent); color:#fff8ef; border-color:var(--accent); }
-  .editorToolbar .stageMeta{ background:var(--panel-glass-strong); border:1px solid var(--border); border-radius:999px;
-    padding:7px 14px; backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
-  .editorPieceGrid{ display:flex; gap:8px; overflow-x:auto; max-width:100%; padding:2px 2px 4px;
-    -webkit-overflow-scrolling:touch; }
-  .editorPieceBtn{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 10px;
-    border-radius:12px; border:2px solid var(--border-strong); background:var(--panel-glass-strong); color:var(--text);
-    backdrop-filter:blur(4px); box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15);
-    font:inherit; font-weight:700; font-size:11px; cursor:pointer; transition:border-color .15s, transform .1s;
-    flex:none; width:84px; }
-  .editorPieceBtn:hover{ border-color:var(--accent); transform:translateY(-1px); }
-  .editorPieceBtn:active{ transform:translateY(0); }
-  .editorPieceBtn .pieceEmoji{ font-size:22px; line-height:1; }
-  .editorPieceBtn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
-  .editorPieceBtn.armed{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), 0 2px 10px rgba(var(--shadow-rgb),.15);
-    background:rgba(var(--accent-rgb),.14); animation:editorArmedPulse 1.1s ease-in-out infinite; }
-  @keyframes editorArmedPulse{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-2px); } }
-  #editorCanvas.armed{ cursor:crosshair; }
-  .editorBottomBar .btnRow{ margin:0; }
-  .editorBottomBar .btnRow .btn{ box-shadow:0 2px 10px rgba(var(--shadow-rgb),.15); }
-  .editorForm{ display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px 18px;
-    max-width:780px; margin:14px auto 6px; text-align:left; }
-  .editorForm .loginField{ margin-bottom:0; }
-  select.loginInput{ appearance:auto; }
-  #editorSettingsCard{ width:min(640px,92vw); }
-  .customTrackList{ display:flex; flex-direction:column; gap:8px; max-width:720px; margin:0 auto 4px; }
-
-  /* Compact Track Editor HUD for iPad-class screens (portrait or
-     landscape). Targets tablet widths with a touch-first pointer so we
-     don't also shrink things on small phones (which already get squeezed
-     by the vw-based sizing above) or on desktop/laptop trackpads. */
-  @media (max-width: 1024px) and (pointer: coarse){
-    .editorTitleWrap{ padding:6px 12px; }
-    .editorScreenTitle{ font-size:13px; }
-    .editorLoopStatus{ font-size:11px; }
-    .editorHint{ font-size:11px; }
-    .editorBottomBar{ padding:6px 10px calc(6px + env(safe-area-inset-bottom)); gap:6px; }
-    .editorPieceBtn{ padding:6px 6px; border-radius:9px; gap:2px; font-size:10px; width:66px; }
-    .editorPieceBtn .pieceEmoji{ font-size:16px; }
-    .editorToolbar{ gap:6px; }
-    .editorToolbar .btn{ font-size:11px; padding:6px 10px; }
-    .editorForm{ grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px 10px; max-width:600px; margin:8px auto 4px; }
-    .editorForm .loginField label{ font-size:12px; margin-bottom:3px; }
-    .editorForm .loginInput{ padding:8px 10px; font-size:13px; }
-    .sectionTitle{ font-size:16px; margin:14px 0 8px; }
-    .customTrackList{ max-width:560px; }
-    .customTrackRow{ padding:8px 12px; font-size:13px; }
-  }
-  .customTrackRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
-    background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 16px; text-align:left; }
-  .customTrackRow .customTrackBtns{ display:flex; gap:8px; }
-  .customTrackRow .customTrackBtns .btn{ font-size:13px; padding:8px 14px; min-height:auto; }
   .colorRow{ display:flex; gap:12px; flex-wrap:wrap; }
   .colorSwatch{ width:56px; height:56px; border-radius:14px; border:3px solid transparent; cursor:pointer; }
   .colorSwatch.selected{ border-color:var(--text); }
@@ -785,7 +693,6 @@
       <button class="btn secondary" id="openGarageBtn">Garage</button>
       <button class="btn secondary" id="openUpgradesBtn">Upgrades</button>
       <button class="btn secondary" id="openCircuitBtn"><span class="emoji" aria-hidden="true">🏆</span> Championships</button>
-      <button class="btn secondary" id="openEditorBtn"><span class="emoji" aria-hidden="true">🛠️</span> Track Editor</button>
       <button class="btn secondary" id="homeAchievementsBtn">🏅 Achievements</button>
       <button class="btn secondary" id="homeLeaderboardBtn">🏁 Leaderboard</button>
     </div>
@@ -1014,121 +921,6 @@
       <h2 class="sectionTitle">Championships</h2>
       <p class="stageMeta" style="max-width:640px;margin-bottom:18px;">Race a fixed circuit of tracks back-to-back. Each finish earns championship points (12/8/5/3 for 1st–4th) that carry over between races — the bigger your total by the final stage, the bigger the coin payout.</p>
       <div class="stageGrid" id="circuitGrid" role="group" aria-label="Select a championship"></div>
-    </div>
-  </section>
-
-  <!-- TRACK EDITOR SCREEN -->
-  <section id="editorScreen" class="screen" hidden>
-    <canvas id="editorCanvas" aria-label="3D track editor — drag to orbit, scroll or pinch to zoom"></canvas>
-
-    <div id="editorHud">
-      <div class="editorTopBar">
-        <button class="btn secondary" id="editorBackBtn">Back</button>
-        <div class="editorTitleWrap hudPanel">
-          <h2 class="editorScreenTitle" id="editorScreenTitle">Track Editor</h2>
-          <p class="editorLoopStatus open" id="editorLoopStatus" role="status" aria-live="polite">Place at least 6 pieces — close the loop for a lap circuit, or save it open for a point-to-point track (an invisible wall closes off the gap at the end).</p>
-        </div>
-        <div class="editorTopBtns">
-          <button class="btn secondary" id="editorNewBtn">&#65291; New</button>
-          <button class="btn secondary" id="editorSettingsBtn">&#9881;&#65039; Settings</button>
-        </div>
-      </div>
-
-      <button class="soundBtn editorHintToggle" id="editorHintBtn" type="button" aria-expanded="false" aria-controls="editorHintPanel">
-        <span class="emoji" aria-hidden="true">&#8505;&#65039;</span><span>How to build</span>
-      </button>
-      <p class="editorHint editorHintPanel" id="editorHintPanel" hidden>Build your track by picking pieces below — picking one doesn't place it right away: it arms that piece (it'll glow in the list), then tap anywhere in this live 3D view to drop it. Tap near the glowing end of your track to extend it normally; tap anywhere else and the piece is dropped loose, right there, disconnected — handy for planning ahead or just decorating. Uphill/Downhill pieces raise or lower the track in real 3D space. Drag the view to look around, scroll/pinch to zoom. Piece by piece, steer the track back around toward the glowing start gate to close the loop — it has to land back at start height too. Once you've placed at least 6 connected pieces you can save any time: close the loop for a normal lap circuit, or leave it open for a point-to-point track — an invisible wall automatically closes off the gap at the track's true end, so cars stop there instead of driving onto empty space. &ldquo;New Track&rdquo; saves this one to your track list and downloads a playable copy first.</p>
-
-      <div class="editorBottomBar">
-        <p class="editorHint editorMsgLine" id="editorMsg" role="status" aria-live="polite"></p>
-        <div class="editorPieceGrid" id="editorPieceGrid"><!-- piece buttons injected by JS --></div>
-        <div class="editorToolbar">
-          <button class="btn secondary" id="editorUndoBtn" type="button">&#8617; Remove Last</button>
-          <button class="btn secondary" id="editorClearBtn" type="button">Clear All</button>
-          <span class="stageMeta" style="align-self:center;color:var(--muted);"><span id="editorPointCount">0</span> pieces placed</span>
-        </div>
-        <div class="editorToolbar">
-          <button class="btn secondary" id="editorMoveModeBtn" type="button">&#9995; Move Track</button>
-          <button class="btn secondary" id="editorRotateTrackLeftBtn" type="button">&#8634; Rotate Track</button>
-          <button class="btn secondary" id="editorRotateTrackRightBtn" type="button">Rotate Track &#8635;</button>
-          <button class="btn secondary" id="editorRotateLeftBtn" type="button">&#8634; Orbit</button>
-          <button class="btn secondary" id="editorRotateRightBtn" type="button">Orbit &#8635;</button>
-        </div>
-        <div class="btnRow">
-          <button class="btn" id="editorSaveBtn" type="button">Save Track</button>
-          <button class="btn" id="editorTestBtn" type="button" style="background:var(--good);">&#127937; Save &amp; Test Drive</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="overlay" id="editorSettingsOverlay" hidden>
-      <div class="overlayCard" id="editorSettingsCard">
-        <h2>Track Settings</h2>
-        <div class="settingsScrollArea">
-          <div class="editorForm">
-            <div class="loginField">
-              <label for="editorNameInput">Track name</label>
-              <input class="loginInput" id="editorNameInput" type="text" maxlength="40" placeholder="My Custom Track">
-            </div>
-            <div class="loginField">
-              <label for="editorThemeSelect">Scenery theme</label>
-              <select class="loginInput" id="editorThemeSelect">
-                <option value="oval">Sunset Desert</option>
-                <option value="stadium">Green Stadium</option>
-                <option value="iceRibbon">Icy Ribbon</option>
-                <option value="wavy">Coastal Curves</option>
-                <option value="canyon">Red Rock Canyon</option>
-                <option value="switchback">Mountain Switchback</option>
-                <option value="serpent">Forest Serpent</option>
-                <option value="neonSerpent">Neon Night</option>
-                <option value="citygrid">Downtown City</option>
-                <option value="volcano">Volcano Ember</option>
-                <option value="cavern">Crystal Cavern</option>
-                <option value="lunar">Lunar Moonscape</option>
-                <option value="harbor">Harbor Docks</option>
-                <option value="redwood">Redwood Forest</option>
-                <option value="glacier">Glacier Ice</option>
-                <option value="foggyMansion">Foggy Mansion</option>
-              </select>
-            </div>
-            <div class="loginField">
-              <label for="editorWeatherSelect">Weather</label>
-              <select class="loginInput" id="editorWeatherSelect">
-                <option value="clear">Clear</option>
-                <option value="rain">Rain</option>
-                <option value="snow">Snow</option>
-                <option value="ash">Ashfall</option>
-                <option value="fog">Fog</option>
-              </select>
-            </div>
-            <div class="loginField">
-              <label for="editorDifficultySelect">Difficulty</label>
-              <select class="loginInput" id="editorDifficultySelect">
-                <option value="1">&#9733;&#9734;&#9734;&#9734;&#9734;&#9734;</option>
-                <option value="2">&#9733;&#9733;&#9734;&#9734;&#9734;&#9734;</option>
-                <option value="3">&#9733;&#9733;&#9733;&#9734;&#9734;&#9734;</option>
-                <option value="4">&#9733;&#9733;&#9733;&#9733;&#9734;&#9734;</option>
-                <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733;&#9734;</option>
-                <option value="6">&#9733;&#9733;&#9733;&#9733;&#9733;&#9733;</option>
-              </select>
-            </div>
-            <div class="loginField">
-              <label for="editorLapsInput">Laps</label>
-              <input class="loginInput" id="editorLapsInput" type="number" min="2" max="8" value="3">
-            </div>
-            <div class="loginField">
-              <label for="editorWidthInput">Track width</label>
-              <input class="loginInput" id="editorWidthInput" type="number" min="14" max="30" value="20">
-            </div>
-          </div>
-
-          <h2 class="sectionTitle">Your Custom Tracks</h2>
-          <div class="customTrackList" id="editorTrackList"></div>
-        </div>
-        <div class="btnRow settingsFooter">
-          <button class="btn secondary" id="editorSettingsCloseBtn" type="button">Close</button>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -2559,43 +2351,6 @@ const STAGES = [
 let selectedStage = 0;
 function isStageUnlocked(i){ return isOwner || gameState.racesCompleted >= STAGES[i].unlockRaces; }
 
-/* ---------- Custom tracks (Track Editor) ----------
-   Player-drawn tracks are stored locally (per-browser) as raw point lists
-   and appended to STAGES at runtime after the fixed built-in tracks, so
-   every other system that indexes into STAGES (best laps, name overrides,
-   the stage grid, buildTrack) just works without special-casing. Custom
-   tracks are intentionally left out of the online random-track pool
-   (BUILTIN_STAGE_COUNT) since a track drawn on one device doesn't exist on
-   anyone else's. */
-const BUILTIN_STAGE_COUNT = STAGES.length;
-const CUSTOM_TRACKS_KEY = 'velocityCircuit_customTracks';
-let customTracks = [];
-function loadCustomTracks(){
-  try{
-    const raw = localStorage.getItem(CUSTOM_TRACKS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    customTracks = Array.isArray(parsed) ? parsed.filter(t=>t && Array.isArray(t.points) && t.points.length>=3) : [];
-  }catch(e){ customTracks = []; }
-  rebuildStagesFromCustomTracks();
-}
-function saveCustomTracksToStorage(){
-  try{ localStorage.setItem(CUSTOM_TRACKS_KEY, JSON.stringify(customTracks)); }catch(e){}
-}
-// Drops any previously-appended custom stage objects and re-appends fresh
-// ones from `customTracks` — called after every add/edit/delete so STAGES
-// stays in sync with what's saved.
-function rebuildStagesFromCustomTracks(){
-  STAGES.length = BUILTIN_STAGE_COUNT;
-  customTracks.forEach(ct=>{
-    STAGES.push({
-      name: ct.name, type: ct.theme || 'oval', desc: 'A custom track.',
-      difficulty: ct.difficulty || 1, width: ct.width || TRACK_WIDTH,
-      unlockRaces: 0, laps: ct.laps || DEFAULT_LAPS, weather: ct.weather || 'clear',
-      custom: true, customId: ct.id, customPoints: ct.points, openEnd: !!ct.openEnd
-    });
-  });
-}
-
 /* ---------- Weather ----------
    Each stage carries a fixed `weather` tag (see STAGES above). WEATHER_DEFS
    maps that tag to a uniform set of track-condition multipliers applied to
@@ -3022,7 +2777,6 @@ function renameCar(i, newName){
   saveCarNameOverrides();
 }
 loadCarNameOverrides();
-loadCustomTracks();
 
 // Harder tracks pay out more, and easier/earlier tracks pay out less: the
 // easiest track (difficulty 1) now pays half of the old baseline, scaling up
@@ -3038,7 +2792,6 @@ const $ = id => document.getElementById(id);
 const loginScreen = $('loginScreen'), homeScreen = $('homeScreen'), garageScreen = $('garageScreen'), upgradesScreen = $('upgradesScreen'), gameScreen = $('gameScreen');
 const modeScreen = $('modeScreen'), onlineScreen = $('onlineScreen'), circuitScreen = $('circuitScreen');
 const spectateScreen = $('spectateScreen');
-const editorScreen = $('editorScreen');
 const liveRegion = $('liveRegion');
 
 function announce(text){ liveRegion.textContent = ''; requestAnimationFrame(()=>{ liveRegion.textContent = text; }); }
@@ -3052,9 +2805,7 @@ function showScreen(name){
   garageScreen.hidden = name!=='garage';
   upgradesScreen.hidden = name!=='upgrades';
   circuitScreen.hidden = name!=='circuit';
-  editorScreen.hidden = name!=='editor';
   gameScreen.hidden = name!=='game';
-  if(name==='editor') requestAnimationFrame(onEditorResize);
 }
 
 // Driver rating has no ceiling (it can only ever go down to 0), so the visual
@@ -3104,7 +2855,7 @@ function renderStageGrid(){
     }
     card.innerHTML = `
       <canvas class="stageThumb" data-stage="${i}" width="376" height="180" aria-hidden="true"></canvas>
-      <p class="stageName">${unlocked ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}${s.custom ? ' <span class="stageMeta" aria-hidden="true">🛠️</span>' : ''}</p>
+      <p class="stageName">${unlocked ? displayName : '<span class="emoji" aria-hidden="true">🔒</span> ' + displayName}</p>
       <p class="stageStars" aria-label="Difficulty ${s.difficulty} of 6">${stars}</p>
       <p class="stageMeta">${s.desc}</p>
       ${s.weather && s.weather !== 'clear' ? `<p class="stageMeta">${WEATHER_DEFS[s.weather].emoji} ${WEATHER_DEFS[s.weather].label} — ${weatherHazardBlurb(s.weather)}</p>` : ''}
@@ -3257,1137 +3008,6 @@ $('leaderboardTabRacersBtn').addEventListener('click', ()=> setLeaderboardTab('r
 $('leaderboardTabTracksBtn').addEventListener('click', ()=> setLeaderboardTab('tracks'));
 $('leaderboardTabFriendsBtn').addEventListener('click', ()=> setLeaderboardTab('friends'));
 $('circuitBackBtn').addEventListener('click', ()=>{ showScreen('home'); });
-
-/* ---------- Track Editor ----------
-   A piece-based track designer: instead of freehand drawing, the creator
-   picks from a fixed catalog of track pieces (straights + left/right
-   curves of varying sharpness) and each pick snaps onto the end of the
-   track being built, live, inside an orbitable 3D scene. Internally each
-   placed piece is "traced" into a run of dense (x,z) anchor points in a
-   fixed local coordinate space (see computeChain); those anchor points are
-   exactly what gets stored in `customTracks` and fed to buildTrack() via
-   resampleCustomCenterline() (see generateCenterline above), so nothing
-   downstream (barriers, collision, AI, minimap) had to change — a
-   piece-built track is stored and raced identically to the old hand-drawn
-   ones. `editorPieces` (the piece-id sequence) is stored alongside so a
-   saved track can be re-opened and continued in piece form.
-
-   Playability / "no invisible walls (mid-track)" safeguards:
-   - Finite piece catalog (fixed turn angles/radii) instead of arbitrary
-     freehand clicks means the centerline can't zig-zag into the tight,
-     erratic curvature that used to make barrier geometry fold over itself.
-   - Pieces are free to cross/overlap the existing track and there is no
-     cap on how many pieces a track can have (editorPieceCollides is kept
-     as a no-op stub for compatibility with the rest of this comment).
-   - Placing a piece checks pieceGoesUnderground() first, so a Downhill
-     piece (or a chain of them) can never dip below ground level — that
-     applies to both the connected chain and loose/decorative pieces.
-   - Closing the loop (ending back up near the start gate, facing a
-     similar direction) is no longer required to save — Save/Test only
-     need EDITOR_MIN_PIECES placed. A track that doesn't close is stored
-     with `openEnd: true`; at build time the closing stretch (still
-     generated as a smooth spline continuation, same as always, so the
-     geometry never folds or jump-cuts) is a synthetic connector that was
-     never traced/validated like a real piece, so a wall goes across the
-     real track's true end (see wallIndex in buildTrack() and
-     applyEndWall()) for every open track — not just ones with a stacked
-     bridge/overpass — stopping a car before it can drive onto that
-     unvalidated stretch (and potentially glitch below ground).
-   - relaxCenterlineForWidth() and the barrier-overlap suppression in
-     buildTrack() (unchanged) remain as a second line of defense. */
-const EDITOR_RANGE = 140;        // world units from canvas center to its edge
-const EDITOR_MIN_PIECES = 6;
-const EDITOR_MAX_PIECES = Infinity;   // no cap on how many pieces a track can have
-const EDITOR_CLOSE_DIST = 40;    // world units — how close the end must get to the start gate
-const EDITOR_CLOSE_ANGLE = Math.PI*0.30; // ~54° — how closely the end must face the start heading
-const EDITOR_CLOSE_HEIGHT = 0.5; // world units — how close the end must get to the start's height. A "closed" loop gets NO end wall (see buildTrack's wallIndex), so this has to be tight enough that the seam connecting the two can't dip meaningfully below ground — a looser tolerance here would leave a walled-off gap.
-const EDITOR_SELF_CLEARANCE_PAD = 6;     // extra margin (world units) added to track width for the self-cross check
-const EDITOR_SNAP_DIST = 20;     // world units — tapping this close to the track's current end still connects it normally
-
-/* ---------- Piece catalog ----------
-   Each piece traces a path forward from an entry cursor {x,z,heading,y} (a
-   position + facing angle in radians, forward = (cos h, sin h), plus
-   height y) and returns { pathPoints, exit } — pathPoints are new anchor
-   points (NOT including the entry point, which is already the chain's
-   last point), each one a real 3D anchor {x,y,z}; exit is the resulting
-   cursor for the next piece. Pieces with a nonzero dy climb or drop that
-   many world units of height, evenly, across the piece's own length —
-   that's what lets pieces be placed in true 3D instead of every piece
-   sitting on one flat plane. */
-function traceStraight(cursor, length, numSamples, dy){
-  const h0 = cursor.heading, fx=Math.cos(h0), fz=Math.sin(h0);
-  const y0 = cursor.y||0, rise = dy||0;
-  const pts = [];
-  for(let i=1;i<=numSamples;i++){
-    const t = i/numSamples;
-    const d = length*t;
-    pts.push({ x:cursor.x+fx*d, z:cursor.z+fz*d, y:y0+rise*t });
-  }
-  return { pathPoints: pts, exit:{ x:cursor.x+fx*length, z:cursor.z+fz*length, heading:h0, y:y0+rise } };
-}
-function traceCurve(cursor, signedAngle, radius, numSamples, dy){
-  const h0 = cursor.heading;
-  const y0 = cursor.y||0, rise = dy||0;
-  const s = signedAngle >= 0 ? 1 : -1;
-  const leftPerp = { x:-Math.sin(h0), z:Math.cos(h0) };
-  const center = { x: cursor.x + s*radius*leftPerp.x, z: cursor.z + s*radius*leftPerp.z };
-  const u0 = { x: cursor.x-center.x, z: cursor.z-center.z };
-  const pts = [];
-  let last = null;
-  for(let i=1;i<=numSamples;i++){
-    const frac = i/numSamples;
-    const t = signedAngle * frac;
-    const ct=Math.cos(t), st=Math.sin(t);
-    const p = { x: center.x + (u0.x*ct - u0.z*st), z: center.z + (u0.x*st + u0.z*ct), y: y0+rise*frac };
-    pts.push(p);
-    last = p;
-  }
-  return { pathPoints: pts, exit:{ x:last.x, z:last.z, heading:h0+signedAngle, y:y0+rise } };
-}
-const TRACK_PIECES = {
-  straight:  { label:'Straight',       emoji:'\u2B06\uFE0F', trace:c=>traceStraight(c, 26, 2, 0) },
-  straightS: { label:'Short Straight', emoji:'\u{1F53C}',     trace:c=>traceStraight(c, 13, 1, 0) },
-  curveL30:  { label:'Gentle Left',    emoji:'\u2196\uFE0F',  trace:c=>traceCurve(c,  Math.PI/6,  34, 3, 0) },
-  curveR30:  { label:'Gentle Right',   emoji:'\u2197\uFE0F',  trace:c=>traceCurve(c, -Math.PI/6,  34, 3, 0) },
-  curveL60:  { label:'Sharp Left',     emoji:'\u2B05\uFE0F',  trace:c=>traceCurve(c,  Math.PI/3,  24, 4, 0) },
-  curveR60:  { label:'Sharp Right',    emoji:'\u27A1\uFE0F',  trace:c=>traceCurve(c, -Math.PI/3,  24, 4, 0) },
-  hairpinL:  { label:'Hairpin Left',   emoji:'\u21A9\uFE0F',  trace:c=>traceCurve(c,  Math.PI*0.66, 17, 6, 0) },
-  hairpinR:  { label:'Hairpin Right',  emoji:'\u21AA\uFE0F',  trace:c=>traceCurve(c, -Math.PI*0.66, 17, 6, 0) },
-  uphill:    { label:'Uphill',         emoji:'\u{1F4C8}',     trace:c=>traceStraight(c, 26, 4, 7) },
-  downhill:  { label:'Downhill',       emoji:'\u{1F4C9}',     trace:c=>traceStraight(c, 26, 4, -7) }
-};
-const PIECE_ORDER = ['straight','straightS','curveL30','curveR30','curveL60','curveR60','hairpinL','hairpinR','uphill','downhill'];
-
-const EDITOR_MIN_HEIGHT = 0;   // world units — pieces (connected or loose) can't dip below this; ground level
-
-// Traces `pieceId` from `cursor` and reports whether any point along it (or
-// its exit) would sit below EDITOR_MIN_HEIGHT — used to block placement
-// before it happens, rather than letting a Downhill piece (or a chain of
-// them) tunnel the track under the ground plane with no floor check.
-function pieceGoesUnderground(cursor, pieceId){
-  const piece = TRACK_PIECES[pieceId];
-  if(!piece) return false;
-  const res = piece.trace(cursor);
-  if((res.exit.y||0) < EDITOR_MIN_HEIGHT - 0.001) return true;
-  return res.pathPoints.some(p => (p.y||0) < EDITOR_MIN_HEIGHT - 0.001);
-}
-
-let editorPieces = [];         // [pieceId, ...] — the track being built, in order
-let editingCustomId = null;    // id of the custom track being edited, or null for a new one
-let editorTransform = { dx:0, dz:0, rot:0 }; // whole-track move/rotate, applied on top of the piece chain
-let editorPoints = [];         // dense (x,z) anchors in WORLD space (chain + transform) — what gets saved/raced
-let editorMsgTimer = null;
-
-// Pieces placed loose/disconnected from the main chain: clicking a piece
-// button no longer snaps it onto the track immediately — it "arms" that
-// piece, and the next tap on the 3D view drops it exactly there, wherever
-// that is, connected or not. Each entry is { id, x, z, heading } already in
-// WORLD space (the same space the ground-plane raycast returns), since that
-// keeps placement pixel-accurate regardless of the whole-track Move/Rotate
-// transform. They're visual/decorative — not part of the driveable
-// centerline — but they stay exactly where dropped and persist with the
-// track (saved as `freePieces` alongside the connected `pieces` chain).
-let editorFreePieces = [];
-let editorArmedPieceId = null; // piece id waiting for a placement tap, or null
-// Combined undo order across both the connected chain and the loose
-// pieces, so Undo always removes whatever was placed most recently.
-let editorActionStack = [];
-
-function editorSetMsg(text){
-  const el = $('editorMsg');
-  if(!el) return;
-  el.textContent = text || '';
-}
-function normalizeAngleLocal(a){
-  while(a > Math.PI) a -= Math.PI*2;
-  while(a < -Math.PI) a += Math.PI*2;
-  return a;
-}
-function getEditorWidth(){
-  const widthEl = $('editorWidthInput');
-  return Math.max(14, Math.min(30, parseInt(widthEl && widthEl.value, 10) || TRACK_WIDTH));
-}
-
-// Replays the whole piece sequence from a fixed local origin/heading and
-// returns the dense local-space anchor list (starting with the origin
-// point) plus the resulting end cursor. Pure function of `pieceIds` — the
-// whole-track Move/Rotate controls are applied separately, as a transform,
-// so this never has to be re-derived from world-space points.
-function computeChain(pieceIds){
-  let cursor = { x:0, z:0, heading:0, y:0 };
-  const points = [{ x:0, z:0, y:0 }];
-  pieceIds.forEach(id=>{
-    const piece = TRACK_PIECES[id];
-    if(!piece) return;
-    const res = piece.trace(cursor);
-    res.pathPoints.forEach(p=> points.push(p));
-    cursor = res.exit;
-  });
-  return { points, cursor };
-}
-// Move/rotate only ever act in the horizontal (x,z) plane — height is
-// carried straight through untouched.
-function applyEditorTransform(points, t){
-  const cos=Math.cos(t.rot), sin=Math.sin(t.rot);
-  return points.map(p=> ({ x: p.x*cos - p.z*sin + t.dx, z: p.x*sin + p.z*cos + t.dz, y: p.y||0 }));
-}
-
-// Distance-based self-intersection guard: checks candidate path points
-// (in LOCAL space, i.e. before the whole-track transform, which doesn't
-// affect relative distances) against the already-placed chain, skipping
-// points right at the join (expected to be close) and points right at the
-// start gate (the whole point of the last few pieces is to approach it).
-function editorPieceCollides(candidatePts, basePts){
-  // Self-crossing is allowed — tracks can loop over/under or cross
-  // themselves freely, so this guard is now a permanent no-op.
-  return false;
-}
-
-function editorLoopStatus(){
-  const chain = computeChain(editorPieces);
-  const end = chain.cursor;
-  const dist = Math.hypot(end.x, end.z);
-  const angDiff = Math.abs(normalizeAngleLocal(end.heading));
-  const heightOff = Math.abs(end.y||0);
-  const closed = editorPieces.length >= EDITOR_MIN_PIECES && dist <= EDITOR_CLOSE_DIST && angDiff <= EDITOR_CLOSE_ANGLE && heightOff <= EDITOR_CLOSE_HEIGHT;
-  return { chain, dist, angDiff, heightOff, closed };
-}
-function updateEditorLoopStatusUI(status){
-  const el = $('editorLoopStatus');
-  if(!el) return;
-  if(status.closed){
-    el.textContent = '\u2705 Loop closed — ready to save!';
-    el.className = 'editorLoopStatus closed';
-  } else if(editorPieces.length === 0){
-    el.textContent = 'Place at least ' + EDITOR_MIN_PIECES + ' pieces — close the loop for a lap circuit, or save it open for a point-to-point track.';
-    el.className = 'editorLoopStatus open';
-  } else if(status.dist <= EDITOR_CLOSE_DIST && status.angDiff <= EDITOR_CLOSE_ANGLE && status.heightOff > EDITOR_CLOSE_HEIGHT){
-    el.textContent = 'Back at the start gate but ' + Math.round(status.heightOff) + ' units off in height — balance your uphill and downhill pieces so the loop lands back at start height, or save it open as-is.';
-    el.className = 'editorLoopStatus open';
-  } else if(editorPieces.length >= EDITOR_MIN_PIECES){
-    el.textContent = 'Not closed — ' + Math.round(status.dist) + ' units from the start gate. Keep building back around to close the loop, or save it open now for a point-to-point track.';
-    el.className = 'editorLoopStatus open';
-  } else {
-    el.textContent = 'Place at least ' + EDITOR_MIN_PIECES + ' pieces — close the loop for a lap circuit, or save it open for a point-to-point track.';
-    el.className = 'editorLoopStatus open';
-  }
-}
-
-// Appends a piece to the chain. No cap on track length, and pieces are
-// free to cross/overlap the existing track.
-function tryAddPiece(pieceId){
-  const piece = TRACK_PIECES[pieceId];
-  if(!piece) return;
-  const cursor = computeChain(editorPieces).cursor;
-  if(pieceGoesUnderground(cursor, pieceId)){
-    editorSetMsg("Can't place that — the track would dip below ground. Try an Uphill piece first.");
-    return;
-  }
-  editorPieces.push(pieceId);
-  editorActionStack.push('chain');
-  editorSetMsg('');
-  drawEditorCanvas();
-}
-
-// Arms/disarms a piece for loose placement. Clicking a piece button no
-// longer adds it to the track right away — it just marks that piece as
-// "held", and the next tap anywhere on the 3D view drops it there. Clicking
-// the same button again (or clicking a different piece button) cancels or
-// swaps the armed piece without placing anything.
-function armPieceForPlacement(pieceId){
-  editorArmedPieceId = (editorArmedPieceId === pieceId) ? null : pieceId;
-  if(editorArmedPieceId){
-    editorSetMsg('Tap anywhere on the 3D view to drop ' + TRACK_PIECES[editorArmedPieceId].label + ' — it stays armed for as many drops as you like, click it again to stop.');
-  } else {
-    editorSetMsg('');
-  }
-  updateArmedPieceUI();
-}
-function updateArmedPieceUI(){
-  const grid = $('editorPieceGrid');
-  if(grid){
-    Array.from(grid.children).forEach(btn=>{
-      btn.classList.toggle('armed', !!editorArmedPieceId && btn.dataset.pieceId === editorArmedPieceId);
-    });
-  }
-  const canvas = $('editorCanvas');
-  if(canvas){
-    canvas.classList.toggle('armed', !!editorArmedPieceId);
-    canvas.style.cursor = editorArmedPieceId ? 'crosshair' : (editorMode==='move' ? 'move' : 'grab');
-  }
-}
-
-// Traces a loose piece's own short path from a flat local origin (so it
-// gets the same real geometry — length, curve, rise — as it would in the
-// chain), then shifts those points to the world position it was dropped
-// at. Returns dense WORLD-space points, first one being the drop point.
-function computeFreePiecePoints(fp){
-  const piece = TRACK_PIECES[fp.id];
-  if(!piece) return [{ x:fp.x, z:fp.z, y:0 }];
-  const cursor = { x:0, z:0, heading:fp.heading||0, y:0 };
-  const res = piece.trace(cursor);
-  const local = [{ x:0, z:0, y:0 }, ...res.pathPoints];
-  return local.map(p=> ({ x:p.x+fp.x, z:p.z+fp.z, y:p.y||0 }));
-}
-
-// Places the currently-armed piece at a canvas pixel, converting it to a
-// world (x,z) via the same ground-plane raycast Move-mode dragging uses —
-// so it lands exactly under the tap, on or off the existing track. Tapping
-// near where the connected chain currently ends still extends that chain
-// normally (so the track stays buildable/raceable); tapping anywhere else
-// drops the piece loose, exactly there, disconnected.
-function placeArmedPieceAt(px, py){
-  if(!editorArmedPieceId) return;
-  const id = editorArmedPieceId;
-  const world = editorPixelToWorld(px, py);
-  let connect = editorPieces.length === 0; // nothing built yet — first piece always starts the chain at the start gate
-  let chainCursor = { x:0, z:0, heading:0, y:0 };
-  if(!connect){
-    const status = editorLoopStatus();
-    chainCursor = status.chain.cursor;
-    const chainEnd = applyEditorTransform([{ x: chainCursor.x, z: chainCursor.z, y: chainCursor.y||0 }], editorTransform)[0];
-    connect = Math.hypot(world.x-chainEnd.x, world.z-chainEnd.z) <= EDITOR_SNAP_DIST;
-  }
-  // Stays armed after placing — the same piece keeps dropping on every tap
-  // until its button is clicked again (see armPieceForPlacement's toggle).
-  if(connect){
-    if(pieceGoesUnderground(chainCursor, id)){
-      editorSetMsg("Can't place that — the track would dip below ground. Try an Uphill piece first.");
-      return;
-    }
-    editorPieces.push(id);
-    editorActionStack.push('chain');
-  } else {
-    // Loose pieces start flat (y:0) at the drop point — only a nonzero dy
-    // (Uphill/Downhill) can send them below ground, but they get the same
-    // check for consistency.
-    if(pieceGoesUnderground({ x:0, z:0, heading:0, y:0 }, id)){
-      editorSetMsg("Can't drop that here — it would go underground.");
-      return;
-    }
-    editorFreePieces.push({ id, x: world.x, z: world.z, heading: 0 });
-    editorActionStack.push('free');
-  }
-  editorSetMsg('Tap anywhere on the 3D view to drop another ' + TRACK_PIECES[id].label + ', or click it again to stop.');
-  updateArmedPieceUI();
-  drawEditorCanvas();
-}
-
-/* ---------- Track Editor 3D view ----------
-   A live, orbitable Three.js scene. Piece buttons drive what track exists;
-   dragging the canvas only orbits the camera around it (or, in Move mode,
-   drags the whole track). */
-let editorScene=null, editorCamera=null, editorRenderer=null, editorGroundMesh=null, editorMarkersGroup=null, editorRibbonMesh=null, editorGateMesh=null;
-let editorFreePiecesGroup=null, editorFreeRibbonMat=null, editorFreeMarkerMat=null;
-let editorCamAzimuth = Math.PI*0.78, editorCamElevation = 0.85, editorCamDistance = 210;
-let editorCamTarget = { x:0, z:0 };
-const EDITOR_CAM_MIN_DIST = 60, EDITOR_CAM_MAX_DIST = 620;
-let editorSphereGeo = null, editorStartMat = null, editorPointMat = null, editorCursorMat = null, editorRibbonMat = null;
-let editorGateMatOpen = null, editorGateMatClosed = null;
-let editorEnvGroup = null, editorEnvTheme = null;
-
-// Returns the currently-selected scenery theme object (same shape used by
-// buildTrack/createStageScene for an actual race), so the editor's world can
-// be built with the exact same helpers instead of a generic placeholder.
-function getEditorSceneryTheme(){
-  const sel = $('editorThemeSelect');
-  const key = sel ? sel.value : 'oval';
-  return SCENERY_THEMES[key] || SCENERY_THEMES.oval;
-}
-
-// Builds the sky/lighting/ground/scenery for the editor's world using the
-// exact same functions a real race screen uses (createStageScene's lighting
-// recipe + buildTrack's ground/scenery setup) driven by the track's chosen
-// theme — so an empty editor reads as the same place you'll actually race,
-// just without any track laid down yet. Rebuilt whenever the theme changes.
-function rebuildEditorEnvironment(){
-  if(!editorScene) return;
-  const theme = getEditorSceneryTheme();
-  if(editorEnvGroup){
-    editorScene.remove(editorEnvGroup);
-    disposeObject(editorEnvGroup);
-    editorEnvGroup = null;
-  }
-  const group = new THREE.Group();
-
-  editorScene.background = new THREE.Color(theme.sky[0]);
-  editorScene.fog = new THREE.Fog(new THREE.Color(theme.sky[1]).getHex(), theme.fogNear || 90, theme.fogFar || 340);
-
-  const preset = SKY_PRESETS[theme.skyStyle] || SKY_PRESETS.clearDay;
-  const hemi = new THREE.HemisphereLight(new THREE.Color(theme.sky[1]), new THREE.Color(theme.ground).multiplyScalar(0.45), preset.sun ? 0.75 : 0.5);
-  group.add(hemi);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-  if(preset.sun){
-    const phi = preset.sun.u * Math.PI * 2;
-    const theta = Math.PI * (1 - preset.sun.v) / 2;
-    const R = 240;
-    dir.position.set(-Math.cos(phi)*Math.sin(theta)*R, Math.max(25, Math.cos(theta)*R), Math.sin(phi)*Math.sin(theta)*R);
-    dir.color = new THREE.Color(preset.sun.core);
-    dir.intensity = 0.45 + preset.sun.v * 0.6;
-  } else {
-    dir.position.set(60,120,40);
-    dir.color = new THREE.Color(theme.sky[1]);
-    dir.intensity = 0.5;
-  }
-  group.add(dir);
-  const fill = new THREE.DirectionalLight(new THREE.Color(theme.sky[0]).lerp(new THREE.Color('#ffffff'), 0.3), 0.35);
-  fill.position.set(-dir.position.x, 60, -dir.position.z);
-  group.add(fill);
-
-  group.add(buildSkyDome(theme, 900));
-  group.add(buildScenery(theme));
-
-  const oceanTheme = theme.deco==='coastal' || theme.deco==='harbor';
-  const groundSize = oceanTheme ? 900 : 2000;
-  editorGroundMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(groundSize, groundSize),
-    new THREE.MeshStandardMaterial({ map: makeGroundTexture(theme.ground, theme.groundStyle), roughness: theme.groundStyle==='snow' ? 0.75 : 1 })
-  );
-  editorGroundMesh.rotation.x = -Math.PI/2;
-  editorGroundMesh.position.y = -0.05;
-  group.add(editorGroundMesh);
-
-  editorScene.add(group);
-  editorEnvGroup = group;
-  editorEnvTheme = $('editorThemeSelect') ? $('editorThemeSelect').value : 'oval';
-}
-
-function initEditorScene(){
-  if(editorScene) return;
-  const canvas = $('editorCanvas');
-  if(!canvas) return;
-  editorRenderer = new THREE.WebGLRenderer({ canvas, antialias:true });
-  editorRenderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  const w = window.innerWidth, h = window.innerHeight;
-  editorRenderer.setSize(w, h, false);
-  editorScene = new THREE.Scene();
-  editorCamera = new THREE.PerspectiveCamera(45, w/h, 1, 1800);
-
-  rebuildEditorEnvironment();
-
-  editorMarkersGroup = new THREE.Group();
-  editorScene.add(editorMarkersGroup);
-
-  editorSphereGeo = new THREE.SphereGeometry(3.4, 16, 12);
-  editorStartMat = new THREE.MeshStandardMaterial({ color:0x6f8f46, roughness:0.6 });
-  editorPointMat = new THREE.MeshStandardMaterial({ color:0xc1502e, roughness:0.6 });
-  editorCursorMat = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.5, emissive:0x3a1c00, emissiveIntensity:0.4 });
-  editorRibbonMat = new THREE.MeshStandardMaterial({ color:0x33394a, roughness:0.9, side:THREE.DoubleSide });
-  // Loose/disconnected pieces get their own dashed-looking, semi-transparent
-  // look so they read as "placed but not part of the driveable track" at a
-  // glance, distinct from the solid connected ribbon.
-  editorFreeRibbonMat = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.7, transparent:true, opacity:0.55, side:THREE.DoubleSide });
-  editorFreeMarkerMat = new THREE.MeshStandardMaterial({ color:0xd98c3d, roughness:0.5, emissive:0x3a1c00, emissiveIntensity:0.5 });
-  editorFreePiecesGroup = new THREE.Group();
-  editorScene.add(editorFreePiecesGroup);
-  editorGateMatOpen = new THREE.MeshBasicMaterial({ color:0xd98c3d, transparent:true, opacity:0.55, side:THREE.DoubleSide });
-  editorGateMatClosed = new THREE.MeshBasicMaterial({ color:0x6f8f46, transparent:true, opacity:0.55, side:THREE.DoubleSide });
-  editorGateMesh = new THREE.Mesh(new THREE.RingGeometry(EDITOR_CLOSE_DIST-1.4, EDITOR_CLOSE_DIST, 48), editorGateMatOpen);
-  editorGateMesh.rotation.x = -Math.PI/2;
-  editorGateMesh.position.y = 0.06;
-  editorScene.add(editorGateMesh);
-
-  updateEditorCamera();
-}
-
-// Keeps the editor's 3D view filling the whole screen (same idea as
-// onResize() for the main race canvas) instead of the old fixed
-// 640x640 preview box — called on window resize and whenever the
-// Track Editor screen is opened.
-function onEditorResize(){
-  if(!editorRenderer || !editorCamera) return;
-  const w = window.innerWidth, h = window.innerHeight;
-  editorRenderer.setSize(w, h, false);
-  editorCamera.aspect = w/h;
-  editorCamera.updateProjectionMatrix();
-  renderEditorFrame();
-}
-window.addEventListener('resize', onEditorResize);
-
-// Called when the "Scenery theme" dropdown changes so the live 3D preview
-// matches the theme the track will actually be raced in, instead of only
-// applying it at save time.
-function onEditorThemeChange(){
-  if(!editorScene){ return; }
-  rebuildEditorEnvironment();
-  renderEditorFrame();
-}
-function updateEditorCamera(){
-  if(!editorCamera) return;
-  const az = editorCamAzimuth, el = editorCamElevation, d = editorCamDistance;
-  editorCamera.position.set(
-    editorCamTarget.x + d*Math.cos(el)*Math.sin(az),
-    d*Math.sin(el),
-    editorCamTarget.z + d*Math.cos(el)*Math.cos(az)
-  );
-  editorCamera.lookAt(editorCamTarget.x, 0, editorCamTarget.z);
-}
-function editorRotate(deltaRad){
-  initEditorScene();
-  editorCamAzimuth += deltaRad;
-  updateEditorCamera();
-  renderEditorFrame();
-}
-function editorZoom(deltaDist){
-  initEditorScene();
-  editorCamDistance = Math.max(EDITOR_CAM_MIN_DIST, Math.min(EDITOR_CAM_MAX_DIST, editorCamDistance + deltaDist));
-  updateEditorCamera();
-  renderEditorFrame();
-}
-// Keeps the whole track roughly in frame as it grows, without fighting the
-// player's own manual orbit/zoom — only nudges the look-at target and, if
-// the track has grown past the current view, zooms out to fit.
-function autoFitEditorCamera(worldPoints){
-  if(!worldPoints.length) { editorCamTarget = { x:0, z:0 }; return; }
-  let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
-  worldPoints.forEach(p=>{ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.z<minZ)minZ=p.z; if(p.z>maxZ)maxZ=p.z; });
-  editorCamTarget = { x:(minX+maxX)/2, z:(minZ+maxZ)/2 };
-  const radius = Math.max(30, Math.hypot(maxX-minX, maxZ-minZ)/2);
-  const needed = Math.min(EDITOR_CAM_MAX_DIST, Math.max(EDITOR_CAM_MIN_DIST, radius*2.4));
-  if(needed > editorCamDistance) editorCamDistance = needed;
-  updateEditorCamera();
-}
-
-// Builds a flat 3D road ribbon from the dense world-space anchor points,
-// reusing the same spline-smoothing + offset math the real game uses to
-// turn anchor points into a driveable track (see resampleCustomCenterline /
-// computeTangentsNormals below) — so the editor's 3D preview matches what
-// you'll actually race on.
-function buildEditorRibbonGeometry(rawPoints, width){
-  const N = 96;
-  const centerline = resampleCustomCenterline(rawPoints, N);
-  const { normals } = computeTangentsNormals(centerline);
-  const half = width/2;
-  const positions = [];
-  for(let i=0;i<N;i++){
-    const c = centerline[i], n = normals[i];
-    positions.push(c.x + n.x*half, c.y+0.05, c.z + n.z*half);
-    positions.push(c.x - n.x*half, c.y+0.05, c.z - n.z*half);
-  }
-  const indices = [];
-  for(let i=0;i<N;i++){
-    const a = i*2, b = i*2+1, c = ((i+1)%N)*2, d = ((i+1)%N)*2+1;
-    indices.push(a,c,b, b,c,d);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
-  geo.setIndex(indices);
-  geo.computeVertexNormals();
-  return geo;
-}
-
-// Builds a short, OPEN ribbon strip for a single loose piece — unlike
-// buildEditorRibbonGeometry (which treats its points as a closed loop, fine
-// for the whole connected track), a free piece is just a handful of points
-// with a clear start and end, so it's built as a plain triangle strip
-// instead of being spline-closed back on itself.
-function buildOpenRibbonGeometry(pts, width){
-  const n = pts.length;
-  const geo = new THREE.BufferGeometry();
-  if(n < 2) return geo;
-  const half = width/2;
-  const positions = [];
-  for(let i=0;i<n;i++){
-    let tx, tz;
-    if(i===0){ tx = pts[1].x-pts[0].x; tz = pts[1].z-pts[0].z; }
-    else if(i===n-1){ tx = pts[i].x-pts[i-1].x; tz = pts[i].z-pts[i-1].z; }
-    else { tx = pts[i+1].x-pts[i-1].x; tz = pts[i+1].z-pts[i-1].z; }
-    const len = Math.hypot(tx,tz) || 1;
-    tx/=len; tz/=len;
-    const nx = -tz, nz = tx; // left-perpendicular in the xz plane
-    const c = pts[i];
-    positions.push(c.x+nx*half, (c.y||0)+0.08, c.z+nz*half);
-    positions.push(c.x-nx*half, (c.y||0)+0.08, c.z-nz*half);
-  }
-  const indices = [];
-  for(let i=0;i<n-1;i++){
-    const a=i*2, b=i*2+1, c=(i+1)*2, d=(i+1)*2+1;
-    indices.push(a,c,b, b,c,d);
-  }
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
-  geo.setIndex(indices);
-  geo.computeVertexNormals();
-  return geo;
-}
-
-// Recomputes editorPoints (world space) from editorPieces + editorTransform,
-// refreshes the piece-palette buttons (disabling ones that would cross the
-// track), and re-renders the 3D scene. This is the single entry point every
-// piece add/remove/move/rotate action goes through.
-function drawEditorCanvas(){
-  const canvas = $('editorCanvas');
-  if(!canvas) return;
-  initEditorScene();
-  const selectedTheme = $('editorThemeSelect') ? $('editorThemeSelect').value : 'oval';
-  if(selectedTheme !== editorEnvTheme) rebuildEditorEnvironment();
-
-  const status = editorLoopStatus();
-  const worldPoints = applyEditorTransform(status.chain.points, editorTransform);
-  editorPoints = worldPoints;
-  updateEditorLoopStatusUI(status);
-  refreshPiecePalette(status);
-
-  while(editorMarkersGroup.children.length){
-    editorMarkersGroup.remove(editorMarkersGroup.children[0]);
-  }
-  // Only the piece BOUNDARIES get a marker (not every dense sample point) —
-  // otherwise the scene gets cluttered with a mesh per sample.
-  let idx = 0;
-  let cursorLocal = { x:0, z:0, heading:0, y:0 };
-  const boundaryLocal = [{ x:0, z:0, y:0 }];
-  editorPieces.forEach(id=>{
-    const piece = TRACK_PIECES[id];
-    const res = piece.trace(cursorLocal);
-    cursorLocal = res.exit;
-    boundaryLocal.push({ x:cursorLocal.x, z:cursorLocal.z, y:cursorLocal.y });
-  });
-  const boundaryWorld = applyEditorTransform(boundaryLocal, editorTransform);
-  boundaryWorld.forEach((p,i)=>{
-    const isLast = i === boundaryWorld.length-1 && boundaryWorld.length>1;
-    const mat = i===0 ? editorStartMat : (isLast ? editorCursorMat : editorPointMat);
-    const mesh = new THREE.Mesh(editorSphereGeo, mat);
-    mesh.position.set(p.x, (p.y||0)+3.4, p.z);
-    editorMarkersGroup.add(mesh);
-  });
-
-  // Start gate ring — green once the loop is properly closed.
-  if(editorGateMesh){
-    editorGateMesh.material = status.closed ? editorGateMatClosed : editorGateMatOpen;
-    const gatePos = applyEditorTransform([{x:0,z:0,y:0}], editorTransform)[0];
-    editorGateMesh.position.set(gatePos.x, (gatePos.y||0)+0.06, gatePos.z);
-  }
-
-  if(editorRibbonMesh){
-    editorScene.remove(editorRibbonMesh);
-    editorRibbonMesh.geometry.dispose();
-    editorRibbonMesh = null;
-  }
-  if(editorPoints.length >= 3){
-    const width = getEditorWidth();
-    editorRibbonMesh = new THREE.Mesh(buildEditorRibbonGeometry(editorPoints, width), editorRibbonMat);
-    editorScene.add(editorRibbonMesh);
-  }
-
-  // Loose pieces — dropped wherever they were tapped, connected or not.
-  // Each gets its own small ribbon segment plus start/end markers, rebuilt
-  // fresh every draw same as the connected chain's markers above.
-  while(editorFreePiecesGroup.children.length){
-    const child = editorFreePiecesGroup.children[0];
-    editorFreePiecesGroup.remove(child);
-    if(child.geometry) child.geometry.dispose();
-  }
-  editorFreePieces.forEach(fp=>{
-    const pts = computeFreePiecePoints(fp);
-    if(pts.length >= 2){
-      const width = getEditorWidth();
-      const ribbon = new THREE.Mesh(buildOpenRibbonGeometry(pts, width), editorFreeRibbonMat);
-      editorFreePiecesGroup.add(ribbon);
-    }
-    [pts[0], pts[pts.length-1]].forEach(p=>{
-      const mesh = new THREE.Mesh(editorSphereGeo, editorFreeMarkerMat);
-      mesh.position.set(p.x, (p.y||0)+3.4, p.z);
-      editorFreePiecesGroup.add(mesh);
-    });
-  });
-
-  autoFitEditorCamera(worldPoints.concat(editorFreePieces.map(fp=>({x:fp.x,z:fp.z}))));
-  renderEditorFrame();
-  const countEl = $('editorPointCount');
-  if(countEl) countEl.textContent = editorPieces.length + editorFreePieces.length;
-}
-function renderEditorFrame(){
-  if(!editorRenderer || !editorScene || !editorCamera) return;
-  editorRenderer.render(editorScene, editorCamera);
-}
-
-// Builds/refreshes the piece palette buttons. Pieces are never disabled —
-// there's no cap on track length and pieces are free to cross/overlap the
-// existing track.
-function refreshPiecePalette(status){
-  const grid = $('editorPieceGrid');
-  if(!grid) return;
-  if(grid.dataset.built !== '1'){
-    grid.innerHTML = '';
-    PIECE_ORDER.forEach(id=>{
-      const piece = TRACK_PIECES[id];
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'editorPieceBtn';
-      btn.dataset.pieceId = id;
-      btn.innerHTML = '<span class="pieceEmoji" aria-hidden="true">' + piece.emoji + '</span><span>' + piece.label + '</span>';
-      btn.addEventListener('click', ()=> armPieceForPlacement(id));
-      grid.appendChild(btn);
-    });
-    grid.dataset.built = '1';
-  }
-  Array.from(grid.children).forEach(btn=>{
-    btn.disabled = false;
-    btn.title = '';
-    btn.classList.toggle('armed', !!editorArmedPieceId && btn.dataset.pieceId === editorArmedPieceId);
-  });
-}
-
-// 'orbit' (default): drag rotates the camera around the track. 'move':
-// drag translates the whole track (editorTransform.dx/dz).
-let editorMode = 'orbit';
-let editorDragActive = false;
-let editorDragLast = null;
-let editorMoveStartWorld = null;
-let editorMoveOrigTransform = null;
-let editorPointerDownPixel = null; // where this pointer gesture started, for tap-vs-drag detection
-let editorPointerMovedDist = 0;    // max distance (px) the pointer has travelled since pointerdown
-const EDITOR_TAP_MAX_DIST = 6;     // px — under this counts as a tap (place piece), not a drag
-
-function setEditorMode(mode){
-  editorMode = mode;
-  const btn = $('editorMoveModeBtn');
-  const canvas = $('editorCanvas');
-  if(btn) btn.classList.toggle('active', mode==='move');
-  if(canvas) canvas.style.cursor = editorArmedPieceId ? 'crosshair' : (mode==='move' ? 'move' : 'grab');
-}
-
-// Rotates the whole track transform around the track's own current
-// center, so it spins in place rather than orbiting the world origin.
-function rotateTrackPoints(deltaRad){
-  if(editorPieces.length < 1){ editorTransform.rot += deltaRad; drawEditorCanvas(); return; }
-  const chain = computeChain(editorPieces);
-  const worldBefore = applyEditorTransform(chain.points, editorTransform);
-  const cx = worldBefore.reduce((s,p)=>s+p.x,0) / worldBefore.length;
-  const cz = worldBefore.reduce((s,p)=>s+p.z,0) / worldBefore.length;
-  // Solve a new transform (rot' = rot+delta, dx',dz') such that the
-  // track's centroid stays at (cx,cz) after the rotation is applied.
-  const newRot = editorTransform.rot + deltaRad;
-  const cosO=Math.cos(editorTransform.rot), sinO=Math.sin(editorTransform.rot);
-  // local centroid (pre-transform)
-  const localCx = chain.points.reduce((s,p)=>s+p.x,0) / chain.points.length;
-  const localCz = chain.points.reduce((s,p)=>s+p.z,0) / chain.points.length;
-  const cosN=Math.cos(newRot), sinN=Math.sin(newRot);
-  editorTransform = {
-    rot: newRot,
-    dx: cx - (localCx*cosN - localCz*sinN),
-    dz: cz - (localCx*sinN + localCz*cosN)
-  };
-  editorSetMsg('');
-  drawEditorCanvas();
-}
-
-function editorPixelFromEvent(evt){
-  const canvas = $('editorCanvas');
-  const rect = canvas.getBoundingClientRect();
-  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-  return {
-    px: (clientX - rect.left) / rect.width * canvas.width,
-    py: (clientY - rect.top) / rect.height * canvas.height
-  };
-}
-// Ground-plane raycast: turns a canvas pixel into a world (x,z) — used
-// only by Move-track dragging, to translate the track by the same amount
-// the pointer moved across the ground.
-const editorRaycaster = new THREE.Raycaster();
-const editorGroundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
-function editorPixelToWorld(px, py){
-  const canvas = $('editorCanvas');
-  initEditorScene();
-  const ndcX = (px/canvas.width)*2 - 1;
-  const ndcY = -(py/canvas.height)*2 + 1;
-  editorRaycaster.setFromCamera({ x:ndcX, y:ndcY }, editorCamera);
-  const hit = new THREE.Vector3();
-  const ok = editorRaycaster.ray.intersectPlane(editorGroundPlane, hit);
-  if(!ok) return { x:0, z:0 };
-  return { x: hit.x, z: hit.z };
-}
-
-function editorPointerDown(e){
-  e.preventDefault();
-  const canvas = $('editorCanvas');
-  editorDragActive = true;
-  editorPointerDownPixel = editorPixelFromEvent(e);
-  editorPointerMovedDist = 0;
-  try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
-  canvas.classList.add('dragging');
-  if(editorMode === 'move'){
-    const {px,py} = editorPixelFromEvent(e);
-    editorMoveStartWorld = editorPixelToWorld(px,py);
-    editorMoveOrigTransform = { ...editorTransform };
-    canvas.style.cursor = 'grabbing';
-    return;
-  }
-  editorDragLast = editorPixelFromEvent(e);
-}
-function editorPointerMove(e){
-  if(!editorDragActive) return;
-  e.preventDefault();
-  if(editorPointerDownPixel){
-    const { px, py } = editorPixelFromEvent(e);
-    const d = Math.hypot(px-editorPointerDownPixel.px, py-editorPointerDownPixel.py);
-    if(d > editorPointerMovedDist) editorPointerMovedDist = d;
-  }
-  if(editorMode === 'move'){
-    if(!editorMoveStartWorld) return;
-    const {px,py} = editorPixelFromEvent(e);
-    const cur = editorPixelToWorld(px,py);
-    editorTransform = {
-      rot: editorMoveOrigTransform.rot,
-      dx: editorMoveOrigTransform.dx + (cur.x - editorMoveStartWorld.x),
-      dz: editorMoveOrigTransform.dz + (cur.z - editorMoveStartWorld.z)
-    };
-    drawEditorCanvas();
-    return;
-  }
-  const {px,py} = editorPixelFromEvent(e);
-  if(editorDragLast){
-    const dx = px - editorDragLast.px, dy = py - editorDragLast.py;
-    editorCamAzimuth -= dx*0.008;
-    editorCamElevation = Math.max(0.18, Math.min(1.45, editorCamElevation - dy*0.006));
-    updateEditorCamera();
-    renderEditorFrame();
-  }
-  editorDragLast = { px, py };
-}
-function editorPointerUp(e){
-  // A "tap" (barely any movement since pointerdown) with a piece armed
-  // places it right there — a drag (orbiting the camera or moving the
-  // track) never does, so looking around doesn't accidentally drop pieces.
-  if(editorArmedPieceId && editorPointerMovedDist < EDITOR_TAP_MAX_DIST && e.clientX != null){
-    const { px, py } = editorPixelFromEvent(e);
-    placeArmedPieceAt(px, py);
-  }
-  editorDragActive = false;
-  editorDragLast = null;
-  editorMoveStartWorld = null;
-  editorMoveOrigTransform = null;
-  editorPointerDownPixel = null;
-  editorPointerMovedDist = 0;
-  const canvas = $('editorCanvas');
-  if(canvas){ canvas.classList.remove('dragging'); canvas.style.cursor = editorArmedPieceId ? 'crosshair' : (editorMode==='move' ? 'move' : 'grab'); }
-}
-
-function renderCustomTrackList(){
-  const wrap = $('editorTrackList');
-  if(!wrap) return;
-  if(customTracks.length === 0){
-    wrap.innerHTML = '<p class="stageMeta">No custom tracks yet — build one above and save it.</p>';
-    return;
-  }
-  wrap.innerHTML = '';
-  customTracks.forEach(ct=>{
-    const row = document.createElement('div');
-    row.className = 'customTrackRow';
-    const info = document.createElement('span');
-    info.innerHTML = '<strong>' + escapeHtml(ct.name) + '</strong> <span class="stageMeta">(' + (ct.pieces ? ct.pieces.length + ' pieces' : ct.points.length + ' points') + ' &middot; ' + ct.laps + ' laps)</span>';
-    const btns = document.createElement('div');
-    btns.className = 'customTrackBtns';
-    const raceBtn = document.createElement('button');
-    raceBtn.type = 'button'; raceBtn.className = 'btn'; raceBtn.style.background = 'var(--good)'; raceBtn.textContent = '\uD83C\uDFC1 Race';
-    raceBtn.addEventListener('click', ()=>{
-      const idx = STAGES.findIndex(s => s.customId === ct.id);
-      if(idx !== -1){ selectedStage = idx; startRace(idx); }
-    });
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button'; editBtn.className = 'btn secondary'; editBtn.textContent = 'Edit';
-    editBtn.addEventListener('click', ()=> openEditorForEdit(ct.id));
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button'; delBtn.className = 'btn danger'; delBtn.textContent = 'Delete';
-    delBtn.addEventListener('click', ()=>{
-      if(confirm('Delete "' + ct.name + '"? This can\u2019t be undone.')) deleteCustomTrack(ct.id);
-    });
-    btns.appendChild(raceBtn); btns.appendChild(editBtn); btns.appendChild(delBtn);
-    row.appendChild(info); row.appendChild(btns);
-    wrap.appendChild(row);
-  });
-}
-
-function openEditorForNew(){
-  editingCustomId = null;
-  editorPieces = [];
-  editorFreePieces = [];
-  editorActionStack = [];
-  editorArmedPieceId = null;
-  editorTransform = { dx:0, dz:0, rot:0 };
-  editorCamAzimuth = Math.PI*0.78; editorCamElevation = 0.85; editorCamDistance = 210;
-  setEditorMode('orbit');
-  $('editorSettingsOverlay').hidden = true;
-  $('editorHintPanel').hidden = true;
-  $('editorHintBtn').setAttribute('aria-expanded', 'false');
-  $('editorScreenTitle').textContent = 'Track Editor \u2014 New Track';
-  $('editorNameInput').value = '';
-  $('editorThemeSelect').value = 'oval';
-  $('editorWeatherSelect').value = 'clear';
-  $('editorDifficultySelect').value = '2';
-  $('editorLapsInput').value = DEFAULT_LAPS;
-  $('editorWidthInput').value = TRACK_WIDTH;
-  editorSetMsg('');
-  drawEditorCanvas();
-  renderCustomTrackList();
-}
-function openEditorForEdit(id){
-  const ct = customTracks.find(c=>c.id===id);
-  if(!ct) return;
-  editingCustomId = id;
-  editorTransform = ct.transform ? { ...ct.transform } : { dx:0, dz:0, rot:0 };
-  editorFreePieces = Array.isArray(ct.freePieces) ? ct.freePieces.map(fp=>({ ...fp })) : [];
-  editorActionStack = [];
-  editorArmedPieceId = null;
-  setEditorMode('orbit');
-  $('editorSettingsOverlay').hidden = true;
-  $('editorHintPanel').hidden = true;
-  $('editorHintBtn').setAttribute('aria-expanded', 'false');
-  if(Array.isArray(ct.pieces) && ct.pieces.length){
-    editorPieces = ct.pieces.slice();
-    editorSetMsg('');
-  } else {
-    // Pre-dates the piece editor (or was hand-drawn) — its exact shape
-    // can't be reconstructed from pieces, so start a fresh chain. The
-    // original track is untouched in your track list until you Save here.
-    editorPieces = [];
-    editorSetMsg('This track was drawn freehand — place pieces below to rebuild it; saving will replace its old shape.');
-  }
-  $('editorScreenTitle').textContent = 'Track Editor \u2014 Editing "' + ct.name + '"';
-  $('editorNameInput').value = ct.name;
-  $('editorThemeSelect').value = ct.theme || 'oval';
-  $('editorWeatherSelect').value = ct.weather || 'clear';
-  $('editorDifficultySelect').value = String(ct.difficulty || 2);
-  $('editorLapsInput').value = ct.laps || DEFAULT_LAPS;
-  $('editorWidthInput').value = ct.width || TRACK_WIDTH;
-  drawEditorCanvas();
-  renderCustomTrackList();
-  showScreen('editor');
-}
-
-// True when the piece chain (or transform) hasn't been written to
-// `customTracks` yet — used to warn before New Track / Back discard it.
-function editorHasUnsavedWork(){
-  if(editorPieces.length === 0 && editorFreePieces.length === 0) return false;
-  if(!editingCustomId) return true; // a fresh, never-saved build
-  const ct = customTracks.find(c=>c.id===editingCustomId);
-  if(!ct) return true;
-  const savedPieces = Array.isArray(ct.pieces) ? ct.pieces : [];
-  if(savedPieces.length !== editorPieces.length) return true;
-  if(savedPieces.some((id,i)=> id !== editorPieces[i])) return true;
-  const savedFree = Array.isArray(ct.freePieces) ? ct.freePieces : [];
-  if(savedFree.length !== editorFreePieces.length) return true;
-  if(savedFree.some((fp,i)=> fp.id !== editorFreePieces[i].id || fp.x !== editorFreePieces[i].x || fp.z !== editorFreePieces[i].z)) return true;
-  const savedT = ct.transform || { dx:0, dz:0, rot:0 };
-  return savedT.dx !== editorTransform.dx || savedT.dz !== editorTransform.dz || savedT.rot !== editorTransform.rot;
-}
-
-// Writes the current piece-built track into `customTracks` and rebuilds
-// STAGES (so it shows up in the on-screen track list / stage grid
-// immediately). Returns the saved track object, or null if there aren't
-// enough pieces yet (a message is shown in that case). The loop no longer
-// has to be closed to save — an open track is stored with `openEnd: true`
-// and stays fully driveable at its end (no wall), unless the closing
-// stretch overlaps another part of the track at a different height, in
-// which case a wall goes up there instead (see buildTrack() /
-// applyEndWall()). Shared by Save Track, Save & Test Drive, and New Track
-// (which auto-saves before clearing).
-function persistCurrentEditorTrack(){
-  const status = editorLoopStatus();
-  if(editorPieces.length < EDITOR_MIN_PIECES){
-    editorSetMsg('Add at least ' + EDITOR_MIN_PIECES + ' pieces before saving.');
-    return null;
-  }
-  const openEnd = !status.closed;
-  const rawName = ($('editorNameInput').value || '').trim().slice(0,40);
-  let name = rawName || ('Custom Track ' + (customTracks.length + 1));
-  const collides = STAGES.some(s => s.name === name && s.customId !== editingCustomId);
-  if(collides) name = name + ' ' + String(Date.now()).slice(-4);
-
-  const theme = $('editorThemeSelect').value;
-  const weather = $('editorWeatherSelect').value;
-  const difficulty = Math.max(1, Math.min(6, parseInt($('editorDifficultySelect').value,10) || 2));
-  const laps = Math.max(2, Math.min(8, parseInt($('editorLapsInput').value,10) || DEFAULT_LAPS));
-  const width = Math.max(14, Math.min(30, parseInt($('editorWidthInput').value,10) || TRACK_WIDTH));
-  const worldPoints = applyEditorTransform(status.chain.points, editorTransform);
-  // Saved as [x,y,z] triples so elevation survives the round trip. Older
-  // saved tracks used [x,z] pairs — resampleCustomCenterline() below still
-  // reads those fine (treating them as flat, y=0).
-  const points = worldPoints.map(p => [Math.round(p.x*100)/100, Math.round((p.y||0)*100)/100, Math.round(p.z*100)/100]);
-  const pieces = editorPieces.slice();
-  const transform = { ...editorTransform };
-  // Loose/disconnected pieces are decorative — not part of the driveable
-  // `points` centerline above — but they're saved alongside it so they're
-  // still there, exactly where dropped, next time this track is opened.
-  const freePieces = editorFreePieces.map(fp=>({ ...fp }));
-
-  let savedId = editingCustomId;
-  let ct = null;
-  if(editingCustomId){
-    ct = customTracks.find(c=>c.id===editingCustomId);
-    if(ct) Object.assign(ct, { name, theme, weather, difficulty, laps, width, points, pieces, freePieces, transform, openEnd });
-    else { savedId = null; }
-  }
-  if(!savedId){
-    savedId = 'ct_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    ct = { id: savedId, name, theme, weather, difficulty, laps, width, points, pieces, freePieces, transform, openEnd };
-    customTracks.push(ct);
-  }
-  saveCustomTracksToStorage();
-  rebuildStagesFromCustomTracks();
-  editingCustomId = savedId;
-  $('editorScreenTitle').textContent = 'Track Editor \u2014 Editing "' + name + '"';
-  renderCustomTrackList();
-  renderStageGrid();
-  return ct;
-}
-
-// Saves the current build (see persistCurrentEditorTrack above). Returns
-// the STAGES index of the saved track, or -1 if validation failed. When
-// `raceAfter` is true, jumps straight into a real 3D race on the track that
-// was just saved instead of returning home.
-function saveCustomTrack(raceAfter){
-  const ct = persistCurrentEditorTrack();
-  if(!ct) return -1;
-  const idx = STAGES.findIndex(s => s.customId === ct.id);
-  if(raceAfter && idx !== -1){
-    selectedStage = idx;
-    startRace(idx); // startRace() switches to the game screen itself
-    return idx;
-  }
-  editorSetMsg(ct.openEnd ? 'Track saved — it\'s a point-to-point track, the gap is walled off at the end!' : 'Track saved!');
-  if(editorMsgTimer) clearTimeout(editorMsgTimer);
-  editorMsgTimer = setTimeout(()=>{ showScreen('home'); }, 700);
-  return idx;
-}
-
-// Deleting a custom track shifts every later custom track's STAGES index
-// down by one to fill the gap — best-lap records and name overrides (both
-// keyed by that numeric index) are shifted along with it so they stay
-// attached to the right track instead of leaking onto its new neighbor.
-function deleteCustomTrack(id){
-  const pos = customTracks.findIndex(c=>c.id===id);
-  if(pos === -1) return;
-  const stageIdx = BUILTIN_STAGE_COUNT + pos;
-  const oldLastIdx = BUILTIN_STAGE_COUNT + customTracks.length - 1;
-  customTracks.splice(pos,1);
-  for(let i=stageIdx; i<oldLastIdx; i++){
-    if(gameState.bestLaps[i+1] !== undefined) gameState.bestLaps[i] = gameState.bestLaps[i+1];
-    else delete gameState.bestLaps[i];
-    if(trackNameOverrides[i+1] !== undefined) trackNameOverrides[i] = trackNameOverrides[i+1];
-    else delete trackNameOverrides[i];
-  }
-  delete gameState.bestLaps[oldLastIdx];
-  delete trackNameOverrides[oldLastIdx];
-  saveState();
-  saveTrackNameOverrides();
-  saveCustomTracksToStorage();
-  rebuildStagesFromCustomTracks();
-  if(selectedStage >= STAGES.length) selectedStage = 0;
-  if(editingCustomId === id) openEditorForNew();
-  renderCustomTrackList();
-  renderStageGrid();
-}
-
-// Packages a track object into a full, self-contained, playable copy of
-// this game: it's just this same page's current HTML, with one small
-// script spliced in right after the normal loadCustomTracks() call,
-// pre-registering this track so it's sitting in the Custom Tracks list the
-// moment the downloaded file is opened. No server, no build step — the
-// file you get is literally something you can double-click and play.
-//
-// We're exporting mid-session — usually from right inside the editor — so
-// the live DOM has the editor screen (and possibly an overlay) visible and
-// everything else hidden. init()/showScreen() normally correct that on
-// load, but that depends on the CDN scripts (three.js etc.) loading
-// successfully; if that ever fails (offline, blocked CDN, ad-blocker...),
-// init() throws before it gets that far and the file is stuck showing
-// whatever screen happened to be open at export time — a frozen editor
-// view rather than the game. So we bake the correct starting screen/overlay
-// state into the snapshot itself, rather than relying on JS to fix it up.
-function buildPlayableExport(track){
-  const clone = document.documentElement.cloneNode(true);
-  clone.querySelectorAll('.screen').forEach(s=>{ s.hidden = (s.id !== 'homeScreen'); });
-  clone.querySelectorAll('.overlay').forEach(o=>{ o.hidden = true; });
-  const html = '<!DOCTYPE html>\n' + clone.outerHTML;
-  const marker = 'loadCustomTracks();';
-  const idx = html.indexOf(marker);
-  if(idx === -1) return html; // fallback: still a complete, playable copy of the game
-  const safeJson = JSON.stringify(track).replace(/<\//g, '<\\/');
-  const embed = marker +
-    '\ntry{ var __exportedTrack = ' + safeJson + '; ' +
-    'if(!customTracks.some(function(c){return c.id===__exportedTrack.id;})){ customTracks.push(__exportedTrack); saveCustomTracksToStorage(); } ' +
-    'rebuildStagesFromCustomTracks(); }catch(e){}';
-  return html.slice(0, idx) + embed + html.slice(idx + marker.length);
-}
-function downloadPlayableTrack(track){
-  const html = buildPlayableExport(track);
-  const blob = new Blob([html], { type:'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = (track.name || 'custom-track').replace(/[^a-z0-9\-_]+/gi,'_').slice(0,60) + '.html';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(()=> URL.revokeObjectURL(url), 4000);
-}
-
-
-$('openEditorBtn').addEventListener('click', ()=>{ openEditorForNew(); showScreen('editor'); });
-$('editorThemeSelect').addEventListener('change', onEditorThemeChange);
-$('editorBackBtn').addEventListener('click', ()=>{
-  if(editorHasUnsavedWork() && !confirm('Leave without saving? Your unsaved changes to this track will be lost.')) return;
-  showScreen('home');
-});
-$('editorNewBtn').addEventListener('click', ()=>{
-  // Whatever's currently built is saved into the track list first — so it
-  // shows up on the home screen / track list right away and you can race
-  // it — and a playable standalone copy is downloaded too — but only if
-  // there are enough pieces to save at all (closed or open); otherwise
-  // it's simply discarded, same as Clear All, since a barely-started track
-  // can't be raced anyway.
-  if(editorPieces.length >= EDITOR_MIN_PIECES){
-    const ct = persistCurrentEditorTrack();
-    if(ct){
-      editorSetMsg('Saved \u201c' + ct.name + '\u201d to your track list \u2014 downloading a playable copy\u2026');
-      downloadPlayableTrack(ct);
-    }
-  }
-  openEditorForNew();
-});
-$('editorUndoBtn').addEventListener('click', ()=>{
-  // Undo removes whichever was placed most recently — a connected chain
-  // piece or a loose dropped one — so the two placement modes share one
-  // predictable undo history.
-  const last = editorActionStack.pop();
-  if(last === 'free') editorFreePieces.pop();
-  else if(last === 'chain') editorPieces.pop();
-  else { editorPieces.pop(); } // fallback for any pre-existing state with no stack entries
-  editorSetMsg('');
-  drawEditorCanvas();
-});
-$('editorClearBtn').addEventListener('click', ()=>{
-  if((editorPieces.length || editorFreePieces.length) && !confirm('Clear all pieces?')) return;
-  editorPieces = []; editorFreePieces = []; editorActionStack = [];
-  editorArmedPieceId = null; updateArmedPieceUI();
-  editorTransform = { dx:0, dz:0, rot:0 }; editorSetMsg(''); drawEditorCanvas();
-});
-$('editorSaveBtn').addEventListener('click', ()=> saveCustomTrack(false));
-$('editorTestBtn').addEventListener('click', ()=> saveCustomTrack(true));
-$('editorRotateLeftBtn').addEventListener('click', ()=> editorRotate(-Math.PI/6));
-$('editorRotateRightBtn').addEventListener('click', ()=> editorRotate(Math.PI/6));
-$('editorMoveModeBtn').addEventListener('click', ()=> setEditorMode(editorMode==='move' ? 'orbit' : 'move'));
-$('editorRotateTrackLeftBtn').addEventListener('click', ()=> rotateTrackPoints(-Math.PI/12));
-$('editorRotateTrackRightBtn').addEventListener('click', ()=> rotateTrackPoints(Math.PI/12));
-$('editorSettingsBtn').addEventListener('click', ()=>{ $('editorSettingsOverlay').hidden = false; });
-$('editorSettingsCloseBtn').addEventListener('click', ()=>{ $('editorSettingsOverlay').hidden = true; });
-$('editorHintBtn').addEventListener('click', ()=>{
-  const panel = $('editorHintPanel');
-  const show = panel.hidden;
-  panel.hidden = !show;
-  $('editorHintBtn').setAttribute('aria-expanded', String(show));
-});
-(function initEditorCanvas(){
-  const canvas = $('editorCanvas');
-  if(!canvas) return;
-  canvas.addEventListener('pointerdown', editorPointerDown);
-  canvas.addEventListener('pointermove', editorPointerMove);
-  canvas.addEventListener('pointerup', editorPointerUp);
-  canvas.addEventListener('pointercancel', editorPointerUp);
-  canvas.addEventListener('wheel', (e)=>{ e.preventDefault(); editorZoom(e.deltaY*0.4); }, { passive:false });
-})();
-
 
 /* ---------- Championship screen ---------- */
 function renderCircuitScreen(){
@@ -4844,7 +3464,7 @@ let currentSkyDome = null;
 let propColliders = [];
 let cars = [];
 let player = null;
-let track = null; // {points, normals, N, width, wallIndex, wallPos, wallDir, wallNormal} — wall* are null on closed-loop tracks
+let track = null; // {points, normals, N, width}
 let raceClock = 0;
 let countdown = 0;
 // Current stage's weather condition (see WEATHER_DEFS) — set in startRace(),
@@ -5086,29 +3706,7 @@ function genFoggyMansion(N){
   }
   return pts;
 }
-// Resamples a player-drawn point list (from the Track Editor) into N evenly
-// spaced points around a smooth closed loop, via a closed Catmull-Rom spline
-// through the raw anchor points — same output shape as the procedural
-// gen* functions below, so it drops straight into the rest of buildTrack.
-// Array points are [x,y,z] (new saves — real elevation) or the older [x,z]
-// pairs (treated as flat, y=0) for backward compatibility with tracks saved
-// before the editor supported hills. Object points (the editor's own live
-// {x,y,z} anchors) carry y directly. Shared by resampleCustomCenterline and
-// the open-track end-wall placement in buildTrack().
-function customPointToVec3(p){
-  return Array.isArray(p)
-    ? (p.length > 2 ? new THREE.Vector3(p[0], p[1], p[2]) : new THREE.Vector3(p[0], 0, p[1]))
-    : new THREE.Vector3(p.x, p.y||0, p.z);
-}
-function resampleCustomCenterline(rawPoints, N){
-  const anchors = rawPoints.map(customPointToVec3);
-  const curve = new THREE.CatmullRomCurve3(anchors, true, 'catmullrom', 0.5);
-  // getSpacedPoints(N) returns N+1 points (evenly spaced by arc length) for
-  // a closed curve, with the last point duplicating the first — trim it.
-  return curve.getSpacedPoints(N).slice(0, N);
-}
-function generateCenterline(type, N, customPoints){
-  if(customPoints && customPoints.length >= 3) return resampleCustomCenterline(customPoints, N);
+function generateCenterline(type, N){
   if(type==='oval') return genOval(N);
   if(type==='stadium') return genStadium(N);
   if(type==='iceRibbon') return genIceRibbon(N);
@@ -6120,44 +4718,10 @@ function buildTrack(stageIndex){
   const stage = STAGES[stageIndex];
   const theme = SCENERY_THEMES[stage.type] || SCENERY_THEMES.oval;
   const trackWidth = stage.width || TRACK_WIDTH;
-  const rawPoints = generateCenterline(stage.type, N_POINTS, stage.customPoints);
+  const rawPoints = generateCenterline(stage.type, N_POINTS);
   const points = relaxCenterlineForWidth(rawPoints, trackWidth);
-  const { tangents, normals } = computeTangentsNormals(points);
+  const { normals } = computeTangentsNormals(points);
   const half = trackWidth/2;
-
-  // Open custom tracks (built in the editor without closing the loop back
-  // to the start gate) still get a full closed centerline under the hood —
-  // see resampleCustomCenterline() — so nothing else here has to change.
-  // The stretch that closes the gap is a synthetic spline connector, not a
-  // real piece of the track: it was never traced/validated the way real
-  // pieces are (see pieceGoesUnderground in the editor), so nothing stops
-  // it from dipping below ground or drifting far off the intended route
-  // between the track's true end and the start gate. So a wall always goes
-  // right at the real track's true end (wallIndex) for any open track —
-  // not just when the synthetic stretch happens to overlap another part of
-  // the real track (a bridge/overpass) — closing off that unvalidated
-  // stretch entirely. Search only a window around where that end point is
-  // expected to fall (by anchor order) rather than the whole track, so a
-  // self-crossing custom track can't accidentally match some other, nearer
-  // strand instead of its own true end.
-  let wallIndex = null;
-  if(stage.openEnd && stage.customPoints && stage.customPoints.length >= 2){
-    const endVec = customPointToVec3(stage.customPoints[stage.customPoints.length-1]);
-    const rawCount = stage.customPoints.length;
-    const estIdx = Math.round(((rawCount-1)/rawCount) * N_POINTS) % N_POINTS;
-    const searchWindow = Math.max(10, Math.round(N_POINTS*0.15));
-    let bestIdx = estIdx, bestDistSq = Infinity;
-    for(let d=-searchWindow; d<=searchWindow; d++){
-      const i = ((estIdx+d)%N_POINTS+N_POINTS)%N_POINTS;
-      const dx = points[i].x-endVec.x, dz = points[i].z-endVec.z;
-      const distSq = dx*dx+dz*dz;
-      if(distSq < bestDistSq){ bestDistSq = distSq; bestIdx = i; }
-    }
-    wallIndex = bestIdx;
-  }
-  const wallPos = wallIndex!=null ? points[wallIndex].clone() : null;
-  const wallDir = wallIndex!=null ? tangents[wallIndex].clone() : null;
-  const wallNormal = wallIndex!=null ? normals[wallIndex].clone() : null;
   const left = points.map((p,i)=> new THREE.Vector3().addVectors(p, normals[i].clone().multiplyScalar(half)));
   const right = points.map((p,i)=> new THREE.Vector3().addVectors(p, normals[i].clone().multiplyScalar(-half)));
 
@@ -6404,7 +4968,7 @@ function buildTrack(stageIndex){
 
   group.add(buildFinishLine(points, normals, trackWidth));
 
-  return { group, points, normals, width: trackWidth, N, ocean, skyDome, colliders, wallIndex, wallPos, wallDir, wallNormal };
+  return { group, points, normals, width: trackWidth, N, ocean, skyDome, colliders };
 }
 
 /* ---------- Finish line ---------- */
@@ -7657,7 +6221,7 @@ const Online = {
     const room = {
       roomId: this.myId + '-' + Date.now(),
       hostId: this.myId,
-      stageIndex: Math.floor(Math.random()*BUILTIN_STAGE_COUNT), // custom tracks are local-only, never picked online
+      stageIndex: Math.floor(Math.random()*STAGES.length),
       startInMs: 5000,
       players: this.roster.slice(0,4)
     };
@@ -8630,40 +7194,34 @@ function findNearestIndex(car){
   }
   let bestDist = Math.min.apply(null, candidates.map(c=>c.dist));
   // The windowed search above only looks near the car's last known index,
-  // so it stays locked onto the right strand during normal driving even
-  // where a self-crossing custom track overlaps itself elsewhere. But after
-  // a big position jump (spawn, race reset, network resync, a wall shove
-  // that lands the car far from its last index) the window can be anchored
-  // on the wrong stretch entirely and never find anything plausibly close.
-  // That used to leave trackIndex stale, which then tripped applyBoundary's
-  // own sanity guard (SANITY_RANGE) and made it skip the boundary check for
-  // that frame — i.e. the boundary silently "went missing". Falling back to
-  // a full scan re-locks onto the true nearest point instead, so the
-  // boundary check has an accurate index to work from.
+  // so it stays locked onto the right stretch of track during normal
+  // driving. But after a big position jump (spawn, race reset, network
+  // resync, a wall shove that lands the car far from its last index) the
+  // window can be anchored on the wrong stretch entirely and never find
+  // anything plausibly close. That used to leave trackIndex stale, which
+  // then tripped applyBoundary's own sanity guard (SANITY_RANGE) and made
+  // it skip the boundary check for that frame — i.e. the boundary silently
+  // "went missing". Falling back to a full scan re-locks onto the true
+  // nearest point instead, so the boundary check has an accurate index to
+  // work from.
   const FALLBACK_RANGE = (track.width || TRACK_WIDTH) * 6 + 80;
   if(bestDist > FALLBACK_RANGE*FALLBACK_RANGE){
     candidates = [];
     for(let i=0;i<N;i++) candidates.push({ idx:i, dist: car.pos.distanceToSquared(track.points[i]) });
     bestDist = Math.min.apply(null, candidates.map(c=>c.dist));
   }
-  // Custom tracks are explicitly allowed to cross/loop back near themselves
-  // (see editorPieceCollides — self-crossing is a permanent no-op there),
-  // and a hairpin or a loop that swings back close to an earlier stretch
-  // can easily put two UNRELATED strands within a few world units of each
-  // other, sometimes even inside this same index window. Picking whichever
-  // raw point happens to be a hair closer, as before, can silently snap
-  // trackIndex onto a strand the car isn't actually driving on — and
-  // applyBoundary then measures the car against that wrong strand's edge,
-  // producing a "wall" that has nothing to do with the road visibly under
-  // the car (reported as invisible walls appearing anywhere — straights,
-  // hairpins, hills, piece joins, crossings — since it depends only on
-  // where in the track layout two strands happen to run close together,
-  // not on any single piece type).
+  // On tight, wiggly tracks (switchback/canyon/serpent/neonSerpent) two
+  // unrelated stretches of the same track can still run close to each
+  // other in world space, sometimes even within this same index window.
+  // Picking whichever raw point happens to be a hair closer can silently
+  // snap trackIndex onto the wrong stretch — and applyBoundary then
+  // measures the car against that wrong stretch's edge, producing a
+  // "wall" that has nothing to do with the road visibly under the car.
   // Break near-ties by heading: among every candidate within one track-width
   // of the true closest distance, prefer whichever one's tangent direction
-  // best matches the direction the car is actually pointed. The strand the
+  // best matches the direction the car is actually pointed. The stretch the
   // car is really on should run roughly parallel to its own heading; an
-  // unrelated nearby strand usually won't.
+  // unrelated nearby stretch usually won't.
   const half = (track.width || TRACK_WIDTH) / 2;
   const tieRadius = Math.sqrt(bestDist) + half;
   const tieRadiusSq = tieRadius*tieRadius;
@@ -8916,11 +7474,12 @@ function applyBoundary(car, dt){
 
   // Guard against the old "wall out of nowhere" bug: findNearestIndex()
   // only searches a small window around the car's last known index, so it
-  // stays locked onto the strand the car is actually on even where a
-  // self-crossing custom track overlaps itself elsewhere — but if it ever
-  // does resolve to a point that isn't plausibly close to the car (e.g.
-  // right after a big position jump), skip the clamp for this frame rather
-  // than snapping the car toward a wall nowhere near where it visually is.
+  // stays locked onto the stretch the car is actually on even on tight,
+  // self-overlapping track shapes (switchback/canyon/serpent) — but if it
+  // ever does resolve to a point that isn't plausibly close to the car
+  // (e.g. right after a big position jump), skip the clamp for this frame
+  // rather than snapping the car toward a wall nowhere near where it
+  // visually is.
   const SANITY_RANGE = half + 40;
   if(dx*dx + dz*dz > SANITY_RANGE*SANITY_RANGE) return;
 
@@ -8972,51 +7531,6 @@ function applyBoundary(car, dt){
   if(!wasTouching){
     giveCrashBoost(car);
   }
-}
-
-// Open tracks (built in the editor without closing the loop) still get a
-// full closed centerline internally (see buildTrack's wallIndex comment),
-// but that closing stretch is a synthetic spline, never traced/validated
-// like a real piece — so it's walled off at the track's true end (wallIndex)
-// for every open track, not just ones with a stacked bridge/overpass. Acts
-// like any other wall hit: hard stop, crash boost on first contact. Only
-// checks near the wall itself (both a distance cap and a lateral-offset
-// cap) so it can never trigger somewhere else on the track, including a
-// strand that happens to cross near the wall on a self-crossing custom
-// track.
-function applyEndWall(car){
-  if(!track || track.wallIndex == null) return;
-  if(gameState.noclipWalls && car.isPlayer) return;
-  const wasTouching = car.touchingEndWall;
-  const wallPos = track.wallPos, wallDir = track.wallDir, wallNormal = track.wallNormal;
-  const half = (track.width || TRACK_WIDTH) / 2;
-
-  const ddx = car.pos.x-wallPos.x, ddz = car.pos.z-wallPos.z;
-  if(ddx*ddx + ddz*ddz > 3600){ car.touchingEndWall = false; return; } // ~60 units — nowhere near the wall
-
-  const forward = forwardVec(car.heading);
-  const right = { x: forward.z, z: -forward.x };
-  const hl = CAR_HALF_LENGTH, hw = CAR_HALF_WIDTH;
-  const cornerSigns = [[1,1],[1,-1],[-1,1],[-1,-1]];
-  let maxOver = -Infinity;
-  for(const [fl, fw] of cornerSigns){
-    const cx = car.pos.x + forward.x*hl*fl + right.x*hw*fw;
-    const cz = car.pos.z + forward.z*hl*fl + right.z*hw*fw;
-    const along = (cx-wallPos.x)*wallDir.x + (cz-wallPos.z)*wallDir.z;
-    if(along > maxOver) maxOver = along;
-  }
-  if(maxOver <= 0){ car.touchingEndWall = false; return; }
-
-  const lateral = (car.pos.x-wallPos.x)*wallNormal.x + (car.pos.z-wallPos.z)*wallNormal.z;
-  if(Math.abs(lateral) > half + 8){ car.touchingEndWall = false; return; }
-
-  car.pos.x -= wallDir.x * maxOver;
-  car.pos.z -= wallDir.z * maxOver;
-  car.touchingWall = true;
-  car.touchingEndWall = true;
-  car.wallOffTime = 0;
-  car.speed = 0;
-  if(!wasTouching) giveCrashBoost(car);
 }
 
 const BOOST_LIGHT_INTENSITY = 2.6;
@@ -9376,7 +7890,6 @@ function updateCar(car, dt){
   car.pos.y += (groundY - car.pos.y) * Math.min(1, dt*8);
   applyBoundary(car, dt);
   applyPropCollisions(car);
-  applyEndWall(car);
 
   // Lap detection. A crossing only counts once the car has genuinely been
   // out around the track (past the midpoint) since the last time it counted —
