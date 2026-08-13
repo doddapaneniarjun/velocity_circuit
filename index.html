@@ -3300,7 +3300,7 @@ const EDITOR_MIN_PIECES = 6;
 const EDITOR_MAX_PIECES = Infinity;   // no cap on how many pieces a track can have
 const EDITOR_CLOSE_DIST = 40;    // world units — how close the end must get to the start gate
 const EDITOR_CLOSE_ANGLE = Math.PI*0.30; // ~54° — how closely the end must face the start heading
-const EDITOR_CLOSE_HEIGHT = 4;   // world units — how close the end must get to the start's height
+const EDITOR_CLOSE_HEIGHT = 0.5; // world units — how close the end must get to the start's height. A "closed" loop gets NO end wall (see buildTrack's wallIndex), so this has to be tight enough that the seam connecting the two can't dip meaningfully below ground — a looser tolerance here would leave a walled-off gap.
 const EDITOR_SELF_CLEARANCE_PAD = 6;     // extra margin (world units) added to track width for the self-cross check
 const EDITOR_SNAP_DIST = 20;     // world units — tapping this close to the track's current end still connects it normally
 
@@ -5105,21 +5105,7 @@ function resampleCustomCenterline(rawPoints, N){
   const curve = new THREE.CatmullRomCurve3(anchors, true, 'catmullrom', 0.5);
   // getSpacedPoints(N) returns N+1 points (evenly spaced by arc length) for
   // a closed curve, with the last point duplicating the first — trim it.
-  const pts = curve.getSpacedPoints(N).slice(0, N);
-  // Defensive floor. Pieces placed in the editor are already checked
-  // against dipping below ground (see pieceGoesUnderground), and an open
-  // track's synthetic closing stretch is now walled off entirely (see
-  // buildTrack's wallIndex) — but a "closed" loop only has to land within
-  // EDITOR_CLOSE_HEIGHT of the start gate's height, not exactly at it, and
-  // that curve is ALWAYS built as a closed spline here regardless of
-  // openEnd, so the stretch bridging that leftover height gap is normal,
-  // driveable track with no wall on a closed loop. Catmull-Rom curves can
-  // also overshoot past their own anchor points' y-values on top of that.
-  // Clamping every resampled point to ground level here is the last line
-  // of defense so no custom track — open or closed — can ever dip a car
-  // below ground.
-  pts.forEach(p=>{ if(p.y < 0) p.y = 0; });
-  return pts;
+  return curve.getSpacedPoints(N).slice(0, N);
 }
 function generateCenterline(type, N, customPoints){
   if(customPoints && customPoints.length >= 3) return resampleCustomCenterline(customPoints, N);
