@@ -8620,13 +8620,15 @@ function startRace(stageIndex, onlineRoom){
 /* ---------- Physics update ---------- */
 function findNearestIndex(car){
   const N = track.N;
-  let bestIdx = car.trackIndex, bestDist = Infinity;
   const window_ = 20;
+  // Collect every candidate in the search window (not just the single
+  // closest one) so ties/near-ties can be disambiguated below.
+  let candidates = [];
   for(let d=-window_; d<=window_; d++){
     const idx = ((car.trackIndex + d) % N + N) % N;
-    const dist = car.pos.distanceToSquared(track.points[idx]);
-    if(dist < bestDist){ bestDist = dist; bestIdx = idx; }
+    candidates.push({ idx, dist: car.pos.distanceToSquared(track.points[idx]) });
   }
+  let bestDist = Math.min.apply(null, candidates.map(c=>c.dist));
   // The windowed search above only looks near the car's last known index,
   // so it stays locked onto the right strand during normal driving even
   // where a self-crossing custom track overlaps itself elsewhere. But after
@@ -8640,11 +8642,41 @@ function findNearestIndex(car){
   // boundary check has an accurate index to work from.
   const FALLBACK_RANGE = (track.width || TRACK_WIDTH) * 6 + 80;
   if(bestDist > FALLBACK_RANGE*FALLBACK_RANGE){
-    for(let i=0;i<N;i++){
-      const dist = car.pos.distanceToSquared(track.points[i]);
-      if(dist < bestDist){ bestDist = dist; bestIdx = i; }
-    }
+    candidates = [];
+    for(let i=0;i<N;i++) candidates.push({ idx:i, dist: car.pos.distanceToSquared(track.points[i]) });
+    bestDist = Math.min.apply(null, candidates.map(c=>c.dist));
   }
+  // Custom tracks are explicitly allowed to cross/loop back near themselves
+  // (see editorPieceCollides — self-crossing is a permanent no-op there),
+  // and a hairpin or a loop that swings back close to an earlier stretch
+  // can easily put two UNRELATED strands within a few world units of each
+  // other, sometimes even inside this same index window. Picking whichever
+  // raw point happens to be a hair closer, as before, can silently snap
+  // trackIndex onto a strand the car isn't actually driving on — and
+  // applyBoundary then measures the car against that wrong strand's edge,
+  // producing a "wall" that has nothing to do with the road visibly under
+  // the car (reported as invisible walls appearing anywhere — straights,
+  // hairpins, hills, piece joins, crossings — since it depends only on
+  // where in the track layout two strands happen to run close together,
+  // not on any single piece type).
+  // Break near-ties by heading: among every candidate within one track-width
+  // of the true closest distance, prefer whichever one's tangent direction
+  // best matches the direction the car is actually pointed. The strand the
+  // car is really on should run roughly parallel to its own heading; an
+  // unrelated nearby strand usually won't.
+  const half = (track.width || TRACK_WIDTH) / 2;
+  const tieRadius = Math.sqrt(bestDist) + half;
+  const tieRadiusSq = tieRadius*tieRadius;
+  const forward = forwardVec(car.heading);
+  let bestIdx = candidates[0].idx, bestScore = -Infinity;
+  candidates.forEach(c=>{
+    if(c.dist > tieRadiusSq) return;
+    const n = track.normals[c.idx];
+    const tx = -n.z, tz = n.x; // tangent, derived from the stored normal
+    const align = Math.abs(tx*forward.x + tz*forward.z); // 1 = parallel, 0 = perpendicular
+    const score = align*1e6 - c.dist; // heading match dominates; distance only breaks remaining ties
+    if(score > bestScore){ bestScore = score; bestIdx = c.idx; }
+  });
   return bestIdx;
 }
 
